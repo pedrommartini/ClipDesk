@@ -1,0 +1,10 @@
+bin/
+obj/
+.vs/
+.sites-runtime/
+.netlify/
+landing/download/
+*.user
+*.suo
+*.log
+*.lnk

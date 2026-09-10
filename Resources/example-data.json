@@ -1,0 +1,22 @@
+[
+  {
+    "Id": "sample_text",
+    "Type": "Text",
+    "DisplayName": "NOTE_Ideas",
+    "Text": "Ideias temporarias do ClipDesk ficam aqui.",
+    "FilePaths": [],
+    "X": 210,
+    "Y": 420,
+    "CreatedAt": "2026-06-30T13:00:00"
+  },
+  {
+    "Id": "sample_link",
+    "Type": "Link",
+    "DisplayName": "LINK_Project",
+    "Url": "https://example.com",
+    "FilePaths": [],
+    "X": 420,
+    "Y": 260,
+    "CreatedAt": "2026-06-30T13:00:00"
+  }
+]

@@ -1,0 +1,14 @@
+Mode: built-in image_gen
+References: Resources/Brand/clipdesk-logo.png; landing/assets/clipdesk-hero.png
+
+Create a polished Brazilian Portuguese Instagram Story promotional artwork for ClipDesk, portrait 9:16, 1080x1920 target. Use the provided ClipDesk logo as the brand reference, preserving the two overlapping purple rounded sheets symbol and ClipDesk wordmark (Clip dark ink, Desk purple). Reference image 2 is only context for the product's visual cards, not a layout to copy. This is a new marketing composition.
+Art direction: premium restrained editorial technology launch poster, warm off-white #fbfaf7 with a very subtle dot grid, near-black #15181d typography, saturated violet and lavender gradients taken from actual logo. Crisp sans-serif typography with excellent Portuguese accents, large readable text, generous whitespace. No teal branding. All essential content inside 80px side margins and top/bottom safe margins of 230px at 1080x1920.
+Layout: logo at upper safe area. Strong large left-aligned headline below, three lines. Short description below headline. Center visual: tasteful floating desktop clipboard cards arranged as a compact visual workspace, gentle realistic shadows and slight layered depth, with a small landscape image card, text-note card, link icon card and file card; purple cursor suggests dragging. These are conceptual cards, not a screenshot or phone app. Four short card labels only: "Texto", "Imagem", "Link", "Arquivo". Below the illustration, one simple action sequence. Bottom inside safe area: generously padded deep violet rounded launch panel with white text and very prominent date. A small line below says Windows.
+Exact main text, do not add any other marketing copy:
+Headline: "Tudo que você copia,\nem um só lugar."
+Description: "Guarde textos, imagens, links e arquivos em um espaço visual no seu computador."
+Action sequence: "Cole. Organize. Copie de volta."
+Launch panel eyebrow: "PRIMEIRA VERSÃO BETA"
+Launch panel date: "10 de setembro"
+Small footer: "Para Windows"
+Make the date a major focal point. Elegant balanced layout, readable at mobile size, beautiful brand consistency. No URL, QR, social handle, price, download button, invented features or promises. Output one finished full-bleed story image, no external frame.

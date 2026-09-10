@@ -1,0 +1,157 @@
+<UserControl x:Class="ClipDesk.Views.ItemCard"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Width="132"
+             Height="148"
+             Focusable="True"
+             MouseLeftButtonDown="Card_MouseLeftButtonDown"
+             MouseMove="Card_MouseMove"
+             MouseLeftButtonUp="Card_MouseLeftButtonUp"
+             MouseRightButtonDown="Card_MouseRightButtonDown">
+    <Grid x:Name="Root" RenderTransformOrigin="0.5,0.5">
+        <Grid.RenderTransform>
+            <ScaleTransform x:Name="RootScale" ScaleX="1" ScaleY="1" />
+        </Grid.RenderTransform>
+
+        <Border x:Name="SelectionRing"
+                Width="104"
+                Height="104"
+                Margin="0,0,0,42"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Top"
+                BorderBrush="#2477F2"
+                BorderThickness="2"
+                CornerRadius="24"
+                Opacity="0"
+                IsHitTestVisible="False" />
+
+        <Border x:Name="DropTargetRing"
+                Width="112"
+                Height="112"
+                Margin="0,-4,0,42"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Top"
+                BorderBrush="#3B82F6"
+                BorderThickness="3"
+                CornerRadius="28"
+                Opacity="0"
+                IsHitTestVisible="False" />
+
+        <Border x:Name="IconShell"
+                Width="92"
+                Height="92"
+                Margin="0,6,0,0"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Top"
+                Background="White"
+                CornerRadius="20">
+            <Border.Effect>
+                <DropShadowEffect x:Name="CardShadow" BlurRadius="18" ShadowDepth="5" Opacity="0.18" Color="#6B7280" />
+            </Border.Effect>
+            <Grid ClipToBounds="True">
+                <Border x:Name="AccentBack" CornerRadius="20" Opacity="0.98" />
+                <Rectangle x:Name="Thumbnail"
+                           RadiusX="20"
+                           RadiusY="20"
+                           Visibility="Collapsed" />
+                <UniformGrid x:Name="FolderPreview"
+                             Rows="3"
+                             Columns="3"
+                             Margin="12"
+                             Visibility="Collapsed"
+                             IsHitTestVisible="False" />
+                <StackPanel x:Name="IconPanel"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                    <TextBlock x:Name="GlyphText"
+                               TextAlignment="Center"
+                               HorizontalAlignment="Center"
+                               FontSize="42"
+                               FontWeight="SemiBold"
+                               Foreground="White" />
+                    <Border Background="#DFFFFFFF"
+                            CornerRadius="7"
+                            Margin="0,5,0,0"
+                            Padding="7,2">
+                        <TextBlock x:Name="TypeLabel"
+                                   FontSize="10"
+                                   FontWeight="Bold"
+                                   Foreground="#334155"
+                                   TextAlignment="Center" />
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border x:Name="CopiedGlow"
+                Width="96"
+                Height="96"
+                Margin="0,4,0,0"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Top"
+                BorderBrush="#1FBE72"
+                BorderThickness="3"
+                CornerRadius="22"
+                Opacity="0"
+                IsHitTestVisible="False" />
+
+        <TextBlock x:Name="NameText"
+                   Margin="4,106,4,0"
+                   TextAlignment="Center"
+                   TextWrapping="Wrap"
+                   FontSize="14"
+                   FontWeight="Medium"
+                   LineHeight="17"
+                   MaxHeight="38"
+                   Foreground="#34373D"
+                   MouseLeftButtonDown="NameText_MouseLeftButtonDown" />
+
+        <TextBox x:Name="NameEditor"
+                 Margin="2,104,2,0"
+                 Height="44"
+                 TextAlignment="Center"
+                 TextWrapping="Wrap"
+                 FontSize="14"
+                 FontWeight="Medium"
+                 Background="#EEFFFFFF"
+                 BorderThickness="0"
+                 Foreground="#25282D"
+                 Visibility="Collapsed"
+                 LostFocus="NameEditor_LostFocus"
+                 PreviewKeyDown="NameEditor_PreviewKeyDown" />
+
+        <Border x:Name="QuickActions"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Top"
+                Margin="0,-22,0,0"
+                Background="#EEFFFFFF"
+                BorderBrush="#55FFFFFF"
+                BorderThickness="1"
+                CornerRadius="18"
+                Padding="8,6"
+                Opacity="0"
+                IsHitTestVisible="False"
+                RenderTransformOrigin="0.5,0.5">
+            <Border.RenderTransform>
+                <ScaleTransform x:Name="QuickActionsScale" ScaleX="0.86" ScaleY="0.86" />
+            </Border.RenderTransform>
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="18" ShadowDepth="6" Opacity="0.18" Color="#4B5563" />
+            </Border.Effect>
+            <StackPanel Orientation="Horizontal">
+                <Button Width="32" Height="30" Padding="0" Margin="0,0,7,0" BorderThickness="0" Background="Transparent" Foreground="#34373D" Click="QuickCopy_Click" ToolTip="Copiar">
+                    <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+                <Button Width="32" Height="30" Padding="0" Margin="0,0,7,0" BorderThickness="0" Background="Transparent" Foreground="#34373D" Click="QuickDuplicate_Click" ToolTip="Duplicar">
+                    <TextBlock Text="&#xE8C8;" FontFamily="Segoe MDL2 Assets" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+                <Button Width="32" Height="30" Padding="0" Margin="0,0,7,0" BorderThickness="0" Background="Transparent" Foreground="#34373D" Click="QuickDetails_Click" ToolTip="Detalhes">
+                    <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+                <Button Width="32" Height="30" Padding="0" BorderThickness="0" Background="Transparent" Foreground="#34373D" Click="QuickDelete_Click" ToolTip="Excluir">
+                    <TextBlock Text="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

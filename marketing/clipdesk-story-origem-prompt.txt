@@ -1,0 +1,31 @@
+Mode: built-in image generation
+References: Windows Notepad style reference; ClipDesk logo reference
+
+Use case: ads-marketing
+Asset type: Instagram Stories launch-story banner, portrait 9:16, 1080x1920 target.
+Primary request: Create a finished Portuguese storytelling poster introducing an unreleased desktop app named ClipDesk. Use Image 1 as a visual-style reference only: a retro Windows XP Notepad window filling the whole vertical frame, blue title bar, pale grey menu and status bars, white document canvas, pixelated monospaced black type, generous centered spacing, and realistic early-2000s UI details. Use Image 2 as the ClipDesk logo reference only, preserving its purple overlapping-sheets symbol and dark/purple wordmark style for the final reveal.
+Input images: Image 1 = style and composition reference; Image 2 = ClipDesk brand logo reference.
+Scene/backdrop: one full-screen retro Windows Notepad window, visibly authentic but clean, with title bar reading "Sem título - Bloco de Notas". Menu labels: "Arquivo   Editar   Formatar   Exibir   Ajuda". Bottom status bar: "Ln 1, Col 1", "100%", "Windows (CRLF)", "UTF-8". No external phone or browser frame.
+Style/medium: polished graphic design, faithful nostalgic Windows 2000 / XP Notepad visual language, pixel-art UI texture yet high-resolution social media banner.
+Composition/framing: strong white document canvas with all primary text large, centered and vertically paced. Keep 100px safe side margins and 180px top/bottom safe area. Text must be highly legible on a phone.
+Text (verbatim, including line breaks):
+"Editando vídeos, eu sempre
+tive que lidar com muita coisa
+ao mesmo tempo.
+
+Referências, textos, links,
+imagens, arquivos...
+
+E, no meio de tantos materiais,
+é muito fácil ficar
+desorganizado.
+
+Eu precisava de um lugar
+para deixar tudo visível
+enquanto eu trabalho.
+
+Foi daí que nasceu
+o ClipDesk."
+
+Highlight treatment: light blue old-Windows text-selection highlight behind the exact phrase "muita coisa"; pale green text-selection highlight behind the exact two lines "para deixar tudo visível" and "enquanto eu trabalho."; The final text "ClipDesk." is the reveal: display it with the true ClipDesk purple wordmark style and a small purple overlapping-sheets logo icon, while keeping it integrated in the Notepad document. Add a visible black blinking text caret right after the final period.
+Constraints: exact Brazilian Portuguese spelling and accents; stay in first person masculine, specifically use "desorganizado"; do not alter copy or add any slogan, dates, URL, buttons, social handles, QR code, price, extra icons, or unrelated text. Do not use any text besides title/menu/status details and the quoted body text.

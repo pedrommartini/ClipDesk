@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#17131f" />
+    <title>ClipDesk — Tudo que você copia, em um só lugar</title>
+    <meta name="description" content="ClipDesk é uma mesa visual para Windows onde você guarda, organiza e recupera textos, imagens, links, arquivos e pastas sem interromper o seu fluxo." />
+    <link rel="icon" type="image/png" href="assets/clipdesk-icon.png" />
+    <link rel="preload" href="assets/clipdesk-logo.png" as="image" />
+    <link rel="preload" href="assets/clipdesk-hero.png" as="image" />
+    <style>
+      :root {
+        --ink: #17131f;
+        --ink-soft: #514b5e;
+        --paper: #fcfbff;
+        --surface: #fff;
+        --surface-soft: #f5f1ff;
+        --violet: #7146eb;
+        --violet-dark: #4f28bd;
+        --violet-light: #a77bff;
+        --lavender: #ded2ff;
+        --line: #e7e1f0;
+        --success: #207866;
+        --shadow: 0 30px 80px rgba(50, 31, 88, 0.18);
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        min-width: 320px;
+        color: var(--ink);
+        font-family: Inter, "Segoe UI", ui-sans-serif, system-ui, -apple-system, sans-serif;
+        background: var(--paper);
+        -webkit-font-smoothing: antialiased;
+      }
+      a { color: inherit; text-decoration: none; }
+      img { max-width: 100%; }
+      button, a { -webkit-tap-highlight-color: transparent; }
+      .shell { width: min(1180px, calc(100% - 48px)); margin: 0 auto; }
+
+      .nav {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        border-bottom: 1px solid rgba(231, 225, 240, 0.78);
+        background: rgba(252, 251, 255, 0.88);
+        backdrop-filter: blur(18px);
+      }
+      .nav-inner { display: flex; min-height: 76px; align-items: center; justify-content: space-between; gap: 28px; }
+      .brand { display: inline-flex; align-items: center; }
+      .brand img { display: block; width: 158px; height: auto; }
+      .nav-links { display: flex; align-items: center; gap: 28px; margin-left: auto; color: var(--ink-soft); font-size: 14px; font-weight: 650; }
+      .nav-links a { transition: color 160ms ease; }
+      .nav-links a:hover { color: var(--violet-dark); }
+
+      .button {
+        display: inline-flex;
+        min-height: 50px;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 0 21px;
+        border: 1px solid transparent;
+        border-radius: 14px;
+        font-size: 15px;
+        font-weight: 800;
+        line-height: 1;
+        transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+      }
+      .button:hover { transform: translateY(-2px); }
+      .button-primary { color: #fff; background: linear-gradient(135deg, var(--violet-light), var(--violet-dark)); box-shadow: 0 16px 34px rgba(92, 52, 202, 0.28); }
+      .button-primary:hover { box-shadow: 0 20px 42px rgba(92, 52, 202, 0.36); }
+      .button-secondary { border-color: var(--line); background: rgba(255, 255, 255, 0.78); }
+      .button svg { width: 18px; height: 18px; flex: 0 0 auto; }
+
+      .hero-wrap { position: relative; overflow: hidden; border-bottom: 1px solid var(--line); }
+      .hero-wrap::before {
+        position: absolute;
+        inset: 0;
+        content: "";
+        pointer-events: none;
+        background: radial-gradient(circle at 78% 12%, rgba(167, 123, 255, 0.24), transparent 29%), linear-gradient(rgba(113, 70, 235, 0.055) 1px, transparent 1px), linear-gradient(90deg, rgba(113, 70, 235, 0.055) 1px, transparent 1px);
+        background-size: auto, 34px 34px, 34px 34px;
+        mask-image: linear-gradient(to bottom, #000 0%, transparent 92%);
+      }
+      .hero { position: relative; display: grid; grid-template-columns: minmax(0, 0.88fr) minmax(460px, 1.12fr); align-items: center; min-height: 760px; padding: 84px 0 92px; gap: 58px; }
+      .eyebrow { display: inline-flex; width: fit-content; min-height: 34px; align-items: center; gap: 9px; padding: 0 12px; border: 1px solid rgba(113, 70, 235, 0.2); border-radius: 999px; color: var(--violet-dark); background: rgba(255, 255, 255, 0.76); font-size: 13px; font-weight: 800; }
+      .eyebrow::before { width: 7px; height: 7px; border-radius: 50%; background: var(--violet); box-shadow: 0 0 0 5px rgba(113, 70, 235, 0.1); content: ""; }
+      h1, h2, h3, p { margin-top: 0; }
+      h1 { max-width: 690px; margin: 24px 0; font-size: clamp(54px, 6.8vw, 86px); line-height: 0.98; letter-spacing: -0.055em; }
+      .accent-text { color: var(--violet); }
+      .hero-copy { max-width: 620px; margin-bottom: 31px; color: var(--ink-soft); font-size: 19px; line-height: 1.65; }
+      .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+      .release-note { display: flex; align-items: center; gap: 10px; margin: 20px 0 0; color: var(--ink-soft); font-size: 14px; }
+      .release-note span { width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
+
+      .product-stage { position: relative; padding: 18px; border: 1px solid rgba(113, 70, 235, 0.2); border-radius: 30px; background: linear-gradient(145deg, #31204f, #170f25); box-shadow: var(--shadow); transform: rotate(0.6deg); }
+      .product-stage::after { position: absolute; inset: auto 11% -36px; height: 70px; border-radius: 50%; background: rgba(80, 43, 169, 0.2); filter: blur(28px); content: ""; z-index: -1; }
+      .window-bar { display: flex; height: 34px; align-items: center; gap: 7px; padding: 0 4px 12px; }
+      .window-dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(255, 255, 255, 0.24); }
+      .product-stage img { display: block; width: 100%; border-radius: 16px; }
+      .float-card { position: absolute; display: grid; grid-template-columns: 38px 1fr; align-items: center; gap: 11px; min-width: 204px; padding: 13px; border: 1px solid rgba(255, 255, 255, 0.72); border-radius: 16px; background: rgba(255, 255, 255, 0.92); box-shadow: 0 18px 45px rgba(23, 19, 31, 0.18); backdrop-filter: blur(16px); }
+      .float-card strong, .float-card small { display: block; }
+      .float-card strong { margin-bottom: 3px; font-size: 14px; }
+      .float-card small { color: var(--ink-soft); font-size: 12px; }
+      .float-card.top { top: -28px; right: -24px; }
+      .float-card.bottom { bottom: -34px; left: -28px; }
+      .float-icon { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 11px; color: #fff; background: linear-gradient(145deg, var(--violet-light), var(--violet-dark)); }
+      .float-icon svg { width: 20px; height: 20px; }
+
+      .section { padding: 104px 0; }
+      .section-soft { border-block: 1px solid var(--line); background: var(--surface-soft); }
+      .section-dark { color: #fff; background: var(--ink); }
+      .section-heading { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 0.56fr); align-items: end; gap: 48px; margin-bottom: 46px; }
+      .kicker { display: block; margin-bottom: 14px; color: var(--violet); font-size: 13px; font-weight: 850; letter-spacing: 0.12em; text-transform: uppercase; }
+      h2 { max-width: 760px; margin-bottom: 0; font-size: clamp(38px, 5.2vw, 64px); line-height: 1.03; letter-spacing: -0.045em; }
+      .section-heading p { margin-bottom: 3px; color: var(--ink-soft); font-size: 17px; line-height: 1.65; }
+
+      .purpose-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+      .purpose-card { position: relative; min-height: 280px; overflow: hidden; padding: 30px; border: 1px solid var(--line); border-radius: 24px; background: var(--surface); }
+      .purpose-number { display: inline-flex; margin-bottom: 48px; color: var(--violet); font-size: 14px; font-weight: 850; }
+      .purpose-card h3 { margin-bottom: 12px; font-size: 25px; letter-spacing: -0.025em; }
+      .purpose-card p { margin-bottom: 0; color: var(--ink-soft); font-size: 16px; line-height: 1.6; }
+      .purpose-card::after { position: absolute; right: -48px; bottom: -58px; width: 140px; height: 140px; border-radius: 38px; background: linear-gradient(145deg, rgba(167, 123, 255, 0.32), rgba(113, 70, 235, 0.04)); content: ""; transform: rotate(24deg); }
+
+      .use-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+      .use-card { display: grid; grid-template-columns: 56px 1fr; gap: 20px; min-height: 184px; padding: 28px; border: 1px solid rgba(113, 70, 235, 0.13); border-radius: 24px; background: rgba(255, 255, 255, 0.78); }
+      .use-icon, .feature-icon { display: grid; width: 56px; height: 56px; place-items: center; border-radius: 17px; color: var(--violet-dark); background: var(--lavender); }
+      .use-icon svg, .feature-icon svg { width: 26px; height: 26px; }
+      .use-card h3 { margin: 2px 0 9px; font-size: 20px; }
+      .use-card p { margin-bottom: 0; color: var(--ink-soft); line-height: 1.6; }
+
+      .feature-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; }
+      .feature-card { grid-column: span 4; min-height: 255px; padding: 28px; border: 1px solid var(--line); border-radius: 24px; background: var(--surface); }
+      .feature-card.wide { grid-column: span 6; }
+      .feature-icon { margin-bottom: 38px; }
+      .feature-card h3 { margin-bottom: 10px; font-size: 21px; }
+      .feature-card p { margin-bottom: 0; color: var(--ink-soft); line-height: 1.6; }
+
+      .privacy { display: grid; grid-template-columns: minmax(0, 0.75fr) minmax(380px, 1.25fr); align-items: center; gap: 74px; }
+      .privacy h2 { margin-bottom: 22px; }
+      .privacy p { color: rgba(255, 255, 255, 0.66); font-size: 18px; line-height: 1.65; }
+      .privacy-list { display: grid; gap: 12px; }
+      .privacy-item { display: flex; align-items: center; gap: 15px; padding: 19px 20px; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 18px; background: rgba(255, 255, 255, 0.055); font-weight: 700; }
+      .check { display: grid; width: 30px; height: 30px; flex: 0 0 auto; place-items: center; border-radius: 50%; color: #fff; background: var(--violet); }
+
+      .download-panel { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; overflow: hidden; gap: 40px; padding: 54px; border-radius: 30px; color: #fff; background: linear-gradient(130deg, #8b5cf6, #4f28bd 68%, #341983); box-shadow: 0 30px 74px rgba(79, 40, 189, 0.3); }
+      .download-panel::after { position: absolute; top: -100px; right: 15%; width: 280px; height: 280px; border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 72px; content: ""; transform: rotate(28deg); }
+      .download-panel h2 { max-width: 720px; font-size: clamp(38px, 4.8vw, 60px); }
+      .download-panel p { max-width: 650px; margin: 17px 0 0; color: rgba(255, 255, 255, 0.78); font-size: 17px; line-height: 1.6; }
+      .download-panel .button { position: relative; z-index: 1; min-height: 58px; color: var(--violet-dark); background: #fff; box-shadow: 0 15px 34px rgba(27, 14, 62, 0.25); }
+      .requirements { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 24px; margin-top: 24px; color: var(--ink-soft); font-size: 14px; }
+      .requirements span { display: inline-flex; align-items: center; gap: 8px; }
+      .requirements span::before { width: 5px; height: 5px; border-radius: 50%; background: var(--violet); content: ""; }
+
+      footer { padding: 34px 0; border-top: 1px solid var(--line); }
+      .footer-inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; color: var(--ink-soft); font-size: 14px; }
+      .footer-inner img { width: 128px; height: auto; }
+      .footer-links { display: flex; align-items: center; gap: 22px; }
+      .footer-links a:hover { color: var(--violet-dark); }
+
+      @media (max-width: 980px) {
+        .hero { grid-template-columns: 1fr; min-height: auto; }
+        .hero-copy { max-width: 720px; }
+        .product-stage { max-width: 760px; margin: 28px auto 0; }
+        .section-heading, .privacy, .download-panel { grid-template-columns: 1fr; }
+        .purpose-grid { grid-template-columns: 1fr; }
+        .purpose-card { min-height: 220px; }
+        .purpose-number { margin-bottom: 30px; }
+        .feature-card, .feature-card.wide { grid-column: span 6; }
+        .download-panel .button { width: fit-content; }
+      }
+
+      @media (max-width: 720px) {
+        .shell { width: min(100% - 30px, 1180px); }
+        .nav-inner { min-height: 68px; }
+        .brand img { width: 132px; }
+        .nav-links { display: none; }
+        .nav .button { min-height: 42px; padding-inline: 15px; font-size: 14px; }
+        .hero { padding: 58px 0 72px; gap: 34px; }
+        h1 { font-size: clamp(49px, 15vw, 68px); }
+        .hero-copy { font-size: 17px; }
+        .hero-actions .button { width: 100%; }
+        .product-stage { padding: 10px; border-radius: 22px; transform: none; }
+        .product-stage img { border-radius: 12px; }
+        .float-card { position: static; min-width: 0; margin-top: 10px; }
+        .float-card.top { display: none; }
+        .section { padding: 78px 0; }
+        .section-heading { gap: 20px; margin-bottom: 34px; }
+        .use-grid { grid-template-columns: 1fr; }
+        .use-card { grid-template-columns: 48px 1fr; min-height: auto; padding: 22px; }
+        .use-icon { width: 48px; height: 48px; }
+        .feature-card, .feature-card.wide { grid-column: span 12; min-height: auto; }
+        .privacy { gap: 36px; }
+        .download-panel { padding: 34px 25px; border-radius: 24px; }
+        .download-panel .button { width: 100%; }
+        .requirements { align-items: flex-start; flex-direction: column; margin-left: 10px; }
+        .footer-inner, .footer-links { align-items: flex-start; flex-direction: column; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        .button { transition: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="nav">
+      <div class="shell nav-inner">
+        <a class="brand" href="#inicio" aria-label="ClipDesk — início"><img src="assets/clipdesk-logo.png" alt="ClipDesk" /></a>
+        <nav class="nav-links" aria-label="Navegação principal">
+          <a href="#para-que-serve">Para que serve</a>
+          <a href="#casos-de-uso">Casos de uso</a>
+          <a href="#recursos">Recursos</a>
+          <a href="#privacidade">Privacidade</a>
+        </nav>
+        <a class="button button-primary" href="https://github.com/pedrommartini/ClipDesk/releases/latest/download/ClipDesk-Windows-x64.zip">Baixar beta</a>
+      </div>
+    </header>
+
+    <main id="inicio">
+      <div class="hero-wrap">
+        <section class="shell hero" aria-labelledby="hero-title">
+          <div>
+            <span class="eyebrow">Primeira versão beta para Windows</span>
+            <h1 id="hero-title">Tudo que você copia, <span class="accent-text">em um só lugar.</span></h1>
+            <p class="hero-copy">O ClipDesk é uma mesa visual para guardar textos, imagens, links, arquivos e pastas enquanto você trabalha. Em vez de perder conteúdo entre abas e janelas, você organiza tudo em cards e recupera com um clique.</p>
+            <div class="hero-actions">
+              <a class="button button-primary" href="https://github.com/pedrommartini/ClipDesk/releases/latest/download/ClipDesk-Windows-x64.zip">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                Baixar para Windows
+              </a>
+              <a class="button button-secondary" href="#para-que-serve">Entender como funciona</a>
+            </div>
+            <p class="release-note"><span aria-hidden="true"></span> Beta gratuita · seus dados ficam no seu computador</p>
+          </div>
+
+          <div class="product-stage" aria-label="Prévia visual do ClipDesk">
+            <div class="window-bar" aria-hidden="true"><span class="window-dot"></span><span class="window-dot"></span><span class="window-dot"></span></div>
+            <img src="assets/clipdesk-hero.png" alt="Mesa visual do ClipDesk com cards de texto, imagem, link, arquivo e pasta" />
+            <div class="float-card top">
+              <span class="float-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16v12H4zM8 10h8M8 14h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg></span>
+              <span><strong>Histórico à mão</strong><small>Busque e recupere cópias</small></span>
+            </div>
+            <div class="float-card bottom">
+              <span class="float-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 6h5l2 2h7v10H5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" /></svg></span>
+              <span><strong>Mesas separadas</strong><small>Um espaço para cada contexto</small></span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="section" id="para-que-serve" aria-labelledby="purpose-title">
+        <div class="shell">
+          <div class="section-heading">
+            <div><span class="kicker">Para que serve</span><h2 id="purpose-title">Um espaço temporário para o que ainda está em movimento.</h2></div>
+            <p>O ClipDesk fica entre a área de transferência e as pastas definitivas: rápido como copiar e colar, visual como uma mesa de trabalho.</p>
+          </div>
+          <div class="purpose-grid">
+            <article class="purpose-card"><span class="purpose-number">01 — Capture</span><h3>Cole ou arraste</h3><p>Use Ctrl + V para adicionar o que você copiou ou arraste arquivos e pastas diretamente do Explorer.</p></article>
+            <article class="purpose-card"><span class="purpose-number">02 — Organize</span><h3>Monte a sua mesa</h3><p>Mova cards livremente, renomeie, duplique, agrupe em pastas e crie mesas diferentes para cada trabalho.</p></article>
+            <article class="purpose-card"><span class="purpose-number">03 — Reutilize</span><h3>Copie de volta</h3><p>Clique em um card para devolver o conteúdo à área de transferência e continue exatamente de onde parou.</p></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section-soft" id="casos-de-uso" aria-labelledby="use-title">
+        <div class="shell">
+          <div class="section-heading">
+            <div><span class="kicker">Casos de uso</span><h2 id="use-title">Feito para dias com muitas peças soltas.</h2></div>
+            <p>Quando um trabalho mistura referências, trechos, links e arquivos, o ClipDesk mantém o material visível sem forçar uma organização definitiva.</p>
+          </div>
+          <div class="use-grid">
+            <article class="use-card"><span class="use-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 19l4.7-4.7M14 5l5 5-8.5 8.5-5.5.5.5-5.5L14 5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg></span><div><h3>Design e edição</h3><p>Reúna referências visuais, textos, trilhas, links e arquivos de exportação durante uma produção.</p></div></article>
+            <article class="use-card"><span class="use-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4Zm0 13a3 3 0 0 1 3-3h11M9 8h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg></span><div><h3>Pesquisa e estudo</h3><p>Separe citações, imagens, documentos e fontes por tema antes de transformar tudo em uma entrega.</p></div></article>
+            <article class="use-card"><span class="use-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16v12H4zM8 7V5h8v2M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg></span><div><h3>Rotina de trabalho</h3><p>Mantenha respostas, números, anexos e links recorrentes prontos para reutilizar ao longo do dia.</p></div></article>
+            <article class="use-card"><span class="use-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 5h6v6H5zM13 5h6v6h-6zM5 13h6v6H5zM13 13h6v6h-6z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" /></svg></span><div><h3>Projetos em paralelo</h3><p>Crie uma mesa para cada cliente, pauta ou contexto e troque de foco sem misturar materiais.</p></div></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="recursos" aria-labelledby="features-title">
+        <div class="shell">
+          <div class="section-heading">
+            <div><span class="kicker">Recursos</span><h2 id="features-title">Simples na superfície. Útil nos detalhes.</h2></div>
+            <p>Os recursos foram pensados para reduzir interrupções e devolver contexto rapidamente, sem transformar a sua mesa em mais uma ferramenta complexa.</p>
+          </div>
+          <div class="feature-grid">
+            <article class="feature-card wide"><span class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16v12H4zM8 10h8M8 14h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg></span><h3>Histórico completo ou compacto</h3><p>Pesquise cópias recentes no painel lateral ou abra a janela compacta pela bandeja e pelo atalho Ctrl + Shift + H.</p></article>
+            <article class="feature-card wide"><span class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 6h5l2 2h7v10H5zM8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg></span><h3>Pastas e múltiplas mesas</h3><p>Agrupe cards arrastando um sobre o outro e mantenha espaços independentes para diferentes projetos e rotinas.</p></article>
+            <article class="feature-card"><span class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M9 7 5 11l4 4M5 11h8a5 5 0 1 1 0 10M15 3l4 4-4 4M19 7h-8a5 5 0 0 0-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg></span><h3>Desfazer e refazer</h3><p>Corrija mudanças visuais rapidamente com Ctrl + Z e Ctrl + Y.</p></article>
+            <article class="feature-card"><span class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" /></svg></span><h3>Temas claro e escuro</h3><p>Escolha o tema e o ClipDesk restaura sua preferência na próxima abertura.</p></article>
+            <article class="feature-card"><span class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 5h14v14H5zM8 15l3-3 2 2 3-4 3 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg></span><h3>Títulos inteligentes</h3><p>O reconhecimento local sugere nomes para imagens e facilita encontrar cada card.</p></article>
+            <article class="feature-card wide"><span class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg></span><h3>Pronto quando o Windows inicia</h3><p>Ative a inicialização discreta e deixe o histórico acessível pela bandeja sempre que precisar.</p></article>
+            <article class="feature-card wide"><span class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3 5 6v5c0 4.7 2.8 8 7 10 4.2-2 7-5.3 7-10V6l-7-3Zm-3 9 2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg></span><h3>Conteúdo salvo no computador</h3><p>Cards, posições, imagens e preferências continuam disponíveis localmente entre uma sessão e outra.</p></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section-dark" id="privacidade" aria-labelledby="privacy-title">
+        <div class="shell privacy">
+          <div><span class="kicker">Privacidade local</span><h2 id="privacy-title">Seu fluxo continua sendo seu.</h2><p>O ClipDesk foi construído como um aplicativo desktop. O conteúdo da sua mesa, os arquivos e as preferências ficam salvos no Windows.</p></div>
+          <div class="privacy-list" aria-label="Características de privacidade">
+            <div class="privacy-item"><span class="check">✓</span> Dados e posições armazenados localmente</div>
+            <div class="privacy-item"><span class="check">✓</span> Reconhecimento de imagens executado no computador</div>
+            <div class="privacy-item"><span class="check">✓</span> Sem conta obrigatória para usar o aplicativo</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="download" aria-labelledby="download-title">
+        <div class="shell">
+          <div class="download-panel">
+            <div><span class="kicker" style="color: rgba(255,255,255,.74)">Experimente a versão beta</span><h2 id="download-title">Abra espaço para trabalhar com mais clareza.</h2><p>Baixe o ClipDesk, descompacte o arquivo e execute o aplicativo no seu computador Windows.</p></div>
+            <a class="button" href="https://github.com/pedrommartini/ClipDesk/releases/latest/download/ClipDesk-Windows-x64.zip">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              Baixar para Windows
+            </a>
+          </div>
+          <div class="requirements" aria-label="Requisitos do sistema"><span>Windows 10 ou superior</span><span>Processador x64</span><span>.NET 8 Desktop Runtime</span><span>Versão beta</span></div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="shell footer-inner">
+        <img src="assets/clipdesk-logo.png" alt="ClipDesk" />
+        <span>Uma mesa visual para tudo que está em movimento.</span>
+        <div class="footer-links"><a href="https://github.com/pedrommartini/ClipDesk">GitHub</a><a href="#inicio">Voltar ao topo ↑</a></div>
+      </div>
+    </footer>
+  </body>
+</html>

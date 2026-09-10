@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\Models\Clipboard*.cs" Link="Models\%(Filename)%(Extension)" />
+    <Compile Include="..\Models\WorkspaceBoard.cs" Link="Models\WorkspaceBoard.cs" />
+  </ItemGroup>
+</Project>

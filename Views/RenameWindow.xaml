@@ -1,0 +1,40 @@
+<Window x:Class="ClipDesk.Views.RenameWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Renomear"
+        Width="380"
+        Height="170"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#F4F4F2">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="PromptText" Text="Nome do item"
+                   FontSize="15"
+                   FontWeight="SemiBold"
+                   Foreground="#25282D" />
+        <TextBox x:Name="NameBox"
+                 Grid.Row="1"
+                 Height="34"
+                 Margin="0,8,0,18"
+                 VerticalContentAlignment="Center" />
+        <StackPanel Grid.Row="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <Button Content="Cancelar"
+                    Width="90"
+                    Height="32"
+                    Margin="0,0,8,0"
+                    Click="CancelButton_Click" />
+            <Button Content="Salvar"
+                    Width="90"
+                    Height="32"
+                    Click="SaveButton_Click" />
+        </StackPanel>
+    </Grid>
+</Window>
