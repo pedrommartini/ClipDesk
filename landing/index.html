@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#17131f" />
     <title>ClipDesk — Tudo que você copia, em um só lugar</title>
-    <meta name="description" content="ClipDesk é uma mesa visual para Windows onde você guarda, organiza e recupera textos, imagens, links, arquivos e pastas sem interromper o seu fluxo." />
+    <meta name="description" content="Já perdeu um link ou arquivo que tinha copiado? O ClipDesk salva tudo em uma mesa visual para você organizar melhor suas informações e recuperar quando precisar." />
     <link rel="icon" type="image/png" href="assets/clipdesk-icon.png" />
     <link rel="preload" href="assets/clipdesk-logo.png" as="image" />
     <link rel="preload" href="assets/clipdesk-hero.png" as="image" />
@@ -95,6 +95,8 @@
       .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
       .release-note { display: flex; align-items: center; gap: 10px; margin: 20px 0 0; color: var(--ink-soft); font-size: 14px; }
       .release-note span { width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
+      .hero-proof { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 20px; }
+      .hero-proof span { padding: 8px 11px; border: 1px solid rgba(113, 70, 235, 0.18); border-radius: 999px; color: var(--violet-dark); background: rgba(255, 255, 255, 0.68); font-size: 13px; font-weight: 750; }
 
       .product-stage { position: relative; padding: 18px; border: 1px solid rgba(113, 70, 235, 0.2); border-radius: 30px; background: linear-gradient(145deg, #31204f, #170f25); box-shadow: var(--shadow); transform: rotate(0.6deg); }
       .product-stage::after { position: absolute; inset: auto 11% -36px; height: 70px; border-radius: 50%; background: rgba(80, 43, 169, 0.2); filter: blur(28px); content: ""; z-index: -1; }
@@ -225,17 +227,20 @@
       <div class="hero-wrap">
         <section class="shell hero" aria-labelledby="hero-title">
           <div>
-            <span class="eyebrow">Primeira versão beta para Windows</span>
-            <h1 id="hero-title">Tudo que você copia, <span class="accent-text">em um só lugar.</span></h1>
-            <p class="hero-copy">O ClipDesk é uma mesa visual para guardar textos, imagens, links, arquivos e pastas enquanto você trabalha. Em vez de perder conteúdo entre abas e janelas, você organiza tudo em cards e recupera com um clique.</p>
+            <span class="eyebrow">Seu histórico visual para Windows</span>
+            <h1 id="hero-title">Você copiou. <span class="accent-text">O ClipDesk não esquece.</span></h1>
+            <p class="hero-copy">Já copiou um link, texto ou arquivo e depois perdeu no meio das abas? O ClipDesk salva tudo em uma mesa visual para você organizar melhor suas informações e recuperar quando precisar.</p>
             <div class="hero-actions">
               <a class="button button-primary" href="https://github.com/pedrommartini/ClipDesk/releases/latest/download/ClipDesk-Windows-x64.zip">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
                 Baixar para Windows
               </a>
-              <a class="button button-secondary" href="#para-que-serve">Entender como funciona</a>
+              <a class="button button-secondary" href="https://github.com/pedrommartini/ClipDesk" target="_blank" rel="noreferrer">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 19c-4 1.2-4-2-5.2-2.5M14.2 21v-3.8a3.3 3.3 0 0 0-.9-2.5c3 0 6.2-1.5 6.2-6.6a5.2 5.2 0 0 0-1.4-3.6 4.8 4.8 0 0 0-.1-3.6s-1.2-.4-3.8 1.4a13.1 13.1 0 0 0-6.6 0C5 0.5 3.8.9 3.8.9a4.8 4.8 0 0 0-.1 3.6 5.2 5.2 0 0 0-1.4 3.6c0 5.1 3.2 6.6 6.2 6.6a3.3 3.3 0 0 0-.9 2.5V21" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                Ver no GitHub
+              </a>
             </div>
-            <p class="release-note"><span aria-hidden="true"></span> Beta gratuita · seus dados ficam no seu computador</p>
+            <div class="hero-proof" aria-label="Características do ClipDesk"><span>100% free</span><span>Open source</span><span>Dados locais</span></div>
           </div>
 
           <div class="product-stage" aria-label="Prévia visual do ClipDesk">
