@@ -58,6 +58,7 @@ dotnet publish .\ClipDesk.csproj -c Release -r win-x64 --self-contained false
 - Crie e renomeie várias mesas para separar clientes, projetos ou contextos de trabalho.
 - Ative a inicialização discreta com o Windows para deixar o histórico sempre disponível pela bandeja.
 - O tema claro ou escuro escolhido é restaurado na próxima execução.
+- O ClipDesk verifica atualizações na inicialização, mostra um aviso quando há uma nova release e instala tudo com um clique, reiniciando já atualizado.
 
 ## Persistencia local
 

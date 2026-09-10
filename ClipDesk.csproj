@@ -8,12 +8,15 @@
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>ClipDesk</RootNamespace>
     <AssemblyName>ClipDesk</AssemblyName>
+    <Version>0.2.0</Version>
+    <AssemblyVersion>0.2.0.0</AssemblyVersion>
+    <FileVersion>0.2.0.0</FileVersion>
     <ApplicationIcon>Resources\Brand\clipdesk.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
-    <Compile Remove="Core\**\*.cs;Tests\**\*.cs;Models\Clipboard*.cs;Models\WorkspaceBoard.cs" />
+    <Compile Remove="Core\**\*.cs;Tests\**\*.cs;Updater\**\*.cs;Models\Clipboard*.cs;Models\WorkspaceBoard.cs" />
     <ProjectReference Include="Core\ClipDesk.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
@@ -27,4 +30,14 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+  <Target Name="BuildUpdater" BeforeTargets="Publish">
+    <MSBuild Projects="$(MSBuildProjectDirectory)\Updater\ClipDesk.Updater.csproj"
+             Targets="Build"
+             Properties="Configuration=$(Configuration);RuntimeIdentifier=;SelfContained=false" />
+  </Target>
+  <Target Name="CopyUpdaterToPublish" AfterTargets="Publish">
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\Updater\bin\$(Configuration)\net8.0\ClipDesk.Updater.exe"
+          DestinationFolder="$(PublishDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
 </Project>

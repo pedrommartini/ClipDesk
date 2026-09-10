@@ -58,6 +58,7 @@ public partial class MainWindow : Window
     private bool _isTrashHovering;
     private bool _initialLayoutDone;
     private bool _isFolderItemDragging;
+    private bool _updateCheckStarted;
     private readonly bool _startHidden;
 
     public MainWindow(bool startHidden = false)
@@ -106,6 +107,49 @@ public partial class MainWindow : Window
         if (_startHidden)
         {
             Dispatcher.BeginInvoke(() => Hide());
+        }
+        else if (!_updateCheckStarted)
+        {
+            _updateCheckStarted = true;
+            _ = CheckForUpdatesAsync();
+        }
+    }
+
+    private async Task CheckForUpdatesAsync()
+    {
+        try
+        {
+            var update = await UpdateService.CheckForUpdateAsync();
+            if (update is null || !IsVisible || !IsLoaded) return;
+
+            var choice = MessageBox.Show(
+                this,
+                $"Uma nova versão do ClipDesk está disponível ({update.TagName}).\n\nDeseja baixar e instalar agora? O aplicativo será reiniciado automaticamente.",
+                "Atualização disponível",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Information);
+            if (choice != MessageBoxResult.Yes) return;
+
+            try
+            {
+                Mouse.OverrideCursor = Cursors.Wait;
+                await UpdateService.DownloadAndStartAsync(update);
+            }
+            finally
+            {
+                Mouse.OverrideCursor = null;
+            }
+
+            MessageBox.Show(this, "A atualização foi baixada. O ClipDesk será reiniciado agora.", "Atualização pronta", MessageBoxButton.OK, MessageBoxImage.Information);
+            Close();
+        }
+        catch (OperationCanceledException)
+        {
+            // A checagem é silenciosa quando a aplicação é encerrada.
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Não foi possível verificar atualizações agora.\n\n{ex.Message}", "Atualização", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
