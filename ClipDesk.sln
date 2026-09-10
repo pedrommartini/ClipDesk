@@ -13,6 +13,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{0AB3BF05
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClipDesk.Core.Checks", "Tests\ClipDesk.Core.Checks.csproj", "{0A07C052-8BFC-4767-A271-900258502C96}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Updater", "Updater", "{E4D06EF3-4A34-0221-57B6-390073E3859C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClipDesk.Updater", "Updater\ClipDesk.Updater.csproj", "{9D8043D2-B0C1-418C-96FC-F2054EDC4985}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -59,6 +63,18 @@ Global
 		{0A07C052-8BFC-4767-A271-900258502C96}.Release|x64.Build.0 = Release|Any CPU
 		{0A07C052-8BFC-4767-A271-900258502C96}.Release|x86.ActiveCfg = Release|Any CPU
 		{0A07C052-8BFC-4767-A271-900258502C96}.Release|x86.Build.0 = Release|Any CPU
+		{9D8043D2-B0C1-418C-96FC-F2054EDC4985}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9D8043D2-B0C1-418C-96FC-F2054EDC4985}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9D8043D2-B0C1-418C-96FC-F2054EDC4985}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{9D8043D2-B0C1-418C-96FC-F2054EDC4985}.Debug|x64.Build.0 = Debug|Any CPU
+		{9D8043D2-B0C1-418C-96FC-F2054EDC4985}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9D8043D2-B0C1-418C-96FC-F2054EDC4985}.Debug|x86.Build.0 = Debug|Any CPU
+		{9D8043D2-B0C1-418C-96FC-F2054EDC4985}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9D8043D2-B0C1-418C-96FC-F2054EDC4985}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9D8043D2-B0C1-418C-96FC-F2054EDC4985}.Release|x64.ActiveCfg = Release|Any CPU
+		{9D8043D2-B0C1-418C-96FC-F2054EDC4985}.Release|x64.Build.0 = Release|Any CPU
+		{9D8043D2-B0C1-418C-96FC-F2054EDC4985}.Release|x86.ActiveCfg = Release|Any CPU
+		{9D8043D2-B0C1-418C-96FC-F2054EDC4985}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -66,5 +82,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{16A7764E-F0A2-4DC3-BA4B-F491E11EA752} = {FBF56CC3-7AE6-AD2D-3F14-7F97FD322CD6}
 		{0A07C052-8BFC-4767-A271-900258502C96} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{9D8043D2-B0C1-418C-96FC-F2054EDC4985} = {E4D06EF3-4A34-0221-57B6-390073E3859C}
 	EndGlobalSection
 EndGlobal
