@@ -108,7 +108,7 @@ public partial class MainWindow : Window
         {
             Dispatcher.BeginInvoke(() => Hide());
         }
-        else if (!_updateCheckStarted)
+        if (!_updateCheckStarted)
         {
             _updateCheckStarted = true;
             _ = CheckForUpdatesAsync();
@@ -120,7 +120,15 @@ public partial class MainWindow : Window
         try
         {
             var update = await UpdateService.CheckForUpdateAsync();
-            if (update is null || !IsVisible || !IsLoaded) return;
+            if (update is null || !IsLoaded) return;
+
+            var wasHidden = !IsVisible;
+            if (wasHidden)
+            {
+                Show();
+                WindowState = WindowState.Normal;
+                Activate();
+            }
 
             var choice = MessageBox.Show(
                 this,
@@ -128,7 +136,11 @@ public partial class MainWindow : Window
                 "Atualização disponível",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Information);
-            if (choice != MessageBoxResult.Yes) return;
+            if (choice != MessageBoxResult.Yes)
+            {
+                if (_startHidden) Hide();
+                return;
+            }
 
             try
             {
@@ -149,7 +161,11 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, $"Não foi possível verificar atualizações agora.\n\n{ex.Message}", "Atualização", MessageBoxButton.OK, MessageBoxImage.Warning);
+            if (!_startHidden)
+            {
+                MessageBox.Show(this, $"Não foi possível verificar atualizações agora.\n\n{ex.Message}", "Atualização", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            if (_startHidden) Hide();
         }
     }
 
