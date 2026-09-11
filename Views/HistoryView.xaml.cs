@@ -36,6 +36,7 @@ public partial class HistoryView : UserControl
         _entries = entries;
         // Each surface has its own search without filtering the other surface.
         _view = new ListCollectionView(entries) { Filter = MatchesSearch };
+        _view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(ClipboardHistoryEntry.CapturedDayLabel)));
         HistoryList.ItemsSource = _view;
         _entries.CollectionChanged += EntriesChanged;
         OpenWorkspaceButton.Visibility = compact ? Visibility.Visible : Visibility.Collapsed;
@@ -65,11 +66,11 @@ public partial class HistoryView : UserControl
     {
         if (CountText is null || HistoryList is null || EmptyState is null) return;
         var count = _view?.Cast<object>().Count() ?? 0;
-        CountText.Text = count == 1 ? "1 item nesta sessão" : $"{count} itens nesta sessão";
+        CountText.Text = count == 1 ? "1 item salvo no histórico" : $"{count} itens salvos no histórico";
         EmptyState.Visibility = count == 0 ? Visibility.Visible : Visibility.Collapsed;
         var searching = !string.IsNullOrWhiteSpace(SearchBox.Text);
         EmptyTitle.Text = searching ? "Nenhum resultado" : "Seu próximo item começa com Ctrl+C";
-        EmptyHint.Text = searching ? "Tente outra palavra ou tipo de conteúdo." : "Copie um texto, link, imagem ou arquivo. Ele aparecerá aqui enquanto o ClipDesk estiver aberto.";
+        EmptyHint.Text = searching ? "Tente outra palavra ou tipo de conteúdo." : "Copie um texto, link, imagem ou arquivo. Ele ficará salvo aqui entre sessões.";
     }
 
     private void Close_Click(object sender, RoutedEventArgs e) => CloseRequested?.Invoke(this, EventArgs.Empty);

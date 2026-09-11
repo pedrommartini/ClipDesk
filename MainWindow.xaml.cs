@@ -1,5 +1,6 @@
 using System.IO;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using ClipDesk.Core;
 using System.Windows;
 using System.Windows.Controls;
@@ -64,6 +65,7 @@ public partial class MainWindow : Window
     private bool _isSwitchingWorkspace;
     private bool _workspaceNameCreates;
     private bool _updateCheckStarted;
+    private bool _isExitRequested;
     private readonly bool _startHidden;
     private double _workspaceZoom = 1;
     private readonly DispatcherTimer _appearanceSaveTimer = new() { Interval = TimeSpan.FromMilliseconds(450) };
@@ -82,18 +84,7 @@ public partial class MainWindow : Window
         _items = _activeWorkspace.Items;
         Loaded += MainWindow_Loaded;
         SourceInitialized += MainWindow_SourceInitialized;
-        Closing += (_, _) =>
-        {
-            if (_hwndSource is not null)
-            {
-                RemoveClipboardFormatListener(_hwndSource.Handle);
-                _hwndSource.RemoveHook(WndProc);
-            }
-
-            Save();
-            _appearanceSaveTimer.Stop();
-            SaveAppearanceSettings();
-        };
+        Closing += MainWindow_Closing;
         var settings = _storageService.LoadSettings();
         _isDarkMode = settings.IsDarkMode;
         _workspaceZoom = settings.ZoomScaleVersion >= 2
@@ -101,6 +92,10 @@ public partial class MainWindow : Window
             : 1;
         ZoomSlider.Value = _workspaceZoom * 100;
         ThemeService.Apply(_isDarkMode);
+        foreach (var entry in _storageService.LoadHistory().OrderByDescending(entry => entry.CapturedAt).Take(80))
+        {
+            _history.Add(entry);
+        }
         HistoryPane.Bind(_history);
         HistoryPane.CloseRequested += (_, _) => HideHistoryPanel();
         HistoryPane.CopyRequested += HistoryCopyRequested;
@@ -121,7 +116,7 @@ public partial class MainWindow : Window
         UpdateResponsiveHeader();
         RenderAllItems(animate: true, isFirstVisit: true);
         EnsureWorkspaceExtent();
-        _trayService = new TrayService(Dispatcher, ShowCompactHistory, ShowWorkspace, Close);
+        _trayService = new TrayService(Dispatcher, ShowCompactHistory, ShowWorkspace, ExitApplication);
         UpdateWorkspacePresentation();
         UpdateStartupButtonState();
         if (_startHidden)
@@ -173,7 +168,7 @@ public partial class MainWindow : Window
             }
 
             MessageBox.Show(this, "A atualização foi baixada. O ClipDesk será reiniciado agora.", "Atualização pronta", MessageBoxButton.OK, MessageBoxImage.Information);
-            Close();
+            ExitApplication();
         }
         catch (OperationCanceledException)
         {
@@ -1711,6 +1706,7 @@ public partial class MainWindow : Window
             {
                 _history.RemoveAt(_history.Count - 1);
             }
+            _storageService.SaveHistory(_history);
 
         }
         catch
@@ -1882,6 +1878,35 @@ public partial class MainWindow : Window
         Show();
         if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
         Activate();
+    }
+
+    private void MainWindow_Closing(object? sender, CancelEventArgs e)
+    {
+        if (!_isExitRequested)
+        {
+            e.Cancel = true;
+            _historyPopup?.Hide();
+            Hide();
+            return;
+        }
+
+        if (_hwndSource is not null)
+        {
+            RemoveClipboardFormatListener(_hwndSource.Handle);
+            _hwndSource.RemoveHook(WndProc);
+        }
+
+        Save();
+        _storageService.SaveHistory(_history);
+        _appearanceSaveTimer.Stop();
+        SaveAppearanceSettings();
+    }
+
+    private void ExitApplication()
+    {
+        if (_isExitRequested) return;
+        _isExitRequested = true;
+        Application.Current.Shutdown();
     }
 
     private void StartupButton_Click(object sender, RoutedEventArgs e)

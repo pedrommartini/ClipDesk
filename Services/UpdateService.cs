@@ -10,7 +10,7 @@ public sealed record AvailableUpdate(Version Version, string TagName, string Dow
 
 public static class UpdateService
 {
-    public const string CurrentVersion = "0.3.0";
+    public const string CurrentVersion = "0.3.1";
     private const string LatestReleaseUrl = "https://api.github.com/repos/pedrommartini/ClipDesk/releases/latest";
     private const string PackageName = "ClipDesk-Windows-x64.zip";
 
@@ -114,7 +114,7 @@ public static class UpdateService
     private static HttpClient CreateHttpClient()
     {
         var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("ClipDesk-Updater/0.3.0");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("ClipDesk-Updater/0.3.1");
         client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
         return client;
     }

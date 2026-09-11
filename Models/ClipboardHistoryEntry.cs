@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Serialization;
 
 namespace ClipDesk.Models;
@@ -61,4 +62,20 @@ public sealed class ClipboardHistoryEntry
         ClipboardItemType.Text => Text?.Contains('\n') == true ? "Texto com múltiplas linhas" : "Texto simples",
         _ => "Item armazenado no histórico"
     };
+
+    [JsonIgnore]
+    public string CapturedDayLabel
+    {
+        get
+        {
+            var dayDifference = (DateTime.Today - CapturedAt.Date).Days;
+            if (dayDifference == 0) return "Hoje";
+            if (dayDifference == 1) return "Ontem";
+            var culture = CultureInfo.GetCultureInfo("pt-BR");
+            var format = CapturedAt.Year == DateTime.Today.Year
+                ? "dddd, d 'de' MMMM"
+                : "dddd, d 'de' MMMM 'de' yyyy";
+            return culture.TextInfo.ToTitleCase(CapturedAt.ToString(format, culture));
+        }
+    }
 }

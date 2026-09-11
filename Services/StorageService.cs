@@ -21,6 +21,7 @@ public sealed class StorageService
     public string DataPath => Path.Combine(BaseDirectory, "items.json");
     public string WorkspacesPath => Path.Combine(BaseDirectory, "workspaces.json");
     public string SettingsPath => Path.Combine(BaseDirectory, "settings.json");
+    public string HistoryPath => Path.Combine(BaseDirectory, "clipboard-history.json");
 
     public AppSettings LoadSettings()
     {
@@ -97,6 +98,28 @@ public sealed class StorageService
 
     public void SaveWorkspaces(IEnumerable<WorkspaceBoard> boards) =>
         WriteAtomically(WorkspacesPath, JsonSerializer.Serialize(boards, _jsonOptions));
+
+    public List<ClipboardHistoryEntry> LoadHistory()
+    {
+        try
+        {
+            if (!File.Exists(HistoryPath)) return [];
+            return JsonSerializer.Deserialize<List<ClipboardHistoryEntry>>(File.ReadAllText(HistoryPath), _jsonOptions) ?? [];
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+    }
+
+    public void SaveHistory(IEnumerable<ClipboardHistoryEntry> entries)
+    {
+        var retained = entries
+            .OrderByDescending(entry => entry.CapturedAt)
+            .Take(80)
+            .ToList();
+        WriteAtomically(HistoryPath, JsonSerializer.Serialize(retained, _jsonOptions));
+    }
 
     public string SaveBitmap(BitmapSource source)
     {

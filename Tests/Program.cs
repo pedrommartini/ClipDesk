@@ -46,4 +46,11 @@ var resizedJson = JsonSerializer.Serialize(loaded, options);
 var resized = JsonSerializer.Deserialize<List<ClipboardItem>>(resizedJson, options)!;
 Check(resized[0].Width == 420 && resized[0].Height == 280,
     "Dimensões personalizadas das prévias são persistidas");
+var todayHistory = new ClipboardHistoryEntry { CapturedAt = DateTime.Today.AddHours(9) };
+var yesterdayHistory = new ClipboardHistoryEntry { CapturedAt = DateTime.Today.AddDays(-1).AddHours(9) };
+Check(todayHistory.CapturedDayLabel == "Hoje" && yesterdayHistory.CapturedDayLabel == "Ontem",
+    "Histórico identifica claramente hoje e ontem");
+var historicEntry = new ClipboardHistoryEntry { CapturedAt = new DateTime(DateTime.Today.Year - 1, 3, 8) };
+Check(historicEntry.CapturedDayLabel.Contains((DateTime.Today.Year - 1).ToString()),
+    "Histórico preserva o ano em datas antigas");
 Console.WriteLine($"{passed} verificações concluídas.");

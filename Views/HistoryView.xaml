@@ -84,6 +84,19 @@
                      VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
                      PreviewMouseLeftButtonDown="List_MouseDown" MouseMove="List_MouseMove" MouseDoubleClick="List_DoubleClick" PreviewKeyDown="List_KeyDown"
                      AutomationProperties.Name="Itens recentes do clipboard">
+                <ListBox.GroupStyle>
+                    <GroupStyle>
+                        <GroupStyle.HeaderTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,12,0,9">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding Name}" Foreground="{DynamicResource AccentBrush}" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" />
+                                    <Border Grid.Column="1" Height="1" Margin="11,0,0,0" VerticalAlignment="Center" Background="{DynamicResource BorderBrush}" Opacity="0.78" />
+                                </Grid>
+                            </DataTemplate>
+                        </GroupStyle.HeaderTemplate>
+                    </GroupStyle>
+                </ListBox.GroupStyle>
                 <ListBox.ItemContainerStyle>
                     <Style TargetType="ListBoxItem">
                         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
