@@ -8,3 +8,5 @@ landing/download/
 *.suo
 *.log
 *.lnk
+Installer/Payload/
+dist/

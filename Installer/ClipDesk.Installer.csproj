@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>ClipDesk-Setup</AssemblyName>
+    <RootNamespace>ClipDesk.Installer</RootNamespace>
+    <Version>0.3.0</Version>
+    <FileVersion>0.3.0.0</FileVersion>
+    <ApplicationIcon>..\Resources\Brand\clipdesk.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <Resource Include="..\Resources\Brand\clipdesk-icon.png" Link="Resources\Brand\clipdesk-icon.png" />
+    <Resource Include="..\Resources\Brand\clipdesk-logo.png" Link="Resources\Brand\clipdesk-logo.png" />
+    <EmbeddedResource Include="Payload\ClipDeskPayload.zip" LogicalName="ClipDeskPayload.zip" />
+  </ItemGroup>
+</Project>

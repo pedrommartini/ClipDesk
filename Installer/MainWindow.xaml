@@ -1,0 +1,197 @@
+<Window x:Class="ClipDesk.Installer.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Instalar ClipDesk" Width="1200" Height="720"
+        WindowStartupLocation="CenterScreen" WindowStyle="None" ResizeMode="NoResize"
+        AllowsTransparency="True" Background="Transparent" FontFamily="Segoe UI Variable Display,Segoe UI"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+    <Window.Resources>
+        <LinearGradientBrush x:Key="PrimaryGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#B071FF" Offset="0" /><GradientStop Color="#713BFA" Offset="1" />
+        </LinearGradientBrush>
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Height" Value="66" /><Setter Property="Background" Value="{StaticResource PrimaryGradient}" />
+            <Setter Property="Foreground" Value="White" /><Setter Property="FontSize" Value="20" /><Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="BorderThickness" Value="0" /><Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+                <Border x:Name="Surface" Background="{TemplateBinding Background}" CornerRadius="16" RenderTransformOrigin="0.5,0.5">
+                    <Border.RenderTransform><ScaleTransform /></Border.RenderTransform>
+                    <Grid Margin="24,0"><ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center" /></Grid>
+                </Border>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Opacity" Value="0.92" /><Setter TargetName="Surface" Property="Effect"><Setter.Value><DropShadowEffect BlurRadius="24" ShadowDepth="0" Opacity="0.55" Color="#8B5CF6" /></Setter.Value></Setter></Trigger>
+                    <Trigger Property="IsPressed" Value="True"><Setter TargetName="Surface" Property="RenderTransform"><Setter.Value><ScaleTransform ScaleX="0.985" ScaleY="0.985" /></Setter.Value></Setter></Trigger>
+                    <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Surface" Property="Opacity" Value="0.5" /></Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate></Setter.Value></Setter>
+        </Style>
+        <Style x:Key="SecondaryButton" TargetType="Button">
+            <Setter Property="Height" Value="58" /><Setter Property="Background" Value="#251B2740" /><Setter Property="BorderBrush" Value="#5B7193C0" />
+            <Setter Property="BorderThickness" Value="1" /><Setter Property="Foreground" Value="#D8E0F1" /><Setter Property="FontSize" Value="17" /><Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="14"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" /></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="#3A2B3855" /><Setter TargetName="Surface" Property="BorderBrush" Value="#8B7CADDA" /></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+        </Style>
+        <Style x:Key="WindowButton" TargetType="Button">
+            <Setter Property="Width" Value="38" /><Setter Property="Height" Value="38" /><Setter Property="Background" Value="Transparent" /><Setter Property="Foreground" Value="#B9C4D8" /><Setter Property="BorderThickness" Value="0" /><Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border x:Name="Surface" Background="{TemplateBinding Background}" CornerRadius="10"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" /></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="#263B4B6B" /><Setter Property="Foreground" Value="White" /></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+        </Style>
+        <Style x:Key="TertiaryButton" TargetType="Button">
+            <Setter Property="Height" Value="34" /><Setter Property="Padding" Value="14,0" /><Setter Property="Background" Value="#24314A65" />
+            <Setter Property="BorderBrush" Value="#556C8DC4" /><Setter Property="BorderThickness" Value="1" /><Setter Property="Foreground" Value="#DCE5F6" />
+            <Setter Property="FontSize" Value="12" /><Setter Property="FontWeight" Value="SemiBold" /><Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border x:Name="Surface" Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="10"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" /></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="#443B356D" /><Setter TargetName="Surface" Property="BorderBrush" Value="#8F79C7FF" /></Trigger><Trigger Property="IsPressed" Value="True"><Setter TargetName="Surface" Property="Opacity" Value="0.78" /></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+        </Style>
+        <Style x:Key="InstallerTextBox" TargetType="TextBox">
+            <Setter Property="Background" Value="#D20E1729" /><Setter Property="Foreground" Value="#EEF2FC" /><Setter Property="CaretBrush" Value="#A872FF" />
+            <Setter Property="BorderBrush" Value="#526A8BBE" /><Setter Property="BorderThickness" Value="1" /><Setter Property="Padding" Value="15,10" /><Setter Property="FontSize" Value="13" />
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TextBox"><Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="11"><ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" /></Border><ControlTemplate.Triggers><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="#A477FF" /></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="28">
+        <Border CornerRadius="25" BorderBrush="#6F809DFF" BorderThickness="1" Background="#FA0C1220">
+            <Border.Effect><DropShadowEffect BlurRadius="38" ShadowDepth="10" Opacity="0.62" Color="#31116E" /></Border.Effect>
+            <Grid ClipToBounds="True">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="3*" /><ColumnDefinition Width="2*" /></Grid.ColumnDefinitions>
+                <Border Grid.Column="1" Background="#E3162035" BorderBrush="#51769BDA" BorderThickness="1,0,0,0" />
+
+                <Grid Grid.Column="0" Margin="58,48,52,42">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Image Source="Resources/Brand/clipdesk-icon.png" Width="62" Height="62" Stretch="Uniform" />
+                            <TextBlock Text="ClipDesk" VerticalAlignment="Center" Margin="15,0,0,0" FontSize="35" FontWeight="SemiBold" Foreground="#F4F1FF" />
+                        </StackPanel>
+                        <TextBlock Margin="0,42,0,0" FontSize="45" FontWeight="Bold" LineHeight="50" Foreground="White"><Run Text="Seu clipboard," /><LineBreak /><Run Text="organizado." Foreground="#A16CFF" /></TextBlock>
+                        <TextBlock Text="Salve, visualize e organize tudo o que você copia em mesas visuais." Margin="0,19,10,0" FontSize="20" LineHeight="29" TextWrapping="Wrap" Foreground="#D2DBEC" />
+                        <StackPanel Orientation="Horizontal" Margin="0,26,0,0">
+                            <TextBlock Text="ϟ" Foreground="#9B66FF" FontSize="25" FontWeight="Bold" /><TextBlock Text="Rápido" Margin="10,3,0,0" Foreground="#E8ECF6" FontSize="16" />
+                            <Ellipse Width="5" Height="5" Fill="#55C9F5" Margin="23,0" />
+                            <TextBlock Text="◇" Foreground="#55C9F5" FontSize="24" FontWeight="Bold" /><TextBlock Text="Privado" Margin="8,3,0,0" Foreground="#E8ECF6" FontSize="16" />
+                            <Ellipse Width="5" Height="5" Fill="#55C9F5" Margin="23,0" />
+                            <TextBlock Text="▰" Foreground="#9B66FF" FontSize="22" /><TextBlock Text="Sempre à mão" Margin="9,3,0,0" Foreground="#E8ECF6" FontSize="16" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Canvas Grid.Row="1" Margin="0,25,0,0" IsHitTestVisible="False">
+                        <Ellipse Width="520" Height="150" Canvas.Left="8" Canvas.Top="132" Stroke="#3738D8FF" StrokeThickness="2" RenderTransformOrigin="0.5,0.5"><Ellipse.RenderTransform><RotateTransform Angle="-7" /></Ellipse.RenderTransform><Ellipse.Effect><BlurEffect Radius="4" /></Ellipse.Effect></Ellipse>
+                        <Border Width="205" Height="120" Canvas.Left="28" Canvas.Top="92" CornerRadius="17" Background="#54293865" BorderBrush="#655D7CC4" BorderThickness="1" RenderTransformOrigin="0.5,0.5"><Border.RenderTransform><RotateTransform Angle="-8" /></Border.RenderTransform></Border>
+                        <Border Width="255" Height="158" Canvas.Left="188" Canvas.Top="58" CornerRadius="19" Background="#B04F4BC9" BorderBrush="#A5A4C8FF" BorderThickness="1.5" RenderTransformOrigin="0.5,0.5"><Border.RenderTransform><RotateTransform Angle="5" /></Border.RenderTransform><Grid Margin="28"><Grid.RowDefinitions><RowDefinition Height="55"/><RowDefinition Height="*"/></Grid.RowDefinitions><TextBlock Text="▣" FontSize="38" Foreground="#E8DFFF"/><StackPanel Grid.Row="1"><Border Height="10" Width="145" Background="#AFC0ACFF" CornerRadius="5" HorizontalAlignment="Left"/><Border Height="8" Width="116" Background="#857F80D8" CornerRadius="4" HorizontalAlignment="Left" Margin="0,13,0,0"/><Border Height="8" Width="88" Background="#857F80D8" CornerRadius="4" HorizontalAlignment="Left" Margin="0,10,0,0"/></StackPanel></Grid></Border>
+                        <Border Width="160" Height="105" Canvas.Left="390" Canvas.Top="130" CornerRadius="16" Background="#6A222B58" BorderBrush="#5E6086CF" BorderThickness="1" RenderTransformOrigin="0.5,0.5"><Border.RenderTransform><RotateTransform Angle="8" /></Border.RenderTransform><TextBlock Text="&lt;/&gt;" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="36" FontWeight="Bold" Foreground="#9B82EE" /></Border>
+                    </Canvas>
+                </Grid>
+
+                <Grid Grid.Column="1" Margin="52,76,52,42">
+                    <Grid x:Name="IntroState" VerticalAlignment="Center">
+                        <StackPanel>
+                            <TextBlock x:Name="ActionTitle" Text="Pronto para começar?" FontSize="31" FontWeight="Bold" Foreground="White" />
+                            <TextBlock x:Name="ActionBody" Text="Instale o ClipDesk em poucos segundos." Margin="0,13,0,0" FontSize="18" Foreground="#BCC8DE" TextWrapping="Wrap" />
+                            <Button x:Name="InstallButton" Margin="0,46,0,0" Style="{StaticResource PrimaryButton}" Click="InstallButton_Click">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <TextBlock x:Name="InstallButtonText" Text="Instalar ClipDesk" VerticalAlignment="Center" />
+                                    <TextBlock Text="→" Margin="11,-2,0,0" FontSize="27" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                            <Button Margin="0,14,0,0" Style="{StaticResource SecondaryButton}" Content="Cancelar" Click="CancelButton_Click" />
+                            <Grid Margin="0,22,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <TextBlock x:Name="InstallLocationText" VerticalAlignment="Center" Foreground="#7E8EA9" FontSize="10.5" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                                <Button x:Name="ChooseFolderButton" Grid.Column="1" Margin="14,0,0,0" Style="{StaticResource TertiaryButton}" Content="Escolher pasta" Click="ChooseFolderButton_Click" />
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid x:Name="ExistingState" Visibility="Collapsed" Opacity="0" VerticalAlignment="Center">
+                        <StackPanel>
+                            <Border Width="66" Height="66" HorizontalAlignment="Left" Background="#3C2D2551" BorderBrush="#936DA8E8" BorderThickness="1" CornerRadius="19"><TextBlock Text="↻" FontSize="35" Foreground="#B889FF" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                            <TextBlock Text="ClipDesk já está instalado" Margin="0,24,0,0" FontSize="30" FontWeight="Bold" Foreground="White" />
+                            <TextBlock Text="Os arquivos atuais do aplicativo serão substituídos pela nova versão." Margin="0,13,0,0" FontSize="17" LineHeight="25" Foreground="#C3CEE1" TextWrapping="Wrap" />
+                            <Border Margin="0,20,0,0" Padding="15,12" Background="#301C2A48" BorderBrush="#596E62A0" BorderThickness="1" CornerRadius="12">
+                                <StackPanel Orientation="Horizontal"><TextBlock Text="✓" Foreground="#74DEBE" FontWeight="Bold" FontSize="16" /><TextBlock Text="Suas mesas, itens e preferências serão preservados." Margin="9,0,0,0" Foreground="#AFC4D9" FontSize="13" TextWrapping="Wrap" /></StackPanel>
+                            </Border>
+                            <TextBlock x:Name="ExistingLocationText" Margin="0,15,0,0" Foreground="#7789A5" FontSize="11" TextTrimming="CharacterEllipsis" />
+                            <Button Margin="0,32,0,0" Style="{StaticResource PrimaryButton}" Click="OverwriteButton_Click">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"><TextBlock Text="Atualizar e substituir" VerticalAlignment="Center" /><TextBlock Text="→" Margin="11,-2,0,0" FontSize="27" VerticalAlignment="Center" /></StackPanel>
+                            </Button>
+                            <Button Margin="0,14,0,0" Style="{StaticResource SecondaryButton}" Content="Voltar" Click="BackFromOverwriteButton_Click" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid x:Name="ProgressState" Visibility="Collapsed" Opacity="0" VerticalAlignment="Center">
+                        <StackPanel>
+                            <TextBlock x:Name="ProgressTitle" Text="Instalando o ClipDesk" FontSize="31" FontWeight="Bold" Foreground="White" />
+                            <TextBlock x:Name="ProgressMessage" Text="Preparando os arquivos…" Margin="0,13,0,0" FontSize="17" Foreground="#BCC8DE" />
+                            <Grid Margin="0,42,0,0" Height="10">
+                                <Border Background="#2D3B506C" CornerRadius="5" />
+                                <Border x:Name="ProgressFill" Width="0" HorizontalAlignment="Left" Background="{StaticResource PrimaryGradient}" CornerRadius="5"><Border.Effect><DropShadowEffect BlurRadius="12" ShadowDepth="0" Opacity="0.6" Color="#8B5CF6" /></Border.Effect></Border>
+                            </Grid>
+                            <TextBlock x:Name="ProgressPercent" Text="0%" Margin="0,13,0,0" HorizontalAlignment="Right" Foreground="#9F8BE1" FontSize="13" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid x:Name="FinishState" Visibility="Collapsed" Opacity="0" VerticalAlignment="Center">
+                        <StackPanel>
+                            <Border Width="74" Height="74" HorizontalAlignment="Left" Background="{StaticResource PrimaryGradient}" CornerRadius="22"><TextBlock Text="✓" FontSize="38" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                            <TextBlock x:Name="FinishTitle" Text="ClipDesk está pronto" Margin="0,25,0,0" FontSize="31" FontWeight="Bold" Foreground="White" />
+                            <TextBlock x:Name="FinishBody" Text="A instalação foi concluída com sucesso." Margin="0,13,0,0" FontSize="18" Foreground="#BCC8DE" TextWrapping="Wrap" />
+                            <Button x:Name="LaunchButton" Margin="0,42,0,0" Style="{StaticResource PrimaryButton}" Content="Abrir ClipDesk" Click="LaunchButton_Click" />
+                            <Button Margin="0,14,0,0" Style="{StaticResource SecondaryButton}" Content="Fechar" Click="CancelButton_Click" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid x:Name="ErrorState" Visibility="Collapsed" Opacity="0" VerticalAlignment="Center">
+                        <StackPanel>
+                            <TextBlock Text="Não foi possível concluir" FontSize="30" FontWeight="Bold" Foreground="White" />
+                            <TextBlock x:Name="ErrorMessage" Margin="0,15,0,0" FontSize="16" LineHeight="24" Foreground="#F0B8C5" TextWrapping="Wrap" />
+                            <Button Margin="0,38,0,0" Style="{StaticResource PrimaryButton}" Content="Tentar novamente" Click="RetryButton_Click" />
+                            <Button Margin="0,14,0,0" Style="{StaticResource SecondaryButton}" Content="Cancelar" Click="CancelButton_Click" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+
+                <Grid x:Name="FolderPickerOverlay" Grid.ColumnSpan="2" Panel.ZIndex="40" Background="#C9060A13" Visibility="Collapsed" Opacity="0">
+                    <Border Width="680" Height="520" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="30" Background="#FC121B2E" BorderBrush="#757E9CDD" BorderThickness="1" CornerRadius="22">
+                        <Border.Effect><DropShadowEffect BlurRadius="34" ShadowDepth="10" Opacity="0.65" Color="#21084E" /></Border.Effect>
+                        <Grid>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <StackPanel><TextBlock Text="Escolha onde instalar" FontSize="27" FontWeight="Bold" Foreground="White" /><TextBlock Text="O ClipDesk criará uma pasta própria dentro do local escolhido." Margin="0,7,0,0" FontSize="14" Foreground="#9FB0C9" /></StackPanel>
+                                <Button Grid.Column="1" Style="{StaticResource WindowButton}" Click="CloseFolderPickerButton_Click"><TextBlock Text="×" FontSize="24" /></Button>
+                            </Grid>
+                            <Grid Grid.Row="1" Margin="0,24,0,15">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <Button Width="44" Style="{StaticResource TertiaryButton}" Content="↑" ToolTip="Subir uma pasta" Click="UpFolderButton_Click" />
+                                <TextBox x:Name="FolderPathTextBox" Grid.Column="1" Margin="10,0" Style="{StaticResource InstallerTextBox}" VerticalContentAlignment="Center" />
+                                <Button Grid.Column="2" Style="{StaticResource TertiaryButton}" Content="Abrir caminho" Click="OpenTypedFolderButton_Click" />
+                            </Grid>
+                            <Border Grid.Row="2" Background="#A60C1424" BorderBrush="#425A779D" BorderThickness="1" CornerRadius="14" Padding="8">
+                                <ListBox x:Name="FolderList" Background="Transparent" BorderThickness="0" Foreground="White" MouseDoubleClick="FolderList_MouseDoubleClick" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.Resources>
+                                        <Style TargetType="{x:Type ScrollBar}">
+                                            <Setter Property="Width" Value="8" /><Setter Property="Margin" Value="3,4" /><Setter Property="Background" Value="Transparent" />
+                                            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ScrollBar"><Grid Background="Transparent"><Track x:Name="PART_Track" IsDirectionReversed="True"><Track.DecreaseRepeatButton><RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0" Focusable="False" /></Track.DecreaseRepeatButton><Track.Thumb><Thumb Cursor="Hand"><Thumb.Template><ControlTemplate TargetType="Thumb"><Border x:Name="ThumbSurface" MinHeight="36" Background="#68768BAD" CornerRadius="4" /><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ThumbSurface" Property="Background" Value="#A18465D8" /></Trigger><Trigger Property="IsDragging" Value="True"><Setter TargetName="ThumbSurface" Property="Background" Value="#C39C74FF" /></Trigger></ControlTemplate.Triggers></ControlTemplate></Thumb.Template></Thumb></Track.Thumb><Track.IncreaseRepeatButton><RepeatButton Command="ScrollBar.PageDownCommand" Opacity="0" Focusable="False" /></Track.IncreaseRepeatButton></Track></Grid></ControlTemplate></Setter.Value></Setter>
+                                        </Style>
+                                    </ListBox.Resources>
+                                    <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Padding" Value="13,10" /><Setter Property="Margin" Value="0,2" /><Setter Property="Cursor" Value="Hand" /><Setter Property="HorizontalContentAlignment" Value="Stretch" /><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><Border x:Name="Row" Padding="{TemplateBinding Padding}" Background="Transparent" CornerRadius="10"><ContentPresenter /></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Row" Property="Background" Value="#26345170" /></Trigger><Trigger Property="IsSelected" Value="True"><Setter TargetName="Row" Property="Background" Value="#443C2B73" /></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style></ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate><DataTemplate><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="38" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Border Width="31" Height="31" Background="#604C37A0" CornerRadius="9"><TextBlock Text="{Binding Icon}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" Foreground="#C9B4FF" /></Border><StackPanel Grid.Column="1" Margin="11,0,0,0" VerticalAlignment="Center"><TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="14" Foreground="#EAF0FB" /><TextBlock Text="{Binding Path}" Margin="0,2,0,0" FontSize="10" Foreground="#70819C" TextTrimming="CharacterEllipsis" /></StackPanel></Grid></DataTemplate></ListBox.ItemTemplate>
+                                </ListBox>
+                            </Border>
+                            <Grid Grid.Row="3" Margin="0,22,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="160" /><ColumnDefinition Width="190" /></Grid.ColumnDefinitions>
+                                <TextBlock Text="Destino final: …\ClipDesk" VerticalAlignment="Center" Foreground="#7F91AE" FontSize="12" />
+                                <Button Grid.Column="1" Margin="0,0,12,0" Style="{StaticResource SecondaryButton}" Content="Cancelar" Click="CloseFolderPickerButton_Click" />
+                                <Button Grid.Column="2" Style="{StaticResource PrimaryButton}" Height="58" FontSize="16" Content="Usar esta pasta" Click="UseFolderButton_Click" />
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <StackPanel Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,15,15,0">
+                    <Button Style="{StaticResource WindowButton}" Click="MinimizeButton_Click"><TextBlock Text="−" FontSize="21" /></Button>
+                    <Button Style="{StaticResource WindowButton}" Click="CancelButton_Click"><TextBlock Text="×" FontSize="24" /></Button>
+                </StackPanel>
+                <TextBlock Grid.Column="1" Text="Versão 0.3.0" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,28,22" Foreground="#73829D" FontSize="11" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

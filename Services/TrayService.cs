@@ -19,7 +19,7 @@ public sealed class TrayService : IDisposable
         _menu.Items.Add(new Forms.ToolStripSeparator());
         _menu.Items.Add("Sair do ClipDesk", null, (_, _) => dispatcher.BeginInvoke(exit));
         _icon = new Forms.NotifyIcon { Icon = _image, Text = "ClipDesk — Histórico do clipboard", ContextMenuStrip = _menu, Visible = true };
-        _singleClickTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(260) };
+        _singleClickTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(Forms.SystemInformation.DoubleClickTime + 60) };
         _singleClickTimer.Tick += (_, _) =>
         {
             _singleClickTimer.Stop();
@@ -28,14 +28,14 @@ public sealed class TrayService : IDisposable
         _icon.MouseClick += (_, e) =>
         {
             if (e.Button != Forms.MouseButtons.Left) return;
+            if (e.Clicks >= 2)
+            {
+                _singleClickTimer.Stop();
+                dispatcher.BeginInvoke(showWorkspace);
+                return;
+            }
             _singleClickTimer.Stop();
             _singleClickTimer.Start();
-        };
-        _icon.MouseDoubleClick += (_, e) =>
-        {
-            if (e.Button != Forms.MouseButtons.Left) return;
-            _singleClickTimer.Stop();
-            dispatcher.BeginInvoke(showWorkspace);
         };
     }
 

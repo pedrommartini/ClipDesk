@@ -7,6 +7,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Threading;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -19,6 +20,7 @@ namespace ClipDesk;
 public partial class MainWindow : Window
 {
     private const int WmClipboardUpdate = 0x031D;
+    private const double ElementBaseScale = 0.75;
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool AddClipboardFormatListener(IntPtr hwnd);
@@ -49,6 +51,7 @@ public partial class MainWindow : Window
     private readonly Stack<List<ClipboardItem>> _redoStack = [];
     private ItemCard? _activeDropTarget;
     private ClipboardItem? _openFolder;
+    private string? _openFolderCategoryKey;
     private ClipboardItem? _folderDragItem;
     private FrameworkElement? _folderDragElement;
     private Point _folderDragStart;
@@ -58,13 +61,22 @@ public partial class MainWindow : Window
     private bool _isTrashHovering;
     private bool _initialLayoutDone;
     private bool _isFolderItemDragging;
+    private bool _isSwitchingWorkspace;
+    private bool _workspaceNameCreates;
     private bool _updateCheckStarted;
     private readonly bool _startHidden;
+    private double _workspaceZoom = 1;
+    private readonly DispatcherTimer _appearanceSaveTimer = new() { Interval = TimeSpan.FromMilliseconds(450) };
 
     public MainWindow(bool startHidden = false)
     {
         InitializeComponent();
         _startHidden = startHidden;
+        _appearanceSaveTimer.Tick += (_, _) =>
+        {
+            _appearanceSaveTimer.Stop();
+            SaveAppearanceSettings();
+        };
         _workspaces = _storageService.LoadWorkspaces();
         _activeWorkspace = _workspaces[0];
         _items = _activeWorkspace.Items;
@@ -79,8 +91,15 @@ public partial class MainWindow : Window
             }
 
             Save();
+            _appearanceSaveTimer.Stop();
+            SaveAppearanceSettings();
         };
-        _isDarkMode = _storageService.LoadSettings().IsDarkMode;
+        var settings = _storageService.LoadSettings();
+        _isDarkMode = settings.IsDarkMode;
+        _workspaceZoom = settings.ZoomScaleVersion >= 2
+            ? Math.Clamp(settings.WorkspaceZoom, 0.5, 1)
+            : 1;
+        ZoomSlider.Value = _workspaceZoom * 100;
         ThemeService.Apply(_isDarkMode);
         HistoryPane.Bind(_history);
         HistoryPane.CloseRequested += (_, _) => HideHistoryPanel();
@@ -99,7 +118,8 @@ public partial class MainWindow : Window
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
-        RenderAllItems();
+        UpdateResponsiveHeader();
+        RenderAllItems(animate: true, isFirstVisit: true);
         EnsureWorkspaceExtent();
         _trayService = new TrayService(Dispatcher, ShowCompactHistory, ShowWorkspace, Close);
         UpdateWorkspacePresentation();
@@ -169,12 +189,13 @@ public partial class MainWindow : Window
         }
     }
 
-    private void RenderAllItems()
+    private void RenderAllItems(bool animate = false, bool isFirstVisit = false)
     {
         WorkspaceCanvas.Children.Clear();
-        foreach (var item in _items)
+        for (var index = 0; index < _items.Count; index++)
         {
-            AddCard(item, playPopIn: false);
+            var card = AddCard(_items[index], playPopIn: false);
+            if (animate) card.PlayWorkspaceEntrance(index, isFirstVisit);
         }
     }
 
@@ -184,7 +205,7 @@ public partial class MainWindow : Window
         card.Selected += Card_Selected;
         card.CopyRequested += Card_CopyRequested;
         card.OpenRequested += Card_OpenRequested;
-        card.RenameRequested += Card_RenameRequested;
+        card.FolderCategoryRequested += Card_FolderCategoryRequested;
         card.TitleEdited += Card_TitleEdited;
         card.DuplicateRequested += Card_DuplicateRequested;
         card.DeleteRequested += Card_DeleteRequested;
@@ -192,11 +213,16 @@ public partial class MainWindow : Window
         card.DragStarted += Card_DragStarted;
         card.DragMoved += Card_DragMoved;
         card.DragFinished += Card_DragFinished;
+        card.ResizeStarted += Card_ResizeStarted;
+        card.ResizeMoved += Card_ResizeMoved;
+        card.ResizeFinished += Card_ResizeFinished;
 
         WorkspaceCanvas.Children.Add(card);
         Canvas.SetLeft(card, Math.Max(0, item.X));
         Canvas.SetTop(card, Math.Max(0, item.Y));
         card.ApplyTheme(_isDarkMode);
+        card.SetWorkspaceZoom(GetElementScale(), animate: false);
+        if (!MatchesWorkspaceSearch(item, WorkspaceSearchBox.Text)) card.Visibility = Visibility.Collapsed;
 
         if (playPopIn)
         {
@@ -223,8 +249,8 @@ public partial class MainWindow : Window
             var item = items[index];
             var position = dropPoint.HasValue
                 ? ClampToWorkspace(new Point(
-                    dropPoint.Value.X + (index % 4) * 150 - 66,
-                    dropPoint.Value.Y + (index / 4) * 166 - 74))
+                    dropPoint.Value.X + (index % 3) * 290 - 160,
+                    dropPoint.Value.Y + (index / 3) * 230 - 105))
                 : FindFreePosition();
             item.X = position.X;
             item.Y = position.Y;
@@ -247,25 +273,27 @@ public partial class MainWindow : Window
         var width = WorkspaceCanvas.ActualWidth > 0 ? WorkspaceCanvas.ActualWidth : ActualWidth;
         var height = WorkspaceCanvas.ActualHeight > 0 ? WorkspaceCanvas.ActualHeight : ActualHeight;
         return new Point(
-            Math.Max(0, Math.Min(width - 132, point.X)),
-            Math.Max(0, Math.Min(height - 148, point.Y)));
+            Math.Max(0, Math.Min(width - 340, point.X)),
+            Math.Max(0, Math.Min(height - 220, point.Y)));
     }
 
     private Point FindFreePosition()
     {
         var width = WorkspaceCanvas.ActualWidth > 0 ? WorkspaceCanvas.ActualWidth : ActualWidth;
         var height = WorkspaceCanvas.ActualHeight > 0 ? WorkspaceCanvas.ActualHeight : ActualHeight;
-        var centerX = Math.Max(40, (width - 132) / 2);
-        var centerY = Math.Max(40, (height - 148) / 2);
+        const double cardWidth = 340;
+        const double cardHeight = 220;
+        var centerX = Math.Max(40, (width - cardWidth) / 2);
+        var centerY = Math.Max(110, (height - cardHeight) / 2);
 
         for (var step = 0; step < 80; step++)
         {
-            var x = centerX + (step % 8) * 150 - 300;
-            var y = centerY + (step / 8) * 166 - 166;
-            var candidate = new Rect(Math.Max(24, x), Math.Max(24, y), 132, 148);
+            var x = centerX + (step % 5) * 370 - 370;
+            var y = centerY + (step / 5) * 250 - 250;
+            var candidate = new Rect(Math.Max(24, x), Math.Max(108, y), cardWidth, cardHeight);
             var collides = WorkspaceCanvas.Children
                 .OfType<ItemCard>()
-                .Any(card => new Rect(Canvas.GetLeft(card), Canvas.GetTop(card), 132, 148).IntersectsWith(candidate));
+                .Any(card => new Rect(Canvas.GetLeft(card), Canvas.GetTop(card), card.ActualWidth, card.ActualHeight).IntersectsWith(candidate));
 
             if (!collides && candidate.Right < width - 24 && candidate.Bottom < height - 24)
             {
@@ -278,6 +306,12 @@ public partial class MainWindow : Window
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (e.Key == Key.Escape && WorkspaceNameOverlay.Visibility == Visibility.Visible)
+        {
+            HideWorkspaceNameOverlay();
+            e.Handled = true;
+            return;
+        }
         if (e.Key == Key.Escape && HistoryPane.Visibility == Visibility.Visible && FolderOverlay.Visibility != Visibility.Visible)
         {
             HideHistoryPanel();
@@ -367,11 +401,18 @@ public partial class MainWindow : Window
 
     private void Window_DragOver(object sender, DragEventArgs e)
     {
+        if (WorkspaceNameOverlay.Visibility == Visibility.Visible)
+        {
+            e.Effects = DragDropEffects.None;
+            e.Handled = true;
+            return;
+        }
         if (e.Data.GetDataPresent(HistoryView.DragFormat))
         {
             var point = e.GetPosition(WorkspaceScroll);
             var canDrop = FolderOverlay.Visibility != Visibility.Visible && new Rect(WorkspaceScroll.RenderSize).Contains(point);
             e.Effects = canDrop ? DragDropEffects.Copy : DragDropEffects.None;
+            HistoryDropGlowText.Text = "Solte para adicionar à mesa";
             SetHistoryDropGlow(canDrop);
             e.Handled = true;
             return;
@@ -382,9 +423,10 @@ public partial class MainWindow : Window
         }
         else
         {
-            e.Effects = HasFileDrop(e)
-                ? DragDropEffects.Copy
-                : DragDropEffects.None;
+            var canDrop = HasFileDrop(e) || TryGetDroppedLink(e) is not null;
+            e.Effects = canDrop ? DragDropEffects.Copy : DragDropEffects.None;
+            HistoryDropGlowText.Text = "Solte para criar um atalho na mesa";
+            SetHistoryDropGlow(canDrop);
         }
 
         e.Handled = true;
@@ -392,6 +434,7 @@ public partial class MainWindow : Window
 
     private void Window_Drop(object sender, DragEventArgs e)
     {
+        SetHistoryDropGlow(false);
         if (e.Data.GetDataPresent(HistoryView.DragFormat))
         {
             SetHistoryDropGlow(false);
@@ -413,6 +456,11 @@ public partial class MainWindow : Window
         var paths = GetDroppedPaths(e);
         if (paths.Length == 0)
         {
+            if (TryGetDroppedLink(e) is { } url)
+            {
+                AddItems([new ClipboardItem { Type = ClipboardItemType.Link, DisplayName = url.Host, Url = url.AbsoluteUri }], e.GetPosition(WorkspaceCanvas));
+                e.Handled = true;
+            }
             return;
         }
 
@@ -464,13 +512,53 @@ public partial class MainWindow : Window
 
     private static bool HasFileDrop(DragEventArgs e)
     {
-        return e.Data.GetDataPresent(DataFormats.FileDrop, autoConvert: true);
+        return e.Data.GetDataPresent(DataFormats.FileDrop, autoConvert: true)
+            || e.Data.GetDataPresent("FileNameW", autoConvert: true)
+            || e.Data.GetDataPresent("FileName", autoConvert: true);
     }
 
     private static string[] GetDroppedPaths(DragEventArgs e)
     {
-        return e.Data.GetData(DataFormats.FileDrop, autoConvert: true) as string[] ?? [];
+        var candidates = new List<string>();
+        foreach (var format in new[] { DataFormats.FileDrop, "FileNameW", "FileName" })
+        {
+            if (!e.Data.GetDataPresent(format, autoConvert: true)) continue;
+            var data = e.Data.GetData(format, autoConvert: true);
+            if (data is string[] paths) candidates.AddRange(paths);
+            else if (data is System.Collections.Specialized.StringCollection collection) candidates.AddRange(collection.Cast<string>());
+            else if (data is string path) candidates.Add(path);
+        }
+
+        if (e.Data.GetDataPresent(DataFormats.UnicodeText, autoConvert: true)
+            && e.Data.GetData(DataFormats.UnicodeText, autoConvert: true) is string text)
+        {
+            foreach (var line in text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
+            {
+                var candidate = line.Trim();
+                if (Uri.TryCreate(candidate, UriKind.Absolute, out var uri) && uri.IsFile) candidate = uri.LocalPath;
+                if (File.Exists(candidate) || Directory.Exists(candidate)) candidates.Add(candidate);
+            }
+        }
+
+        return candidates
+            .Where(path => File.Exists(path) || Directory.Exists(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
+
+    private static Uri? TryGetDroppedLink(DragEventArgs e)
+    {
+        foreach (var format in new[] { DataFormats.UnicodeText, DataFormats.Text })
+        {
+            if (!e.Data.GetDataPresent(format, autoConvert: true)) continue;
+            if (e.Data.GetData(format, autoConvert: true) is string value
+                && Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
+                && uri.Scheme is "http" or "https") return uri;
+        }
+        return null;
+    }
+
+    private void Window_DragLeave(object sender, DragEventArgs e) => SetHistoryDropGlow(false);
 
     private void MoveFolderItemToDesktop(FolderDragData dragData, Point dropPoint)
     {
@@ -534,6 +622,14 @@ public partial class MainWindow : Window
         }
     }
 
+    private void Card_FolderCategoryRequested(object? sender, string categoryKey)
+    {
+        if (sender is ItemCard card && card.Item.Type == ClipboardItemType.AppFolder)
+        {
+            ShowFolderOverlay(card.Item, categoryKey);
+        }
+    }
+
     private void OpenItem(ClipboardItem item, ItemCard? ownerCard)
     {
         if (item.Type == ClipboardItemType.AppFolder)
@@ -567,12 +663,14 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ShowFolderOverlay(ClipboardItem folder)
+    private void ShowFolderOverlay(ClipboardItem folder, string? categoryKey = null)
     {
         _openFolder = folder;
-        FolderOverlayTitle.Text = folder.DisplayName;
+        _openFolderCategoryKey = categoryKey;
+        UpdateFolderOverlayTitle();
         FolderOverlayTitle.Visibility = Visibility.Visible;
         FolderOverlayTitleEditor.Visibility = Visibility.Collapsed;
+        FolderBackButton.Visibility = categoryKey is null ? Visibility.Collapsed : Visibility.Visible;
         RenderOpenFolderItems();
         FolderOverlay.Visibility = Visibility.Visible;
         FolderOverlay.Opacity = 0;
@@ -601,6 +699,7 @@ public partial class MainWindow : Window
         }
 
         _openFolder = null;
+        _openFolderCategoryKey = null;
         _folderDragItem = null;
         _folderDragElement = null;
         _isFolderItemDragging = false;
@@ -612,46 +711,175 @@ public partial class MainWindow : Window
 
     private void RenderOpenFolderItems()
     {
-        FolderItemsPanel.Children.Clear();
+        FolderItemsHost.Children.Clear();
         if (_openFolder is null)
         {
             return;
         }
 
-        foreach (var child in _openFolder.Children)
+        if (_openFolder.Children.Count == 0)
         {
-            FolderItemsPanel.Children.Add(CreateFolderOverlayItem(child));
+            FolderItemsHost.Children.Add(new TextBlock
+            {
+                Text = "Esta pasta está vazia. Arraste itens da mesa ou do histórico para cá.",
+                Margin = new Thickness(12, 18, 12, 0),
+                Foreground = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#94A3B8" : "#64748B")!,
+                FontSize = 14,
+                TextWrapping = TextWrapping.Wrap,
+                TextAlignment = TextAlignment.Center
+            });
+            return;
+        }
+
+        if (_openFolderCategoryKey is null)
+        {
+            var categories = FolderCategoryService.GetCategories(_openFolder.Children);
+            var wrap = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Left };
+            foreach (var category in categories)
+            {
+                wrap.Children.Add(CreateFolderCategoryItem(category));
+            }
+            FolderItemsHost.Children.Add(wrap);
+        }
+        else
+        {
+            var category = FolderCategoryService.GetCategory(_openFolder.Children, _openFolderCategoryKey);
+            if (category is null)
+            {
+                _openFolderCategoryKey = null;
+                RenderOpenFolderItems();
+                return;
+            }
+
+            foreach (var child in category.Items)
+            {
+                FolderItemsHost.Children.Add(CreateFolderOverlayItem(child, listMode: true));
+            }
         }
     }
 
-    private UIElement CreateFolderOverlayItem(ClipboardItem item)
+    private UIElement CreateFolderCategoryItem(FolderCategory category)
+    {
+        var accent = (SolidColorBrush)new BrushConverter().ConvertFromString(category.Accent)!;
+        var shell = new Border
+        {
+            Width = 170,
+            Height = 132,
+            Margin = new Thickness(5),
+            Padding = new Thickness(15),
+            Background = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#A817202D" : "#EFFFFFFF")!,
+            BorderBrush = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#3B64748B" : "#D7DFEA")!,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(16),
+            Cursor = Cursors.Hand,
+            RenderTransformOrigin = new Point(0.5, 0.5)
+        };
+        var scale = new ScaleTransform();
+        shell.RenderTransform = scale;
+        shell.MouseEnter += (_, _) =>
+        {
+            scale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(1.025, TimeSpan.FromMilliseconds(130)));
+            scale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(1.025, TimeSpan.FromMilliseconds(130)));
+        };
+        shell.MouseLeave += (_, _) =>
+        {
+            scale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(170)));
+            scale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(170)));
+        };
+        shell.MouseLeftButtonDown += (_, eventArgs) =>
+        {
+            ShowFolderCategory(category.Key);
+            eventArgs.Handled = true;
+        };
+
+        var content = new Grid();
+        content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        content.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        content.Children.Add(new Border
+        {
+            Width = 42,
+            Height = 42,
+            Background = new LinearGradientBrush(Color.FromRgb(196, 181, 253), accent.Color, 45),
+            CornerRadius = new CornerRadius(12),
+            Child = new TextBlock
+            {
+                Text = category.Glyph,
+                FontFamily = new FontFamily("Segoe MDL2 Assets"),
+                FontSize = 20,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            }
+        });
+        var title = new TextBlock
+        {
+            Text = category.Name,
+            Margin = new Thickness(0, 10, 0, 0),
+            FontSize = 14,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#F8FAFC" : "#1F2937")!
+        };
+        Grid.SetRow(title, 1);
+        content.Children.Add(title);
+        var count = new TextBlock
+        {
+            Text = $"{category.Items.Count} {(category.Items.Count == 1 ? "item" : "itens")}",
+            VerticalAlignment = VerticalAlignment.Bottom,
+            FontSize = 12,
+            Foreground = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#94A3B8" : "#64748B")!
+        };
+        Grid.SetRow(count, 2);
+        content.Children.Add(count);
+        shell.Child = content;
+        return shell;
+    }
+
+    private UIElement CreateFolderOverlayItem(ClipboardItem item, bool listMode)
     {
         var visual = _fileIconService.GetVisual(item);
         var accent = (SolidColorBrush)new BrushConverter().ConvertFromString(visual.Accent)!;
         var grid = new Grid
         {
-            Width = 150,
-            Height = 150,
+            Width = listMode ? double.NaN : 150,
+            Height = listMode ? 66 : 150,
+            Margin = listMode ? new Thickness(0, 0, 0, 7) : new Thickness(3),
             Background = Brushes.Transparent,
             Tag = item,
             Cursor = Cursors.Hand,
             RenderTransform = new TranslateTransform()
         };
 
+        if (listMode)
+        {
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(58) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var listSurface = new Border
+            {
+                Background = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#A817202D" : "#EFFFFFFF")!,
+                BorderBrush = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#3B64748B" : "#D7DFEA")!,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(12)
+            };
+            Grid.SetColumnSpan(listSurface, 3);
+            grid.Children.Add(listSurface);
+        }
+
         var icon = new Border
         {
-            Width = 96,
-            Height = 96,
-            Margin = new Thickness(0, 0, 0, 44),
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Top,
+            Width = listMode ? 40 : 96,
+            Height = listMode ? 40 : 96,
+            Margin = listMode ? new Thickness(10, 0, 8, 0) : new Thickness(0, 0, 0, 44),
+            HorizontalAlignment = listMode ? HorizontalAlignment.Left : HorizontalAlignment.Center,
+            VerticalAlignment = listMode ? VerticalAlignment.Center : VerticalAlignment.Top,
             Background = accent,
-            CornerRadius = new CornerRadius(24),
+            CornerRadius = new CornerRadius(listMode ? 10 : 24),
             Effect = new System.Windows.Media.Effects.DropShadowEffect
             {
-                BlurRadius = 18,
-                ShadowDepth = 5,
-                Opacity = 0.18,
+                BlurRadius = listMode ? 10 : 18,
+                ShadowDepth = listMode ? 3 : 5,
+                Opacity = 0.2,
                 Color = Color.FromRgb(83, 97, 122)
             }
         };
@@ -671,7 +899,7 @@ public partial class MainWindow : Window
             {
                 Text = visual.Glyph,
                 FontFamily = visual.UseSymbolFont ? new FontFamily("Segoe MDL2 Assets") : new FontFamily("Segoe UI"),
-                FontSize = visual.UseSymbolFont ? 42 : 34,
+                FontSize = listMode ? (visual.UseSymbolFont ? 18 : 13) : (visual.UseSymbolFont ? 42 : 34),
                 FontWeight = FontWeights.SemiBold,
                 Foreground = Brushes.White,
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -683,14 +911,32 @@ public partial class MainWindow : Window
         var name = new TextBlock
         {
             Text = item.DisplayName,
-            Margin = new Thickness(4, 104, 4, 0),
-            TextAlignment = TextAlignment.Center,
+            Margin = listMode ? new Thickness(0, 0, 12, 0) : new Thickness(4, 104, 4, 0),
+            TextAlignment = listMode ? TextAlignment.Left : TextAlignment.Center,
             TextWrapping = TextWrapping.Wrap,
-            FontSize = 17,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            FontSize = listMode ? 14 : 15,
             FontWeight = FontWeights.Medium,
-            Foreground = _isDarkMode ? Brushes.White : Brushes.White,
+            Foreground = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#F8FAFC" : "#1F2937")!,
+            VerticalAlignment = listMode ? VerticalAlignment.Center : VerticalAlignment.Top,
             MaxHeight = 44
         };
+
+        if (listMode)
+        {
+            Grid.SetColumn(name, 1);
+            var type = new TextBlock
+            {
+                Text = visual.Label,
+                Margin = new Thickness(10, 0, 16, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#94A3B8" : "#64748B")!,
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold
+            };
+            Grid.SetColumn(type, 2);
+            grid.Children.Add(type);
+        }
 
         grid.Children.Add(icon);
         grid.Children.Add(name);
@@ -698,6 +944,36 @@ public partial class MainWindow : Window
         grid.MouseMove += FolderItem_MouseMove;
         grid.MouseLeftButtonUp += FolderItem_MouseLeftButtonUp;
         return grid;
+    }
+
+    private void ShowFolderCategory(string categoryKey)
+    {
+        if (_openFolder is null) return;
+        _openFolderCategoryKey = categoryKey;
+        FolderBackButton.Visibility = Visibility.Visible;
+        UpdateFolderOverlayTitle();
+        RenderOpenFolderItems();
+        FolderItemsHost.Opacity = 0;
+        FolderItemsHost.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(170))
+        {
+            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+        });
+    }
+
+    private void FolderBackButton_Click(object sender, RoutedEventArgs e)
+    {
+        _openFolderCategoryKey = null;
+        FolderBackButton.Visibility = Visibility.Collapsed;
+        UpdateFolderOverlayTitle();
+        RenderOpenFolderItems();
+        e.Handled = true;
+    }
+
+    private void UpdateFolderOverlayTitle()
+    {
+        if (_openFolder is null) return;
+        var category = _openFolderCategoryKey is null ? null : FolderCategoryService.GetCategory(_openFolder.Children, _openFolderCategoryKey);
+        FolderOverlayTitle.Text = category is null ? _openFolder.DisplayName : $"{_openFolder.DisplayName} · {category.Name}";
     }
 
     private void FolderItem_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -820,14 +1096,6 @@ public partial class MainWindow : Window
         transform.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(0, duration) { EasingFunction = ease });
     }
 
-    private void Card_RenameRequested(object? sender, EventArgs e)
-    {
-        if (sender is ItemCard card)
-        {
-            RenameCard(card);
-        }
-    }
-
     private void Card_TitleEdited(object? sender, string newTitle)
     {
         if (sender is not ItemCard card)
@@ -947,11 +1215,42 @@ public partial class MainWindow : Window
         Save();
     }
 
+    private void Card_ResizeStarted(object? sender, EventArgs e)
+    {
+        if (sender is not ItemCard card)
+        {
+            return;
+        }
+
+        RegisterUndoSnapshot();
+        Panel.SetZIndex(card, 20);
+    }
+
+    private void Card_ResizeMoved(object? sender, EventArgs e)
+    {
+        if (sender is ItemCard card)
+        {
+            card.Item.Width = card.Width;
+            card.Item.Height = card.Height;
+            EnsureWorkspaceExtent();
+        }
+    }
+
+    private void Card_ResizeFinished(object? sender, EventArgs e)
+    {
+        if (sender is ItemCard card)
+        {
+            Panel.SetZIndex(card, 0);
+            Save();
+            ShowToast("Tamanho da prévia atualizado");
+        }
+    }
+
     private ItemCard? FindFolderTarget(ItemCard draggedCard)
     {
-        var center = draggedCard.TranslatePoint(
-            new Point(draggedCard.ActualWidth / 2, draggedCard.ActualHeight / 2),
-            WorkspaceCanvas);
+        var draggedBounds = draggedCard.GetVisualBounds(WorkspaceCanvas);
+        if (draggedBounds.IsEmpty) return null;
+        var center = new Point(draggedBounds.Left + draggedBounds.Width / 2, draggedBounds.Top + draggedBounds.Height / 2);
 
         return WorkspaceCanvas.Children
             .OfType<ItemCard>()
@@ -959,7 +1258,7 @@ public partial class MainWindow : Window
             .Reverse()
             .FirstOrDefault(card =>
             {
-                var rect = new Rect(Canvas.GetLeft(card), Canvas.GetTop(card), card.ActualWidth, card.ActualHeight);
+                var rect = card.GetVisualBounds(WorkspaceCanvas);
                 return rect.Contains(center);
             });
     }
@@ -1025,10 +1324,11 @@ public partial class MainWindow : Window
 
     private bool IsOverTrash(ItemCard card)
     {
-        var cardCenter = card.TranslatePoint(new Point(card.ActualWidth / 2, card.ActualHeight / 2), Root);
+        var cardBounds = card.GetVisualBounds(Root);
+        if (cardBounds.IsEmpty) return false;
         var trashTopLeft = TrashZone.TranslatePoint(new Point(0, 0), Root);
         var trashRect = new Rect(trashTopLeft, new Size(TrashZone.ActualWidth, TrashZone.ActualHeight));
-        return trashRect.Contains(cardCenter);
+        return trashRect.IntersectsWith(cardBounds);
     }
 
     private void SetTrashHover(bool active)
@@ -1150,7 +1450,7 @@ public partial class MainWindow : Window
         {
             _items.Remove(card.Item);
             _selectedCards.Remove(card);
-            WorkspaceCanvas.Children.Remove(card);
+            card.PlayDismiss(() => WorkspaceCanvas.Children.Remove(card));
         }
 
         Save();
@@ -1183,6 +1483,10 @@ public partial class MainWindow : Window
 
     private void Root_MouseDown(object sender, MouseButtonEventArgs e)
     {
+        if (WorkspaceDropdown.Visibility == Visibility.Visible && e.OriginalSource != WorkspaceButton)
+        {
+            HideWorkspaceDropdown();
+        }
         if (e.OriginalSource == Root || e.OriginalSource == WorkspaceCanvas)
         {
             ClearSelection();
@@ -1257,7 +1561,7 @@ public partial class MainWindow : Window
 
         RegisterUndoSnapshot();
         _openFolder.DisplayName = newName;
-        FolderOverlayTitle.Text = newName;
+        UpdateFolderOverlayTitle();
         RefreshCard(_openFolder);
         Save();
         ShowToast("Pasta renomeada");
@@ -1269,7 +1573,7 @@ public partial class MainWindow : Window
         FolderOverlayTitle.Visibility = Visibility.Visible;
         if (_openFolder is not null)
         {
-            FolderOverlayTitle.Text = _openFolder.DisplayName;
+            UpdateFolderOverlayTitle();
         }
     }
 
@@ -1291,6 +1595,42 @@ public partial class MainWindow : Window
 
         _initialLayoutDone = true;
         Save();
+    }
+
+    private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateResponsiveHeader();
+    private void Root_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateResponsiveHeader();
+
+    private void UpdateResponsiveHeader()
+    {
+        if (HeaderBar is null || WorkspaceSearchSurface is null || Root is null) return;
+        var width = Root.ActualWidth > 0 ? Root.ActualWidth : ActualWidth;
+        var compact = width < 1200;
+        var narrow = width < 700;
+
+        BrandNameText.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+        BrandColumn.Width = new GridLength(compact ? 40 : 112);
+        WorkspaceColumn.Width = new GridLength(narrow ? 48 : compact ? 132 : 174);
+        WorkspaceNameText.Visibility = narrow ? Visibility.Collapsed : Visibility.Visible;
+        WorkspaceNameText.MaxWidth = compact ? 96 : 130;
+        ZoomColumn.Width = new GridLength(narrow ? 0 : compact ? 140 : 172);
+        HeaderBar.Margin = new Thickness(compact ? 16 : 24, 17, 126, 0);
+        HeaderBar.Height = narrow ? 94 : 44;
+
+        Grid.SetRow(ZoomSurface, narrow ? 1 : 0);
+        Grid.SetColumn(ZoomSurface, narrow ? 0 : 4);
+        Grid.SetColumnSpan(ZoomSurface, narrow ? 3 : 1);
+        ZoomSurface.Width = narrow ? 160 : double.NaN;
+        ZoomSurface.HorizontalAlignment = narrow ? HorizontalAlignment.Left : HorizontalAlignment.Stretch;
+        ZoomSurface.Margin = narrow ? new Thickness(0, 6, 0, 0) : new Thickness(0);
+
+        WorkspaceSearchSurface.Width = compact
+            ? Math.Max(150, Math.Min(390, width - 48))
+            : width < 1450 ? 300 : 390;
+        WorkspaceSearchSurface.Margin = new Thickness(0, narrow ? 121 : compact ? 70 : 19, 0, 0);
+
+        var dropdownLeft = HeaderBar.Margin.Left + BrandColumn.Width.Value + TopToolbar.ActualWidth + 8;
+        WorkspaceDropdown.Margin = new Thickness(dropdownLeft, narrow ? 170 : 70, 0, 0);
+        WorkspaceDropdown.MaxWidth = Math.Max(220, width - dropdownLeft - 20);
     }
 
     private void RefreshCard(ClipboardItem item)
@@ -1443,22 +1783,76 @@ public partial class MainWindow : Window
     private void HistoryButton_Click(object sender, RoutedEventArgs e)
     {
         if (HistoryPane.Visibility == Visibility.Visible) { HideHistoryPanel(); return; }
-        HistoryColumn.MinWidth = 300;
+        HistoryColumn.BeginAnimation(ColumnDefinition.WidthProperty, null);
+        HistoryColumn.MinWidth = 0;
         HistoryColumn.MaxWidth = Math.Max(300, Math.Min(520, ActualWidth - 510));
-        HistoryColumn.Width = new GridLength(Math.Min(_historyWidth, HistoryColumn.MaxWidth));
+        var targetWidth = Math.Min(_historyWidth, HistoryColumn.MaxWidth);
+        HistoryColumn.Width = new GridLength(0);
         HistoryPane.Visibility = Visibility.Visible;
+        HistoryPane.IsHitTestVisible = false;
+        HistoryPane.Opacity = 0;
+        HistoryPane.RenderTransform = new TranslateTransform(-34, 0);
         HistorySplitter.Visibility = Visibility.Visible;
-        HistoryPane.FocusSearch();
+        HistorySplitter.Opacity = 0;
+
+        var ease = new QuarticEase { EasingMode = EasingMode.EaseOut };
+        var widthAnimation = new GridLengthAnimation
+        {
+            From = new GridLength(0),
+            To = new GridLength(targetWidth),
+            Duration = TimeSpan.FromMilliseconds(320),
+            EasingFunction = ease,
+            FillBehavior = FillBehavior.Stop
+        };
+        widthAnimation.Completed += (_, _) =>
+        {
+            if (HistoryPane.Visibility != Visibility.Visible) return;
+            HistoryColumn.Width = new GridLength(targetWidth);
+            HistoryColumn.MinWidth = Math.Min(300, targetWidth);
+            HistoryPane.IsHitTestVisible = true;
+            HistoryPane.FocusSearch();
+        };
+        HistoryColumn.BeginAnimation(ColumnDefinition.WidthProperty, widthAnimation);
+        HistoryPane.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(220)) { EasingFunction = ease });
+        ((TranslateTransform)HistoryPane.RenderTransform).BeginAnimation(TranslateTransform.XProperty,
+            new DoubleAnimation(0, TimeSpan.FromMilliseconds(320)) { EasingFunction = ease });
+        HistorySplitter.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(240)) { BeginTime = TimeSpan.FromMilliseconds(80) });
     }
 
     private void HideHistoryPanel()
     {
-        if (HistoryPane.Visibility == Visibility.Visible) _historyWidth = HistoryColumn.ActualWidth;
-        HistoryPane.Visibility = Visibility.Collapsed;
-        HistorySplitter.Visibility = Visibility.Collapsed;
+        if (HistoryPane.Visibility != Visibility.Visible) return;
+        _historyWidth = Math.Max(300, HistoryColumn.ActualWidth);
+        var startWidth = HistoryColumn.ActualWidth;
+        HistoryColumn.BeginAnimation(ColumnDefinition.WidthProperty, null);
         HistoryColumn.MinWidth = 0;
-        HistoryColumn.Width = new GridLength(0);
-        WorkspaceCanvas.Focus();
+        HistoryColumn.Width = new GridLength(startWidth);
+        HistoryPane.IsHitTestVisible = false;
+        if (HistoryPane.RenderTransform is not TranslateTransform translate)
+            HistoryPane.RenderTransform = translate = new TranslateTransform();
+
+        var ease = new CubicEase { EasingMode = EasingMode.EaseInOut };
+        var widthAnimation = new GridLengthAnimation
+        {
+            From = new GridLength(startWidth),
+            To = new GridLength(0),
+            Duration = TimeSpan.FromMilliseconds(260),
+            EasingFunction = ease,
+            FillBehavior = FillBehavior.Stop
+        };
+        widthAnimation.Completed += (_, _) =>
+        {
+            HistoryColumn.Width = new GridLength(0);
+            HistoryPane.Visibility = Visibility.Collapsed;
+            HistorySplitter.Visibility = Visibility.Collapsed;
+            HistoryPane.BeginAnimation(OpacityProperty, null);
+            HistoryPane.Opacity = 1;
+            WorkspaceCanvas.Focus();
+        };
+        HistoryColumn.BeginAnimation(ColumnDefinition.WidthProperty, widthAnimation);
+        HistoryPane.BeginAnimation(OpacityProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(190)) { EasingFunction = ease });
+        translate.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(-26, TimeSpan.FromMilliseconds(230)) { EasingFunction = ease });
+        HistorySplitter.BeginAnimation(OpacityProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(150)));
     }
 
     private void ShowCompactHistory()
@@ -1514,64 +1908,248 @@ public partial class MainWindow : Window
 
     private void WorkspaceButton_Click(object sender, RoutedEventArgs e)
     {
-        var menu = new ContextMenu
+        if (WorkspaceDropdown.Visibility == Visibility.Visible)
         {
-            Style = (Style)FindResource("WorkspaceContextMenuStyle"),
-            Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom
-        };
-        var itemStyle = (Style)FindResource("WorkspaceMenuItemStyle");
-        foreach (var board in _workspaces)
-        {
-            var item = new MenuItem { Header = board.Name, IsCheckable = true, IsChecked = board.Id == _activeWorkspace.Id, Style = itemStyle };
-            item.Click += (_, _) => SwitchWorkspace(board);
-            menu.Items.Add(item);
+            HideWorkspaceDropdown();
+            return;
         }
-        menu.Items.Add(new Separator { Style = (Style)FindResource("WorkspaceMenuSeparatorStyle") });
-        var create = new MenuItem { Header = "+ Nova mesa", Style = itemStyle, Foreground = (Brush)FindResource("AccentBrush") };
-        create.Click += (_, _) => CreateWorkspace();
-        menu.Items.Add(create);
-        var rename = new MenuItem { Header = "Renomear mesa atual…", Style = itemStyle };
-        rename.Click += (_, _) => RenameWorkspace();
-        menu.Items.Add(rename);
-        menu.PlacementTarget = WorkspaceButton;
-        menu.IsOpen = true;
+
+        BuildWorkspaceDropdown();
+        WorkspaceDropdown.Visibility = Visibility.Visible;
+        WorkspaceDropdown.Opacity = 0;
+        WorkspaceDropdownScale.ScaleX = 0.96;
+        WorkspaceDropdownScale.ScaleY = 0.96;
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        WorkspaceDropdown.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(150)) { EasingFunction = ease });
+        WorkspaceDropdownScale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(210)) { EasingFunction = ease });
+        WorkspaceDropdownScale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(210)) { EasingFunction = ease });
     }
 
-    private void CreateWorkspace()
+    private void BuildWorkspaceDropdown()
     {
-        var defaultName = $"Mesa {_workspaces.Count + 1}";
-        var dialog = new RenameWindow(defaultName, "Nova mesa", "Nome da mesa"){ Owner = this };
-        if (dialog.ShowDialog() != true) return;
-        Save();
-        var board = new WorkspaceBoard { Name = dialog.ItemName };
-        _workspaces.Add(board);
-        SwitchWorkspace(board, saveCurrent: false);
-        ShowToast("Nova mesa criada");
+        WorkspaceDropdownTitle.Text = _activeWorkspace.Name;
+        WorkspaceDropdownItems.Children.Clear();
+        WorkspaceDropdownActions.Children.Clear();
+
+        foreach (var board in _workspaces.Where(candidate => candidate.Id != _activeWorkspace.Id))
+        {
+            WorkspaceDropdownItems.Children.Add(CreateWorkspaceDropdownButton(board.Name, "\uE8F1", () => _ = SwitchWorkspaceAsync(board)));
+        }
+
+        if (WorkspaceDropdownItems.Children.Count == 0)
+        {
+            WorkspaceDropdownItems.Children.Add(new TextBlock
+            {
+                Text = "Nenhuma outra mesa criada",
+                Margin = new Thickness(10, 2, 10, 4),
+                Foreground = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#94A3B8" : "#64748B")!,
+                FontSize = 13
+            });
+        }
+
+        WorkspaceDropdownActions.Children.Add(CreateWorkspaceDropdownButton("Nova mesa", "\uE710", () => ShowWorkspaceNameOverlay(create: true), accent: true));
     }
 
-    private void RenameWorkspace()
+    private Button CreateWorkspaceDropdownButton(string title, string glyph, Action action, bool accent = false)
     {
-        var dialog = new RenameWindow(_activeWorkspace.Name, "Renomear mesa", "Nome da mesa") { Owner = this };
-        if (dialog.ShowDialog() != true) return;
-        _activeWorkspace.Name = dialog.ItemName;
-        Save();
-        UpdateWorkspacePresentation();
+        var foreground = (Brush)new BrushConverter().ConvertFromString(accent ? "#A78BFA" : (_isDarkMode ? "#F8FAFC" : "#334155"))!;
+        var button = new Button
+        {
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Height = 42,
+            Margin = new Thickness(0, 0, 0, 5),
+            Padding = new Thickness(10, 0, 10, 0),
+            Background = Brushes.Transparent,
+            Foreground = foreground
+        };
+        var content = new Grid();
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) });
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        content.Children.Add(new TextBlock
+        {
+            Text = glyph,
+            FontFamily = new FontFamily("Segoe MDL2 Assets"),
+            FontSize = 15,
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        var label = new TextBlock
+        {
+            Text = title,
+            FontSize = 14,
+            FontWeight = FontWeights.Medium,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        };
+        Grid.SetColumn(label, 1);
+        content.Children.Add(label);
+        button.Content = content;
+        button.Click += (_, _) =>
+        {
+            HideWorkspaceDropdown(immediate: true);
+            action();
+        };
+        return button;
     }
 
-    private void SwitchWorkspace(WorkspaceBoard board, bool saveCurrent = true)
+    private void HideWorkspaceDropdown(bool immediate = false)
     {
-        if (board.Id == _activeWorkspace.Id) return;
-        if (saveCurrent) Save();
-        _activeWorkspace = board;
-        _items = board.Items;
-        _undoStack.Clear();
-        _redoStack.Clear();
-        HideFolderOverlay();
-        ClearSelection();
-        RenderAllItems();
-        UpdateUndoRedoButtons();
-        UpdateWorkspacePresentation();
-        EnsureWorkspaceExtent();
+        if (WorkspaceDropdown.Visibility != Visibility.Visible) return;
+        if (immediate)
+        {
+            WorkspaceDropdown.BeginAnimation(OpacityProperty, null);
+            WorkspaceDropdown.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var fade = new DoubleAnimation(0, TimeSpan.FromMilliseconds(110));
+        fade.Completed += (_, _) => WorkspaceDropdown.Visibility = Visibility.Collapsed;
+        WorkspaceDropdown.BeginAnimation(OpacityProperty, fade);
+    }
+
+    private void WorkspaceEditButton_Click(object sender, RoutedEventArgs e)
+    {
+        HideWorkspaceDropdown(immediate: true);
+        ShowWorkspaceNameOverlay(create: false);
+        e.Handled = true;
+    }
+
+    private void ShowWorkspaceNameOverlay(bool create)
+    {
+        _workspaceNameCreates = create;
+        WorkspaceNameDialogTitle.Text = create ? "Criar nova mesa" : "Editar nome da mesa";
+        WorkspaceNameDialogPrompt.Text = create ? "Como você quer chamar esta mesa?" : "Escolha um nome que identifique melhor este espaço.";
+        WorkspaceNameDialogIcon.Text = create ? "\uE710" : "\uE70F";
+        WorkspaceNameConfirmButton.Content = create ? "Criar mesa" : "Salvar";
+        WorkspaceNameInput.Text = create ? $"Mesa {_workspaces.Count + 1}" : _activeWorkspace.Name;
+        WorkspaceNameOverlay.Visibility = Visibility.Visible;
+        WorkspaceNameOverlay.Opacity = 0;
+        WorkspaceNameDialogScale.ScaleX = 0.94;
+        WorkspaceNameDialogScale.ScaleY = 0.94;
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        WorkspaceNameOverlay.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(170)) { EasingFunction = ease });
+        WorkspaceNameDialogScale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(250)) { EasingFunction = ease });
+        WorkspaceNameDialogScale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(250)) { EasingFunction = ease });
+        Dispatcher.BeginInvoke(() =>
+        {
+            WorkspaceNameInput.Focus();
+            WorkspaceNameInput.SelectAll();
+        });
+    }
+
+    private void HideWorkspaceNameOverlay()
+    {
+        if (WorkspaceNameOverlay.Visibility != Visibility.Visible) return;
+        var fade = new DoubleAnimation(0, TimeSpan.FromMilliseconds(130));
+        fade.Completed += (_, _) => WorkspaceNameOverlay.Visibility = Visibility.Collapsed;
+        WorkspaceNameOverlay.BeginAnimation(OpacityProperty, fade);
+    }
+
+    private async void WorkspaceNameConfirm_Click(object sender, RoutedEventArgs e)
+    {
+        await CommitWorkspaceNameAsync();
+        e.Handled = true;
+    }
+
+    private async Task CommitWorkspaceNameAsync()
+    {
+        if (!WorkspaceNameConfirmButton.IsEnabled) return;
+        var name = WorkspaceNameInput.Text.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            WorkspaceNameInput.Focus();
+            return;
+        }
+
+        WorkspaceNameConfirmButton.IsEnabled = false;
+        try
+        {
+            if (_workspaceNameCreates)
+            {
+                Save();
+                var board = new WorkspaceBoard { Name = name };
+                _workspaces.Add(board);
+                HideWorkspaceNameOverlay();
+                await SwitchWorkspaceAsync(board, saveCurrent: false);
+                Save();
+                ShowToast("Nova mesa criada");
+            }
+            else
+            {
+                _activeWorkspace.Name = name;
+                Save();
+                UpdateWorkspacePresentation();
+                HideWorkspaceNameOverlay();
+                ShowToast("Nome da mesa atualizado");
+            }
+        }
+        finally
+        {
+            WorkspaceNameConfirmButton.IsEnabled = true;
+        }
+    }
+
+    private void WorkspaceNameCancel_Click(object sender, RoutedEventArgs e)
+    {
+        HideWorkspaceNameOverlay();
+        e.Handled = true;
+    }
+
+    private void WorkspaceNameInput_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            _ = CommitWorkspaceNameAsync();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            HideWorkspaceNameOverlay();
+            e.Handled = true;
+        }
+    }
+
+    private void WorkspaceNameOverlay_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.OriginalSource == WorkspaceNameOverlay) HideWorkspaceNameOverlay();
+    }
+
+    private void WorkspaceNameDialog_MouseDown(object sender, MouseButtonEventArgs e) => e.Handled = true;
+
+    private async Task SwitchWorkspaceAsync(WorkspaceBoard board, bool saveCurrent = true)
+    {
+        if (_isSwitchingWorkspace || board.Id == _activeWorkspace.Id) return;
+
+        _isSwitchingWorkspace = true;
+        WorkspaceCanvas.IsHitTestVisible = false;
+        HideWorkspaceDropdown(immediate: true);
+        try
+        {
+            if (saveCurrent) Save();
+            HideFolderOverlay();
+            ClearSelection();
+            var cards = WorkspaceCanvas.Children.OfType<ItemCard>().ToList();
+            await Task.WhenAll(cards.Select((card, index) => card.PlayWorkspaceExit(index)));
+            WorkspaceCanvas.Children.Clear();
+
+            _activeWorkspace = board;
+            _items = board.Items;
+            _undoStack.Clear();
+            _redoStack.Clear();
+            UpdateWorkspacePresentation();
+            RenderAllItems(animate: true);
+            EnsureWorkspaceExtent();
+            UpdateUndoRedoButtons();
+        }
+        catch (Exception ex)
+        {
+            _soundService.Error();
+            ShowToast($"Não foi possível trocar de mesa: {ex.Message}");
+        }
+        finally
+        {
+            WorkspaceCanvas.IsHitTestVisible = true;
+            _isSwitchingWorkspace = false;
+        }
     }
 
     private void UpdateWorkspacePresentation()
@@ -1616,10 +2194,72 @@ public partial class MainWindow : Window
     private void EnsureWorkspaceExtent()
     {
         if (WorkspaceCanvas is null || WorkspaceScroll is null || _items is null) return;
-        WorkspaceCanvas.Width = Math.Max(Math.Max(480, WorkspaceScroll.ActualWidth - 18), _items.Select(item => item.X + 156).DefaultIfEmpty(0).Max());
-        WorkspaceCanvas.Height = Math.Max(Math.Max(360, WorkspaceScroll.ActualHeight - 18), _items.Select(item => item.Y + 172).DefaultIfEmpty(0).Max());
+        WorkspaceCanvas.Width = Math.Max(
+            Math.Max(480, WorkspaceScroll.ActualWidth - 18),
+            _items.Select(item => item.X + (item.Width >= 240 ? item.Width : 340) * GetElementScale() + 32).DefaultIfEmpty(0).Max());
+        WorkspaceCanvas.Height = Math.Max(
+            Math.Max(360, WorkspaceScroll.ActualHeight - 18),
+            _items.Select(item => item.Y + (item.Height >= 156 ? item.Height : 220) * GetElementScale() + 32).DefaultIfEmpty(0).Max());
         WorkspaceEmptyState.Visibility = _items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
+
+    private void WorkspaceSearchBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (WorkspaceSearchPlaceholder is null || WorkspaceCanvas is null) return;
+        var query = WorkspaceSearchBox.Text.Trim();
+        WorkspaceSearchPlaceholder.Visibility = query.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        var found = 0;
+        foreach (var card in WorkspaceCanvas.Children.OfType<ItemCard>())
+        {
+            var matches = MatchesWorkspaceSearch(card.Item, query);
+            if (matches) found++;
+            if (matches && card.Visibility != Visibility.Visible)
+            {
+                card.Opacity = 0;
+                card.Visibility = Visibility.Visible;
+                card.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(170))
+                {
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                });
+            }
+            else if (!matches)
+            {
+                card.Visibility = Visibility.Collapsed;
+            }
+        }
+        WorkspaceSearchCount.Text = query.Length == 0 ? string.Empty : found.ToString();
+    }
+
+    private static bool MatchesWorkspaceSearch(ClipboardItem item, string? rawQuery)
+    {
+        if (string.IsNullOrWhiteSpace(rawQuery)) return true;
+        var query = rawQuery.Trim();
+        bool Contains(string? value) => !string.IsNullOrWhiteSpace(value) && value.Contains(query, StringComparison.CurrentCultureIgnoreCase);
+        return Contains(item.DisplayName) || Contains(item.Text) || Contains(item.Url)
+            || item.FilePaths.Any(path => Contains(Path.GetFileName(path)) || Contains(Path.GetExtension(path)))
+            || item.Children.Any(child => MatchesWorkspaceSearch(child, query));
+    }
+
+    private void ZoomSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (ZoomValueText is null || WorkspaceCanvas is null) return;
+        _workspaceZoom = Math.Clamp(e.NewValue / 100d, 0.5, 1);
+        foreach (var card in WorkspaceCanvas.Children.OfType<ItemCard>())
+            card.SetWorkspaceZoom(GetElementScale());
+        ZoomValueText.Text = $"{Math.Round(_workspaceZoom * 100):0}%";
+        EnsureWorkspaceExtent();
+        if (!IsInitialized) return;
+        _appearanceSaveTimer.Stop();
+        _appearanceSaveTimer.Start();
+    }
+
+    private void SaveAppearanceSettings()
+    {
+        try { _storageService.SaveSettings(new AppSettings { IsDarkMode = _isDarkMode, WorkspaceZoom = _workspaceZoom, ZoomScaleVersion = 2 }); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+    }
+
+    private double GetElementScale() => ElementBaseScale * _workspaceZoom;
     private void UndoButton_Click(object sender, RoutedEventArgs e) => UndoLastChange();
     private void RedoButton_Click(object sender, RoutedEventArgs e) => RedoLastChange();
 
@@ -1627,7 +2267,7 @@ public partial class MainWindow : Window
     {
         _isDarkMode = !_isDarkMode;
         ApplyTheme();
-        try { _storageService.SaveSettings(new AppSettings { IsDarkMode = _isDarkMode }); }
+        try { _storageService.SaveSettings(new AppSettings { IsDarkMode = _isDarkMode, WorkspaceZoom = _workspaceZoom, ZoomScaleVersion = 2 }); }
         catch (Exception ex) { ShowToast($"Não foi possível salvar o tema: {ex.Message}"); }
     }
 
@@ -1713,11 +2353,19 @@ public partial class MainWindow : Window
         Background = (Brush)new BrushConverter().ConvertFromString(workspace)!;
         TopToolbar.Background = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#D81E2531" : "#B8FFFFFF")!;
         TopToolbar.BorderBrush = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#66505E74" : "#55FFFFFF")!;
+        WorkspaceSearchSurface.Background = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#C61B2230" : "#DDF8FAFC")!;
+        WorkspaceSearchSurface.BorderBrush = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#50647A" : "#CBD5E1")!;
+        WorkspaceSearchBox.Foreground = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#F8FAFC" : "#1F2937")!;
+        WorkspaceSearchBox.CaretBrush = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#A78BFA" : "#7C3AED")!;
+        WorkspaceSearchPlaceholder.Foreground = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#8090A5" : "#718096")!;
+        ZoomSurface.Background = WorkspaceSearchSurface.Background;
+        ZoomSurface.BorderBrush = WorkspaceSearchSurface.BorderBrush;
+        ZoomValueText.Foreground = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#D8D4F0" : "#4B5563")!;
         FolderOverlay.Background = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#C0141820" : "#B8F4F4F2")!;
-        FolderPanel.Background = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#D82B3344" : "#B8DDEAFF")!;
-        FolderPanel.BorderBrush = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#66505E74" : "#66FFFFFF")!;
-        FolderOverlayTitle.Foreground = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#F8FAFC" : "#FAFFFFFF")!;
-        FolderOverlayTitleEditor.Foreground = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#F8FAFC" : "#FAFFFFFF")!;
+        FolderPanel.Background = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#F21D2432" : "#F7FFFFFF")!;
+        FolderPanel.BorderBrush = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#59647A" : "#CBD5E1")!;
+        FolderOverlayTitle.Foreground = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#F8FAFC" : "#1F2937")!;
+        FolderOverlayTitleEditor.Foreground = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#F8FAFC" : "#1F2937")!;
         FolderOverlayTitleEditor.Background = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#331E2531" : "#22FFFFFF")!;
         FolderOverlayTitleEditor.BorderBrush = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#99CBD5E1" : "#66FFFFFF")!;
         ApplyTrashTheme(_isTrashHovering);
@@ -1732,6 +2380,15 @@ public partial class MainWindow : Window
         WorkspaceButton.Foreground = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#F8FAFC" : "#25282D")!;
         WorkspaceButton.Background = Brushes.Transparent;
         WorkspaceButton.BorderBrush = Brushes.Transparent;
+        WorkspaceDropdown.Background = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#D91D2636" : "#E8FFFFFF")!;
+        WorkspaceDropdown.BorderBrush = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#5C71839D" : "#C5D1DF")!;
+        WorkspaceDropdownTitle.Foreground = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#F8FAFC" : "#1F2937")!;
+        WorkspaceDropdownEditButton.Foreground = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#E2E8F0" : "#334155")!;
+        WorkspaceNameDialog.Background = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#F21D2636" : "#FAF8FAFC")!;
+        WorkspaceNameDialog.BorderBrush = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#66788AA3" : "#CBD5E1")!;
+        WorkspaceNameDialogTitle.Foreground = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#F8FAFC" : "#1F2937")!;
+        WorkspaceNameDialogPrompt.Foreground = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#AAB7C8" : "#64748B")!;
+        WorkspaceNameInput.Foreground = WorkspaceNameDialogTitle.Foreground;
 
         foreach (var card in WorkspaceCanvas.Children.OfType<ItemCard>())
         {
@@ -1785,6 +2442,8 @@ public partial class MainWindow : Window
         {
             card.Item.X = Canvas.GetLeft(card);
             card.Item.Y = Canvas.GetTop(card);
+            card.Item.Width = card.Width;
+            card.Item.Height = card.Height;
         }
     }
 

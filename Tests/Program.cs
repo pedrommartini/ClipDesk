@@ -38,4 +38,12 @@ var legacy = """[{"Id":"existing","Type":"Text","DisplayName":"Nota","Text":"Ol�
 var loaded = JsonSerializer.Deserialize<List<ClipboardItem>>(legacy, options)!;
 Check(loaded[0].Id == "existing" && loaded[0].Text == "Olá" && loaded[0].X == 123 && loaded[0].Y == 456,
     "Biblioteca compartilhada lê o formato anterior sem perder IDs e posições");
+Check(loaded[0].Width == 0 && loaded[0].Height == 0,
+    "Itens antigos recebem tamanho adaptativo sem quebrar a leitura");
+loaded[0].Width = 420;
+loaded[0].Height = 280;
+var resizedJson = JsonSerializer.Serialize(loaded, options);
+var resized = JsonSerializer.Deserialize<List<ClipboardItem>>(resizedJson, options)!;
+Check(resized[0].Width == 420 && resized[0].Height == 280,
+    "Dimensões personalizadas das prévias são persistidas");
 Console.WriteLine($"{passed} verificações concluídas.");

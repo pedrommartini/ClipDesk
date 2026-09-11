@@ -119,7 +119,9 @@ public sealed class ClipboardService : IDisposable
             StoredFilePath = item.StoredFilePath,
             Children = item.Children.Select(Clone).ToList(),
             X = item.X + 28,
-            Y = item.Y + 28
+            Y = item.Y + 28,
+            Width = item.Width,
+            Height = item.Height
         };
 
         if (item.Type == ClipboardItemType.Image && File.Exists(item.StoredFilePath))
@@ -296,6 +298,8 @@ public sealed class ClipboardService : IDisposable
             Children = item.Children.Select(Clone).ToList(),
             X = item.X,
             Y = item.Y,
+            Width = item.Width,
+            Height = item.Height,
             CreatedAt = item.CreatedAt
         };
     }
