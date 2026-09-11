@@ -10,9 +10,9 @@
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>ClipDesk</RootNamespace>
     <AssemblyName>ClipDesk</AssemblyName>
-    <Version>0.3.1</Version>
-    <AssemblyVersion>0.3.1.0</AssemblyVersion>
-    <FileVersion>0.3.1.0</FileVersion>
+    <Version>0.3.2</Version>
+    <AssemblyVersion>0.3.2.0</AssemblyVersion>
+    <FileVersion>0.3.2.0</FileVersion>
     <ApplicationIcon>Resources\Brand\clipdesk.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
@@ -37,11 +37,14 @@
   </ItemGroup>
   <Target Name="BuildUpdater" BeforeTargets="Publish">
     <MSBuild Projects="$(MSBuildProjectDirectory)\Updater\ClipDesk.Updater.csproj"
-             Targets="Build"
-             Properties="Configuration=$(Configuration);RuntimeIdentifier=;SelfContained=false" />
+             Targets="Restore"
+             Properties="RuntimeIdentifier=win-x64" />
+    <MSBuild Projects="$(MSBuildProjectDirectory)\Updater\ClipDesk.Updater.csproj"
+             Targets="Publish"
+             Properties="Configuration=$(Configuration);RuntimeIdentifier=win-x64;SelfContained=true;PublishSingleFile=true;IncludeNativeLibrariesForSelfExtract=true;EnableCompressionInSingleFile=true;PublishDir=$(MSBuildProjectDirectory)\Updater\bin\$(Configuration)\publish\" />
   </Target>
   <Target Name="CopyUpdaterToPublish" AfterTargets="Publish">
-    <Copy SourceFiles="$(MSBuildProjectDirectory)\Updater\bin\$(Configuration)\net8.0\ClipDesk.Updater.exe"
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\Updater\bin\$(Configuration)\publish\ClipDesk.Updater.exe"
           DestinationFolder="$(PublishDir)"
           SkipUnchangedFiles="true" />
   </Target>

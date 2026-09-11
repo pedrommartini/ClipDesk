@@ -10,7 +10,7 @@ public sealed record AvailableUpdate(Version Version, string TagName, string Dow
 
 public static class UpdateService
 {
-    public const string CurrentVersion = "0.3.1";
+    public const string CurrentVersion = "0.3.2";
     private const string LatestReleaseUrl = "https://api.github.com/repos/pedrommartini/ClipDesk/releases/latest";
     private const string PackageName = "ClipDesk-Windows-x64.zip";
 
@@ -69,7 +69,7 @@ public static class UpdateService
             "--target", QuoteArgument(applicationDirectory),
             "--exe", QuoteArgument(executablePath));
 
-        Process.Start(new ProcessStartInfo
+        var updaterProcess = Process.Start(new ProcessStartInfo
         {
             FileName = updaterCopy,
             Arguments = arguments,
@@ -78,6 +78,8 @@ public static class UpdateService
             CreateNoWindow = true,
             WindowStyle = ProcessWindowStyle.Hidden
         });
+        if (updaterProcess is null)
+            throw new InvalidOperationException("Não foi possível iniciar o atualizador do ClipDesk.");
     }
 
     public static async Task RunUpdaterAsync(string[] args)
@@ -114,7 +116,7 @@ public static class UpdateService
     private static HttpClient CreateHttpClient()
     {
         var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("ClipDesk-Updater/0.3.1");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("ClipDesk-Updater/0.3.2");
         client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
         return client;
     }

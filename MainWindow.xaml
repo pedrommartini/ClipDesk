@@ -121,7 +121,10 @@
           PreviewDrop="Window_Drop"
           PreviewDragLeave="Window_DragLeave"
           SizeChanged="Root_SizeChanged"
-          MouseDown="Root_MouseDown">
+          MouseDown="Root_MouseDown"
+          MouseMove="Root_MouseMove"
+          MouseLeftButtonUp="Root_MouseLeftButtonUp"
+          MouseRightButtonDown="Root_MouseRightButtonDown">
         <ScrollViewer x:Name="WorkspaceScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" SizeChanged="WorkspaceScroll_SizeChanged">
         <Canvas x:Name="WorkspaceCanvas"
                 AllowDrop="True"
@@ -132,6 +135,42 @@
                 PreviewDragLeave="Window_DragLeave"
                 SizeChanged="WorkspaceCanvas_SizeChanged" />
         </ScrollViewer>
+
+        <Border x:Name="SelectionMarquee"
+                Visibility="Collapsed"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Background="#167C5CFC"
+                BorderBrush="#BFA78BFA"
+                BorderThickness="1.5"
+                CornerRadius="7"
+                IsHitTestVisible="False"
+                Panel.ZIndex="18" />
+
+        <Border x:Name="CanvasContextMenu"
+                Width="248"
+                Visibility="Collapsed"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Padding="10"
+                Background="#F21D2432"
+                BorderBrush="#607C8DA6"
+                BorderThickness="1"
+                CornerRadius="16"
+                Panel.ZIndex="60"
+                RenderTransformOrigin="0,0">
+            <Border.RenderTransform><ScaleTransform x:Name="CanvasContextMenuScale" ScaleX="0.94" ScaleY="0.94" /></Border.RenderTransform>
+            <Border.Effect><DropShadowEffect BlurRadius="24" ShadowDepth="8" Opacity="0.34" Color="#020617" /></Border.Effect>
+            <StackPanel>
+                <TextBlock Text="ADICIONAR À MESA" Margin="7,3,0,8" FontSize="10" FontWeight="Bold" Foreground="#AAB8D8" />
+                <Button Height="38" Padding="10,0" HorizontalContentAlignment="Left" Click="AddTextFromCanvasMenu_Click">
+                    <StackPanel Orientation="Horizontal"><TextBlock Text="+" FontSize="22" Foreground="#B79BFF" Margin="0,-2,10,0" /><TextBlock Text="Adicionar texto" FontSize="14" /></StackPanel>
+                </Button>
+                <Button Height="38" Margin="0,3,0,0" Padding="10,0" HorizontalContentAlignment="Left" Click="AddChecklistFromCanvasMenu_Click">
+                    <StackPanel Orientation="Horizontal"><TextBlock Text="☑" FontSize="17" Foreground="#77D9FF" Margin="0,0,11,0" /><TextBlock Text="Adicionar checklist" FontSize="14" /></StackPanel>
+                </Button>
+            </StackPanel>
+        </Border>
 
         <Border x:Name="HistoryDropGlow"
                 Margin="18"
@@ -144,22 +183,26 @@
             <TextBlock x:Name="HistoryDropGlowText" Text="Solte para adicionar à mesa" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" FontSize="16" />
         </Border>
 
-        <Grid x:Name="HeaderBar" Height="44" Margin="24,17,126,0" HorizontalAlignment="Stretch" VerticalAlignment="Top" Panel.ZIndex="20">
+        <Grid x:Name="HeaderBar" Height="66" Margin="24,17,126,0" HorizontalAlignment="Stretch" VerticalAlignment="Top" Panel.ZIndex="20">
             <Grid.RowDefinitions>
-                <RowDefinition Height="44" />
-                <RowDefinition Height="50" />
+                <RowDefinition Height="38" />
+                <RowDefinition Height="28" />
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition x:Name="BrandColumn" Width="112" />
+                <ColumnDefinition x:Name="BrandColumn" Width="126" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition x:Name="WorkspaceColumn" Width="174" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition x:Name="ZoomColumn" Width="172" />
             </Grid.ColumnDefinitions>
-            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" IsHitTestVisible="False">
-                <Image x:Name="BrandMark" Source="Resources/Brand/clipdesk-icon.png" Width="24" Height="24" Stretch="Uniform" />
-                <TextBlock x:Name="BrandNameText" Text="ClipDesk" Margin="9,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}" FontSize="18" FontWeight="SemiBold" />
-            </StackPanel>
+            <Grid Grid.Column="0" Grid.RowSpan="2" IsHitTestVisible="False">
+                <Grid.RowDefinitions><RowDefinition Height="38" /><RowDefinition Height="28" /></Grid.RowDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image x:Name="BrandMark" Source="Resources/Brand/clipdesk-icon.png" Width="24" Height="24" Stretch="Uniform" />
+                    <TextBlock x:Name="BrandNameText" Text="ClipDesk" Margin="9,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}" FontSize="18" FontWeight="SemiBold" />
+                </StackPanel>
+                <TextBlock x:Name="InstalledVersionText" Grid.Row="1" Margin="33,0,0,0" VerticalAlignment="Top" Foreground="#AAB8D8" FontSize="10" FontWeight="SemiBold" />
+            </Grid>
 
         <Border x:Name="TopToolbar" Grid.Column="1"
                 HorizontalAlignment="Left"
@@ -462,6 +505,53 @@
                     <StackPanel Margin="0,24,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button Width="102" Height="40" Margin="0,0,9,0" Click="WorkspaceNameCancel_Click">Cancelar</Button>
                         <Button x:Name="WorkspaceNameConfirmButton" Width="112" Height="40" Background="#8B5CF6" Foreground="White" Click="WorkspaceNameConfirm_Click">Criar mesa</Button>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="UpdateOverlay"
+              Visibility="Collapsed"
+              Opacity="0"
+              Background="#B8060A13"
+              Panel.ZIndex="140"
+              MouseDown="UpdateOverlay_MouseDown">
+            <Border x:Name="UpdateDialog"
+                    Width="470"
+                    Padding="30"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Background="#F21A2232"
+                    BorderBrush="#767C9CDE"
+                    BorderThickness="1"
+                    CornerRadius="25"
+                    RenderTransformOrigin="0.5,0.5"
+                    MouseDown="UpdateDialog_MouseDown">
+                <Border.RenderTransform><ScaleTransform x:Name="UpdateDialogScale" ScaleX="0.94" ScaleY="0.94" /></Border.RenderTransform>
+                <Border.Effect><DropShadowEffect BlurRadius="44" ShadowDepth="14" Opacity="0.48" Color="#020617" /></Border.Effect>
+                <StackPanel>
+                    <Grid>
+                        <Border Width="50" Height="50" HorizontalAlignment="Left" Background="#8B5CF6" CornerRadius="15">
+                            <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" FontSize="22" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <TextBlock Text="ATUALIZAÇÃO DISPONÍVEL" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="#AFA2D9" FontSize="10" FontWeight="Bold" />
+                    </Grid>
+                    <TextBlock x:Name="UpdateTitleText" Text="Uma versão nova chegou" Margin="0,20,0,0" FontSize="25" FontWeight="SemiBold" Foreground="#F8FAFC" />
+                    <TextBlock x:Name="UpdateDescriptionText" Text="Seu ClipDesk será atualizado e reiniciado automaticamente." Margin="0,8,0,0" FontSize="14" LineHeight="21" Foreground="#B9C7DA" TextWrapping="Wrap" />
+                    <Border Margin="0,21,0,0" Background="#A10F1726" BorderBrush="#465E7C" BorderThickness="1" CornerRadius="15" Padding="16,13">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <StackPanel><TextBlock Text="INSTALADA" Foreground="#8293AE" FontSize="9" FontWeight="Bold" /><TextBlock x:Name="InstalledUpdateVersionText" Margin="0,4,0,0" Foreground="#E6EBF5" FontSize="15" FontWeight="SemiBold" /></StackPanel>
+                            <StackPanel Grid.Column="1" HorizontalAlignment="Right"><TextBlock Text="NOVA" Foreground="#B58AFF" FontSize="9" FontWeight="Bold" HorizontalAlignment="Right" /><TextBlock x:Name="AvailableUpdateVersionText" Margin="0,4,0,0" Foreground="#CDB8FF" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Right" /></StackPanel>
+                        </Grid>
+                    </Border>
+                    <TextBlock x:Name="UpdateStatusText" Margin="0,16,0,0" Foreground="#9EAFCA" FontSize="12" Text="A atualização será baixada com segurança." />
+                    <TextBlock x:Name="UpdateErrorText" Margin="0,8,0,0" Foreground="#FFB4C5" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed" />
+                    <StackPanel Margin="0,24,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button x:Name="UpdateLaterButton" Width="104" Height="42" Margin="0,0,10,0" Click="UpdateLaterButton_Click">Agora não</Button>
+                        <Button x:Name="UpdateInstallButton" Width="190" Height="42" Background="#8B5CF6" Foreground="White" Click="UpdateInstallButton_Click">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"><TextBlock x:Name="UpdateInstallButtonText" Text="Atualizar agora" /><TextBlock Text="&#xE72B;" Margin="9,0,0,0" FontFamily="Segoe MDL2 Assets" /></StackPanel>
+                        </Button>
                     </StackPanel>
                 </StackPanel>
             </Border>

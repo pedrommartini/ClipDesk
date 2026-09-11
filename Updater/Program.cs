@@ -10,25 +10,55 @@ if (!arguments.TryGetValue("--pid", out var pidValue)
     || !arguments.TryGetValue("--target", out var targetDirectory)
     || !arguments.TryGetValue("--exe", out var executablePath)) return;
 
-WaitForParentToExit(parentPid);
-var stagingDirectory = Path.Combine(Path.GetTempPath(), "ClipDesk", "Staging", Guid.NewGuid().ToString("N"));
-Directory.CreateDirectory(stagingDirectory);
+var diagnosticPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClipDesk", "update-error.log");
+var updateSucceeded = false;
 try
 {
-    ZipFile.ExtractToDirectory(packagePath, stagingDirectory, overwriteFiles: true);
-    var sourceDirectory = FindPackageRoot(stagingDirectory);
-    CopyDirectory(sourceDirectory, targetDirectory);
-    Process.Start(new ProcessStartInfo
+    WaitForParentToExit(parentPid);
+    var stagingDirectory = Path.Combine(Path.GetTempPath(), "ClipDesk", "Staging", Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(stagingDirectory);
+    try
     {
-        FileName = executablePath,
-        WorkingDirectory = targetDirectory,
-        UseShellExecute = true
-    });
+        ZipFile.ExtractToDirectory(packagePath, stagingDirectory, overwriteFiles: true);
+        var sourceDirectory = FindPackageRoot(stagingDirectory);
+        CopyDirectory(sourceDirectory, targetDirectory);
+        var restarted = Process.Start(new ProcessStartInfo
+        {
+            FileName = executablePath,
+            WorkingDirectory = targetDirectory,
+            UseShellExecute = true
+        });
+        if (restarted is null) throw new InvalidOperationException("Não foi possível reiniciar o ClipDesk após a atualização.");
+        updateSucceeded = true;
+    }
+    finally
+    {
+        TryDeleteDirectory(stagingDirectory);
+    }
+}
+catch (Exception ex)
+{
+    try
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(diagnosticPath)!);
+        File.WriteAllText(diagnosticPath, $"{DateTime.Now:O}{Environment.NewLine}{ex}");
+    }
+    catch { }
+    try
+    {
+        // A cópia anterior continua sendo a alternativa mais útil caso a substituição falhe.
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = executablePath,
+            WorkingDirectory = targetDirectory,
+            UseShellExecute = true
+        });
+    }
+    catch { }
 }
 finally
 {
-    TryDeleteDirectory(stagingDirectory);
-    TryDeleteFile(packagePath);
+    if (updateSucceeded) TryDeleteFile(packagePath);
 }
 
 static Dictionary<string, string> ParseArguments(string[] args)
@@ -36,7 +66,11 @@ static Dictionary<string, string> ParseArguments(string[] args)
     var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     for (var index = 0; index + 1 < args.Length; index++)
     {
-        if (args[index].StartsWith("--", StringComparison.Ordinal)) result[args[index]] = args[++index].Trim('"');
+        if (args[index].StartsWith("--", StringComparison.Ordinal)
+            && !args[index + 1].StartsWith("--", StringComparison.Ordinal))
+        {
+            result[args[index]] = args[++index].Trim('"');
+        }
     }
     return result;
 }

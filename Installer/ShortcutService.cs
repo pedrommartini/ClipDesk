@@ -32,7 +32,7 @@ internal static class ShortcutService
     {
         using var key = Registry.CurrentUser.CreateSubKey(UninstallKeyPath, writable: true);
         key.SetValue("DisplayName", "ClipDesk");
-        key.SetValue("DisplayVersion", "0.3.1");
+        key.SetValue("DisplayVersion", "0.3.2");
         key.SetValue("Publisher", "ClipDesk");
         key.SetValue("InstallLocation", installPath);
         key.SetValue("DisplayIcon", Path.Combine(installPath, "ClipDesk.exe"));

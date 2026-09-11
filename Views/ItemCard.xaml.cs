@@ -43,6 +43,7 @@ public sealed partial class ItemCard : UserControl
 
     public ClipboardItem Item { get; }
     public bool IsSelected { get; private set; }
+    public bool IsSelectionToggleRequested { get; private set; }
     public double WorkspaceScaleFactor { get; private set; } = 1;
 
     public event EventHandler? Selected;
@@ -523,6 +524,8 @@ public sealed partial class ItemCard : UserControl
         _dragStart = e.GetPosition(canvas);
         _isDragging = false;
         _doubleClickStarted = e.ClickCount > 1;
+        IsSelectionToggleRequested = Keyboard.Modifiers.HasFlag(ModifierKeys.Control)
+            || Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
         Selected?.Invoke(this, EventArgs.Empty);
         CaptureMouse();
         if (_doubleClickStarted)
@@ -570,7 +573,7 @@ public sealed partial class ItemCard : UserControl
             AnimateLift(false);
             DragFinished?.Invoke(this, EventArgs.Empty);
         }
-        else if (!_doubleClickStarted)
+        else if (!_doubleClickStarted && !IsSelectionToggleRequested)
         {
             CopyRequested?.Invoke(this, EventArgs.Empty);
         }

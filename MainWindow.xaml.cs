@@ -66,13 +66,22 @@ public partial class MainWindow : Window
     private bool _workspaceNameCreates;
     private bool _updateCheckStarted;
     private bool _isExitRequested;
+    private bool _wasHiddenBeforeUpdatePrompt;
+    private bool _isInstallingUpdate;
+    private AvailableUpdate? _availableUpdate;
     private readonly bool _startHidden;
+    private bool _isMarqueeSelecting;
+    private Point _marqueeStart;
+    private Point _canvasContextPoint;
+    private ItemCard? _groupDragLead;
+    private readonly Dictionary<ItemCard, Point> _groupDragPositions = [];
     private double _workspaceZoom = 1;
     private readonly DispatcherTimer _appearanceSaveTimer = new() { Interval = TimeSpan.FromMilliseconds(450) };
 
     public MainWindow(bool startHidden = false)
     {
         InitializeComponent();
+        InstalledVersionText.Text = $"Versão {UpdateService.CurrentVersion}";
         _startHidden = startHidden;
         _appearanceSaveTimer.Tick += (_, _) =>
         {
@@ -137,52 +146,95 @@ public partial class MainWindow : Window
             var update = await UpdateService.CheckForUpdateAsync();
             if (update is null || !IsLoaded) return;
 
-            var wasHidden = !IsVisible;
-            if (wasHidden)
+            _availableUpdate = update;
+            _wasHiddenBeforeUpdatePrompt = !IsVisible;
+            if (_wasHiddenBeforeUpdatePrompt)
             {
                 Show();
                 WindowState = WindowState.Normal;
                 Activate();
             }
-
-            var choice = MessageBox.Show(
-                this,
-                $"Uma nova versão do ClipDesk está disponível ({update.TagName}).\n\nDeseja baixar e instalar agora? O aplicativo será reiniciado automaticamente.",
-                "Atualização disponível",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Information);
-            if (choice != MessageBoxResult.Yes)
-            {
-                if (_startHidden) Hide();
-                return;
-            }
-
-            try
-            {
-                Mouse.OverrideCursor = Cursors.Wait;
-                await UpdateService.DownloadAndStartAsync(update);
-            }
-            finally
-            {
-                Mouse.OverrideCursor = null;
-            }
-
-            MessageBox.Show(this, "A atualização foi baixada. O ClipDesk será reiniciado agora.", "Atualização pronta", MessageBoxButton.OK, MessageBoxImage.Information);
-            ExitApplication();
+            ShowUpdateOverlay(update);
         }
         catch (OperationCanceledException)
         {
             // A checagem é silenciosa quando a aplicação é encerrada.
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            if (!_startHidden)
-            {
-                MessageBox.Show(this, $"Não foi possível verificar atualizações agora.\n\n{ex.Message}", "Atualização", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
+            ShowToast("Não foi possível verificar atualizações agora.");
             if (_startHidden) Hide();
         }
     }
+
+    private void ShowUpdateOverlay(AvailableUpdate update)
+    {
+        AvailableUpdateVersionText.Text = update.TagName;
+        InstalledUpdateVersionText.Text = $"v{UpdateService.CurrentVersion}";
+        UpdateTitleText.Text = "Uma versão nova chegou";
+        UpdateDescriptionText.Text = "O ClipDesk será atualizado com segurança e reiniciado automaticamente.";
+        UpdateStatusText.Text = "A atualização será baixada com segurança.";
+        UpdateErrorText.Visibility = Visibility.Collapsed;
+        UpdateInstallButton.IsEnabled = true;
+        UpdateLaterButton.IsEnabled = true;
+        UpdateInstallButtonText.Text = "Atualizar agora";
+        UpdateLaterButton.Content = "Agora não";
+        UpdateOverlay.Visibility = Visibility.Visible;
+        UpdateOverlay.Opacity = 0;
+        UpdateDialogScale.ScaleX = 0.94;
+        UpdateDialogScale.ScaleY = 0.94;
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        UpdateOverlay.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(170)) { EasingFunction = ease });
+        UpdateDialogScale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(250)) { EasingFunction = ease });
+        UpdateDialogScale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(250)) { EasingFunction = ease });
+    }
+
+    private void HideUpdateOverlay()
+    {
+        if (UpdateOverlay.Visibility != Visibility.Visible) return;
+        var fade = new DoubleAnimation(0, TimeSpan.FromMilliseconds(130));
+        fade.Completed += (_, _) => UpdateOverlay.Visibility = Visibility.Collapsed;
+        UpdateOverlay.BeginAnimation(OpacityProperty, fade);
+        if (_wasHiddenBeforeUpdatePrompt) Hide();
+    }
+
+    private async void UpdateInstallButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isInstallingUpdate || _availableUpdate is null) return;
+        _isInstallingUpdate = true;
+        UpdateInstallButton.IsEnabled = false;
+        UpdateLaterButton.IsEnabled = false;
+        UpdateInstallButtonText.Text = "Baixando…";
+        UpdateStatusText.Text = "Baixando e preparando a nova versão…";
+        UpdateErrorText.Visibility = Visibility.Collapsed;
+        try
+        {
+            await UpdateService.DownloadAndStartAsync(_availableUpdate);
+            UpdateInstallButtonText.Text = "Reiniciando…";
+            UpdateStatusText.Text = "A nova versão está pronta. Reiniciando o ClipDesk…";
+            await Task.Delay(180);
+            ExitApplication();
+        }
+        catch (Exception ex)
+        {
+            UpdateTitleText.Text = "Não foi possível atualizar";
+            UpdateStatusText.Text = "Nada foi alterado. Você pode tentar novamente.";
+            UpdateErrorText.Text = ex.Message;
+            UpdateErrorText.Visibility = Visibility.Visible;
+            UpdateInstallButtonText.Text = "Tentar novamente";
+            UpdateInstallButton.IsEnabled = true;
+            UpdateLaterButton.IsEnabled = true;
+            UpdateLaterButton.Content = "Fechar";
+        }
+        finally
+        {
+            _isInstallingUpdate = false;
+        }
+    }
+
+    private void UpdateLaterButton_Click(object sender, RoutedEventArgs e) => HideUpdateOverlay();
+    private void UpdateOverlay_MouseDown(object sender, MouseButtonEventArgs e) { if (!_isInstallingUpdate && e.OriginalSource == UpdateOverlay) HideUpdateOverlay(); }
+    private void UpdateDialog_MouseDown(object sender, MouseButtonEventArgs e) => e.Handled = true;
 
     private void RenderAllItems(bool animate = false, bool isFirstVisit = false)
     {
@@ -301,6 +353,12 @@ public partial class MainWindow : Window
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (e.Key == Key.Escape && UpdateOverlay.Visibility == Visibility.Visible && !_isInstallingUpdate)
+        {
+            HideUpdateOverlay();
+            e.Handled = true;
+            return;
+        }
         if (e.Key == Key.Escape && WorkspaceNameOverlay.Visibility == Visibility.Visible)
         {
             HideWorkspaceNameOverlay();
@@ -583,7 +641,14 @@ public partial class MainWindow : Window
     {
         if (sender is ItemCard card)
         {
-            SelectSingle(card);
+            if (card.IsSelectionToggleRequested)
+            {
+                ToggleSelection(card);
+            }
+            else if (!_selectedCards.Contains(card))
+            {
+                SelectSingle(card);
+            }
         }
     }
 
@@ -1157,7 +1222,13 @@ public partial class MainWindow : Window
         if (sender is ItemCard card)
         {
             RegisterUndoSnapshot();
-            Panel.SetZIndex(card, 10);
+            _groupDragLead = card;
+            _groupDragPositions.Clear();
+            foreach (var selected in _selectedCards)
+            {
+                _groupDragPositions[selected] = new Point(Canvas.GetLeft(selected), Canvas.GetTop(selected));
+                Panel.SetZIndex(selected, 10);
+            }
         }
     }
 
@@ -1168,7 +1239,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        var target = FindFolderTarget(card);
+        MoveSelectedGroup(card);
+        var isGroupDrag = _groupDragPositions.Count > 1;
+        var target = isGroupDrag ? null : FindFolderTarget(card);
         SetTrashHover(IsOverTrash(card));
         if (_activeDropTarget == target)
         {
@@ -1187,26 +1260,35 @@ public partial class MainWindow : Window
             return;
         }
 
-        Panel.SetZIndex(card, 0);
+        foreach (var selected in _groupDragPositions.Keys)
+        {
+            Panel.SetZIndex(selected, 0);
+        }
         _activeDropTarget?.SetDropTarget(false);
         SetTrashHover(false);
 
         if (IsOverTrash(card))
         {
             _activeDropTarget = null;
-            DeleteCards([card]);
+            DeleteCards(_groupDragPositions.Count > 1 ? _groupDragPositions.Keys : [card]);
+            _groupDragPositions.Clear();
+            _groupDragLead = null;
             return;
         }
 
         var target = _activeDropTarget ?? FindFolderTarget(card);
         _activeDropTarget = null;
 
-        if (target is not null)
+        if (target is not null && _groupDragPositions.Count <= 1)
         {
             PlaceCardIntoFolder(card, target);
+            _groupDragPositions.Clear();
+            _groupDragLead = null;
             return;
         }
 
+        _groupDragPositions.Clear();
+        _groupDragLead = null;
         Save();
     }
 
@@ -1369,6 +1451,18 @@ public partial class MainWindow : Window
         _selectedCards.Add(card);
     }
 
+    private void ToggleSelection(ItemCard card)
+    {
+        if (_selectedCards.Remove(card))
+        {
+            card.SetSelected(false);
+            return;
+        }
+
+        _selectedCards.Add(card);
+        card.SetSelected(true);
+    }
+
     private void SelectAllCards()
     {
         ClearSelection();
@@ -1484,8 +1578,125 @@ public partial class MainWindow : Window
         }
         if (e.OriginalSource == Root || e.OriginalSource == WorkspaceCanvas)
         {
-            ClearSelection();
+            if (e.ChangedButton == MouseButton.Left)
+            {
+                HideCanvasContextMenu();
+                BeginMarqueeSelection(e.GetPosition(WorkspaceCanvas));
+            }
         }
+    }
+
+    private void Root_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_isMarqueeSelecting || e.LeftButton != MouseButtonState.Pressed) return;
+        UpdateMarqueeSelection(e.GetPosition(WorkspaceCanvas));
+    }
+
+    private void Root_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_isMarqueeSelecting) return;
+        EndMarqueeSelection();
+        e.Handled = true;
+    }
+
+    private void Root_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.OriginalSource != Root && e.OriginalSource != WorkspaceCanvas) return;
+        _canvasContextPoint = e.GetPosition(WorkspaceCanvas);
+        ShowCanvasContextMenu(e.GetPosition(Root));
+        e.Handled = true;
+    }
+
+    private void BeginMarqueeSelection(Point start)
+    {
+        HideCanvasContextMenu();
+        _marqueeStart = start;
+        _isMarqueeSelecting = true;
+        ClearSelection();
+        SelectionMarquee.Margin = new Thickness(start.X, start.Y, 0, 0);
+        SelectionMarquee.Width = 0;
+        SelectionMarquee.Height = 0;
+        SelectionMarquee.Visibility = Visibility.Visible;
+        Root.CaptureMouse();
+    }
+
+    private void UpdateMarqueeSelection(Point current)
+    {
+        var left = Math.Min(_marqueeStart.X, current.X);
+        var top = Math.Min(_marqueeStart.Y, current.Y);
+        var rectangle = new Rect(new Point(left, top), new Point(Math.Max(_marqueeStart.X, current.X), Math.Max(_marqueeStart.Y, current.Y)));
+        SelectionMarquee.Margin = new Thickness(left, top, 0, 0);
+        SelectionMarquee.Width = rectangle.Width;
+        SelectionMarquee.Height = rectangle.Height;
+
+        foreach (var card in WorkspaceCanvas.Children.OfType<ItemCard>())
+        {
+            var selected = rectangle.IntersectsWith(card.GetVisualBounds(WorkspaceCanvas));
+            if (selected && !_selectedCards.Contains(card)) _selectedCards.Add(card);
+            if (!selected) _selectedCards.Remove(card);
+            card.SetSelected(selected);
+        }
+    }
+
+    private void EndMarqueeSelection()
+    {
+        _isMarqueeSelecting = false;
+        SelectionMarquee.Visibility = Visibility.Collapsed;
+        if (Mouse.Captured == Root) Mouse.Capture(null);
+    }
+
+    private void ShowCanvasContextMenu(Point position)
+    {
+        HideWorkspaceDropdown();
+        var left = Math.Min(Math.Max(12, position.X), Math.Max(12, Root.ActualWidth - 264));
+        var top = Math.Min(Math.Max(82, position.Y), Math.Max(82, Root.ActualHeight - 124));
+        CanvasContextMenu.Margin = new Thickness(left, top, 0, 0);
+        CanvasContextMenu.Visibility = Visibility.Visible;
+        CanvasContextMenu.Opacity = 0;
+        CanvasContextMenuScale.ScaleX = 0.94;
+        CanvasContextMenuScale.ScaleY = 0.94;
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        CanvasContextMenu.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(130)) { EasingFunction = ease });
+        CanvasContextMenuScale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(180)) { EasingFunction = ease });
+        CanvasContextMenuScale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(180)) { EasingFunction = ease });
+    }
+
+    private void HideCanvasContextMenu() => CanvasContextMenu.Visibility = Visibility.Collapsed;
+
+    private void AddTextFromCanvasMenu_Click(object sender, RoutedEventArgs e) => AddCanvasTextItem("Novo texto", "Escreva algo importante…");
+
+    private void AddChecklistFromCanvasMenu_Click(object sender, RoutedEventArgs e) => AddCanvasTextItem("Nova checklist", "☐ Primeiro item\n☐ Segundo item\n☐ Terceiro item");
+
+    private void AddCanvasTextItem(string name, string content)
+    {
+        HideCanvasContextMenu();
+        var item = new ClipboardItem { Type = ClipboardItemType.Text, DisplayName = name, Text = content };
+        AddItems([item], _canvasContextPoint);
+        var card = WorkspaceCanvas.Children.OfType<ItemCard>().FirstOrDefault(candidate => candidate.Item == item);
+        OpenItem(item, card);
+    }
+
+    private void MoveSelectedGroup(ItemCard lead)
+    {
+        if (_groupDragLead != lead || _groupDragPositions.Count <= 1) return;
+        var originalLead = _groupDragPositions[lead];
+        var delta = new Vector(Canvas.GetLeft(lead) - originalLead.X, Canvas.GetTop(lead) - originalLead.Y);
+        foreach (var (card, originalPosition) in _groupDragPositions)
+        {
+            if (card == lead) continue;
+            var position = ClampCardPosition(card, new Point(originalPosition.X + delta.X, originalPosition.Y + delta.Y));
+            Canvas.SetLeft(card, position.X);
+            Canvas.SetTop(card, position.Y);
+            card.Item.X = position.X;
+            card.Item.Y = position.Y;
+        }
+    }
+
+    private Point ClampCardPosition(ItemCard card, Point position)
+    {
+        var width = Math.Max(0, WorkspaceCanvas.ActualWidth - card.ActualWidth * card.WorkspaceScaleFactor);
+        var height = Math.Max(0, WorkspaceCanvas.ActualHeight - card.ActualHeight * card.WorkspaceScaleFactor);
+        return new Point(Math.Clamp(position.X, 0, width), Math.Clamp(position.Y, 0, height));
     }
 
     private void FolderOverlay_MouseDown(object sender, MouseButtonEventArgs e)
@@ -1609,7 +1820,9 @@ public partial class MainWindow : Window
         WorkspaceNameText.MaxWidth = compact ? 96 : 130;
         ZoomColumn.Width = new GridLength(narrow ? 0 : compact ? 140 : 172);
         HeaderBar.Margin = new Thickness(compact ? 16 : 24, 17, 126, 0);
-        HeaderBar.Height = narrow ? 94 : 44;
+        // The brand includes a permanent version label under the logo.
+        // Keep both rows available instead of collapsing the header after layout.
+        HeaderBar.Height = narrow ? 116 : 66;
 
         Grid.SetRow(ZoomSurface, narrow ? 1 : 0);
         Grid.SetColumn(ZoomSurface, narrow ? 0 : 4);
@@ -1621,7 +1834,7 @@ public partial class MainWindow : Window
         WorkspaceSearchSurface.Width = compact
             ? Math.Max(150, Math.Min(390, width - 48))
             : width < 1450 ? 300 : 390;
-        WorkspaceSearchSurface.Margin = new Thickness(0, narrow ? 121 : compact ? 70 : 19, 0, 0);
+        WorkspaceSearchSurface.Margin = new Thickness(0, narrow ? 143 : compact ? 70 : 19, 0, 0);
 
         var dropdownLeft = HeaderBar.Margin.Left + BrandColumn.Width.Value + TopToolbar.ActualWidth + 8;
         WorkspaceDropdown.Margin = new Thickness(dropdownLeft, narrow ? 170 : 70, 0, 0);
@@ -1879,6 +2092,8 @@ public partial class MainWindow : Window
         if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
         Activate();
     }
+
+    internal void ActivateFromSecondaryLaunch() => ShowWorkspace();
 
     private void MainWindow_Closing(object? sender, CancelEventArgs e)
     {
