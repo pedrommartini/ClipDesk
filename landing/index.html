@@ -98,19 +98,9 @@
       .hero-proof { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 20px; }
       .hero-proof span { padding: 8px 11px; border: 1px solid rgba(113, 70, 235, 0.18); border-radius: 999px; color: var(--violet-dark); background: rgba(255, 255, 255, 0.68); font-size: 13px; font-weight: 750; }
 
-      .product-stage { position: relative; padding: 18px; border: 1px solid rgba(113, 70, 235, 0.2); border-radius: 30px; background: linear-gradient(145deg, #31204f, #170f25); box-shadow: var(--shadow); transform: rotate(0.6deg); }
-      .product-stage::after { position: absolute; inset: auto 11% -36px; height: 70px; border-radius: 50%; background: rgba(80, 43, 169, 0.2); filter: blur(28px); content: ""; z-index: -1; }
-      .window-bar { display: flex; height: 34px; align-items: center; gap: 7px; padding: 0 4px 12px; }
-      .window-dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(255, 255, 255, 0.24); }
-      .product-stage img { display: block; width: 100%; border-radius: 16px; }
-      .float-card { position: absolute; display: grid; grid-template-columns: 38px 1fr; align-items: center; gap: 11px; min-width: 204px; padding: 13px; border: 1px solid rgba(255, 255, 255, 0.72); border-radius: 16px; background: rgba(255, 255, 255, 0.92); box-shadow: 0 18px 45px rgba(23, 19, 31, 0.18); backdrop-filter: blur(16px); }
-      .float-card strong, .float-card small { display: block; }
-      .float-card strong { margin-bottom: 3px; font-size: 14px; }
-      .float-card small { color: var(--ink-soft); font-size: 12px; }
-      .float-card.top { top: -28px; right: -24px; }
-      .float-card.bottom { bottom: -34px; left: -28px; }
-      .float-icon { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 11px; color: #fff; background: linear-gradient(145deg, var(--violet-light), var(--violet-dark)); }
-      .float-icon svg { width: 20px; height: 20px; }
+      .product-stage { position: relative; }
+      .product-stage::after { position: absolute; inset: auto 12% -18px; height: 48px; border-radius: 50%; background: rgba(80, 43, 169, 0.17); filter: blur(24px); content: ""; z-index: -1; }
+      .product-stage img { display: block; width: 100%; border-radius: 22px; filter: drop-shadow(0 26px 32px rgba(23, 19, 31, 0.14)); }
 
       .section { padding: 104px 0; }
       .section-soft { border-block: 1px solid var(--line); background: var(--surface-soft); }
@@ -186,10 +176,7 @@
         h1 { font-size: clamp(49px, 15vw, 68px); }
         .hero-copy { font-size: 17px; }
         .hero-actions .button { width: 100%; }
-        .product-stage { padding: 10px; border-radius: 22px; transform: none; }
-        .product-stage img { border-radius: 12px; }
-        .float-card { position: static; min-width: 0; margin-top: 10px; }
-        .float-card.top { display: none; }
+        .product-stage img { border-radius: 16px; }
         .section { padding: 78px 0; }
         .section-heading { gap: 20px; margin-bottom: 34px; }
         .use-grid { grid-template-columns: 1fr; }
@@ -244,16 +231,7 @@
           </div>
 
           <div class="product-stage" aria-label="Prévia visual do ClipDesk">
-            <div class="window-bar" aria-hidden="true"><span class="window-dot"></span><span class="window-dot"></span><span class="window-dot"></span></div>
             <img src="assets/clipdesk-hero.png" alt="Mesa visual do ClipDesk com cards de texto, imagem, link, arquivo e pasta" />
-            <div class="float-card top">
-              <span class="float-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16v12H4zM8 10h8M8 14h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg></span>
-              <span><strong>Histórico à mão</strong><small>Busque e recupere cópias</small></span>
-            </div>
-            <div class="float-card bottom">
-              <span class="float-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 6h5l2 2h7v10H5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" /></svg></span>
-              <span><strong>Mesas separadas</strong><small>Um espaço para cada contexto</small></span>
-            </div>
           </div>
         </section>
       </div>
