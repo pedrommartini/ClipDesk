@@ -8,7 +8,7 @@ namespace ClipDesk.Installer;
 public static class InstallerEngine
 {
     public static string DefaultInstallPath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "ClipDesk");
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", InstallerBrand.DirectoryName);
 
     public static string? FindExistingInstallPath()
     {
@@ -33,21 +33,25 @@ public static class InstallerEngine
     public static string CreateInstallPath(string parentDirectory)
     {
         var parent = Path.GetFullPath(Environment.ExpandEnvironmentVariables(parentDirectory.Trim().Trim('"')));
-        return string.Equals(Path.GetFileName(parent.TrimEnd(Path.DirectorySeparatorChar)), "ClipDesk", StringComparison.OrdinalIgnoreCase)
+        return string.Equals(Path.GetFileName(parent.TrimEnd(Path.DirectorySeparatorChar)), InstallerBrand.DirectoryName, StringComparison.OrdinalIgnoreCase)
             ? parent
-            : Path.Combine(parent, "ClipDesk");
+            : Path.Combine(parent, InstallerBrand.DirectoryName);
     }
 
-    public static async Task<InstallResult> InstallAsync(string installPath, bool testMode, IProgress<InstallProgress>? progress)
+    public static async Task<InstallResult> InstallAsync(string installPath, bool testMode, IProgress<InstallProgress>? progress, bool preserveData = true)
     {
         installPath = Path.GetFullPath(installPath);
         ValidateInstallPath(installPath, testMode);
+        if (testMode && !preserveData) throw new InvalidOperationException("O teste do pacote não pode apagar dados pessoais.");
+        using var data = !preserveData ? new InstallationData(InstallationData.Root) : null;
+        using var dataGuard = data is not null ? AcquireEditionDataGuard() : null;
         var parent = Directory.GetParent(installPath)?.FullName ?? throw new InvalidOperationException("Destino de instalação inválido.");
         Directory.CreateDirectory(parent);
         var staging = Path.Combine(parent, $".ClipDesk-installing-{Guid.NewGuid():N}");
         var backup = Path.Combine(parent, $".ClipDesk-backup-{Guid.NewGuid():N}");
         var movedPrevious = false;
         var activatedNewInstall = false;
+        var installationCommitted = false;
         var previousRegisteredInstall = testMode ? null : FindExistingInstallPath();
 
         try
@@ -70,6 +74,7 @@ public static class InstallerEngine
             }
             Directory.Move(staging, installPath);
             activatedNewInstall = true;
+            data?.Stage();
 
             var installedExecutable = Path.Combine(installPath, "ClipDesk.exe");
             if (!testMode)
@@ -82,6 +87,8 @@ public static class InstallerEngine
                 ShortcutService.RegisterUninstaller(installPath, uninstaller, bytes);
             }
 
+            installationCommitted = true;
+            data?.Commit();
             if (previousRegisteredInstall is not null
                 && !string.Equals(previousRegisteredInstall, installPath, StringComparison.OrdinalIgnoreCase))
             {
@@ -89,13 +96,18 @@ public static class InstallerEngine
                 catch { /* The new installation is already complete; leave the stale copy recoverable. */ }
             }
 
-            if (movedPrevious && Directory.Exists(backup)) Directory.Delete(backup, recursive: true);
+            if (movedPrevious && Directory.Exists(backup))
+            {
+                try { Directory.Delete(backup, recursive: true); }
+                catch { /* Keep the old binaries recoverable if another process has them open. */ }
+            }
             var count = Directory.EnumerateFiles(installPath, "*", SearchOption.AllDirectories).Count();
             progress?.Report(new InstallProgress(1, "Instalação concluída"));
             return new InstallResult(installPath, installedExecutable, count);
         }
         catch
         {
+            if (installationCommitted) throw;
             if (Directory.Exists(staging)) Directory.Delete(staging, recursive: true);
             if (activatedNewInstall && Directory.Exists(installPath)) Directory.Delete(installPath, recursive: true);
             if (movedPrevious && Directory.Exists(backup)) Directory.Move(backup, installPath);
@@ -103,18 +115,25 @@ public static class InstallerEngine
         }
     }
 
-    public static async Task UninstallAsync(string installPath, IProgress<InstallProgress>? progress)
+    public static async Task UninstallAsync(string installPath, IProgress<InstallProgress>? progress, bool deleteData = false)
     {
         installPath = Path.GetFullPath(installPath);
         ValidateInstallPath(installPath, testMode: false);
         progress?.Report(new InstallProgress(.15, "Fechando o ClipDesk…"));
         EnsureInstalledAppIsClosed(installPath);
+        using var dataGuard = deleteData ? AcquireEditionDataGuard() : null;
         await Task.Delay(180);
         progress?.Report(new InstallProgress(.48, "Removendo atalhos…"));
         ShortcutService.RemoveShortcuts();
         ShortcutService.Unregister();
         progress?.Report(new InstallProgress(.72, "Removendo o aplicativo…"));
         if (Directory.Exists(installPath)) Directory.Delete(installPath, recursive: true);
+        if (deleteData)
+        {
+            progress?.Report(new InstallProgress(.9, "Apagando mesas, histórico e caches locais…"));
+            using var data = new InstallationData(InstallationData.Root);
+            data.Stage(); data.Commit();
+        }
         progress?.Report(new InstallProgress(1, "ClipDesk removido"));
     }
 
@@ -153,6 +172,16 @@ public static class InstallerEngine
         }
     }
 
+    private static Mutex AcquireEditionDataGuard()
+    {
+        // Keep a handle for the entire operation so a newly launched app cannot reopen its database.
+        // Ownership is unnecessary: the app tests creation, and async continuations may change threads.
+        var instance = new Mutex(false, $"Local\\{InstallerBrand.StartupValueName}.SingleInstance", out var created);
+        if (created) return instance;
+        instance.Dispose();
+        throw new IOException($"Feche o {InstallerBrand.AppName}, inclusive na bandeja, antes de apagar os dados.");
+    }
+
     private static void ValidateInstallPath(string installPath, bool testMode)
     {
         var candidate = Path.GetFullPath(installPath).TrimEnd(Path.DirectorySeparatorChar);
@@ -164,8 +193,13 @@ public static class InstallerEngine
             return;
         }
 
-        if (!string.Equals(Path.GetFileName(candidate), "ClipDesk", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("A instalação precisa usar uma pasta final chamada ClipDesk.");
+        var dataRoot = Path.GetFullPath(InstallationData.Root).TrimEnd(Path.DirectorySeparatorChar);
+        if ((candidate+Path.DirectorySeparatorChar).StartsWith(dataRoot+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)
+            || (dataRoot+Path.DirectorySeparatorChar).StartsWith(candidate+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("A pasta do aplicativo deve ser separada da pasta de mesas e dados pessoais.");
+
+        if (!string.Equals(Path.GetFileName(candidate), InstallerBrand.DirectoryName, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException($"A instalação precisa usar uma pasta final chamada {InstallerBrand.DirectoryName}.");
 
         var root = Path.GetPathRoot(candidate)?.TrimEnd(Path.DirectorySeparatorChar);
         if (string.IsNullOrWhiteSpace(root) || string.Equals(candidate, root, StringComparison.OrdinalIgnoreCase))

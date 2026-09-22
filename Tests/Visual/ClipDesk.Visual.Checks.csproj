@@ -6,5 +6,5 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-  <ItemGroup><ProjectReference Include="..\..\ClipDesk.csproj" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="..\..\ClipDesk.csproj" /><ProjectReference Include="..\..\Installer\ClipDesk.Installer.csproj" /></ItemGroup>
 </Project>

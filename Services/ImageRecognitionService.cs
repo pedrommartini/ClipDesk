@@ -11,7 +11,7 @@ public sealed class ImageRecognitionService : IDisposable
 {
     private const int ImageSize = 224;
     private const int MaxPredictions = 6;
-    private readonly InferenceSession? _session;
+    private readonly Lazy<InferenceSession>? _session;
     private readonly string[] _labels;
 
     public ImageRecognitionService()
@@ -21,7 +21,8 @@ public sealed class ImageRecognitionService : IDisposable
 
         if (File.Exists(modelPath) && File.Exists(labelPath))
         {
-            _session = new InferenceSession(modelPath);
+            // Most sessions only handle text/files. Load the model only for a photo needing recognition.
+            _session = new Lazy<InferenceSession>(() => new InferenceSession(modelPath));
             _labels = File.ReadAllLines(labelPath);
         }
         else
@@ -45,9 +46,10 @@ public sealed class ImageRecognitionService : IDisposable
                 return null;
             }
 
-            var inputName = _session.InputMetadata.Keys.First();
+            var session = _session.Value;
+            var inputName = session.InputMetadata.Keys.First();
             var input = NamedOnnxValue.CreateFromTensor(inputName, CreateTensor(source));
-            using var results = _session.Run([input]);
+            using var results = session.Run([input]);
             var scores = results.First().AsTensor<float>().ToArray();
             var predictions = TopPredictions(scores).ToList();
             if (predictions.Count == 0 || predictions[0].Score < 0.08f)
@@ -85,7 +87,7 @@ public sealed class ImageRecognitionService : IDisposable
 
     public void Dispose()
     {
-        _session?.Dispose();
+        if (_session?.IsValueCreated == true) _session.Value.Dispose();
     }
 
     private static string ResolveModelPath(string fileName)

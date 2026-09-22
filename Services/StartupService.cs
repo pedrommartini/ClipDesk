@@ -6,7 +6,7 @@ namespace ClipDesk.Services;
 public sealed class StartupService
 {
     private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    private const string ValueName = "ClipDesk";
+    private static string ValueName => AppEnvironment.Identity;
 
     public bool IsEnabled()
     {
@@ -22,7 +22,7 @@ public sealed class StartupService
         {
             var executable = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName
                 ?? throw new InvalidOperationException("Não foi possível localizar o ClipDesk.");
-            key.SetValue(ValueName, $"\"{executable}\" --background", RegistryValueKind.String);
+            key.SetValue(ValueName, $"\"{executable}\" --background{(AppEnvironment.IsTestClient ? $" --test-client={AppEnvironment.TestClientNumber}" : "")}", RegistryValueKind.String);
         }
         else
         {

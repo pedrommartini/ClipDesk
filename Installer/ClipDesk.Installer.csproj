@@ -5,10 +5,13 @@
     <UseWPF>true</UseWPF>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>ClipDesk-Setup</AssemblyName>
+    <ClipDeskEnvironment Condition="'$(ClipDeskEnvironment)' == ''">Development</ClipDeskEnvironment>
+    <DefineConstants Condition="'$(ClipDeskEnvironment)' == 'Development'">$(DefineConstants);CLIPDESK_DEV</DefineConstants>
+    <AssemblyName Condition="'$(ClipDeskEnvironment)' == 'Development'">ClipDesk-DEV-Setup</AssemblyName>
+    <AssemblyName Condition="'$(ClipDeskEnvironment)' != 'Development'">ClipDesk-Setup</AssemblyName>
     <RootNamespace>ClipDesk.Installer</RootNamespace>
-    <Version>0.3.2</Version>
-    <FileVersion>0.3.2.0</FileVersion>
+    <Version>0.3.3</Version>
+    <FileVersion>0.3.3.0</FileVersion>
     <ApplicationIcon>..\Resources\Brand\clipdesk.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>

@@ -13,6 +13,7 @@ public sealed class ClipboardHistoryEntry
     public string? Url { get; set; }
     public List<string> FilePaths { get; set; } = [];
     public string? StoredFilePath { get; set; }
+    public List<ClipDesk.Core.CloudAttachment> Attachments { get; set; } = [];
     public DateTime CapturedAt { get; set; } = DateTime.Now;
 
     [JsonIgnore]

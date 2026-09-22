@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Nodes;
 using ClipDesk.Core;
 using ClipDesk.Models;
 
@@ -11,6 +12,24 @@ void Check(bool condition, string name)
     passed++;
 }
 var prefix = new string('a', 200);
+var uuid = Guid.NewGuid();
+Check(CloudRules.CanonicalGuidId(uuid.ToString()) == uuid.ToString("N")
+    && CloudRules.CanonicalGuidId(uuid.ToString("N")) == uuid.ToString("N"),
+    "UUIDs remotos e locais apontam para a mesma entidade da mesa");
+var syncDatabase = new LocalDatabase(Path.Combine(Path.GetTempPath(), "ClipDesk-Sync-Check-" + uuid.ToString("N") + ".db"));
+var stableRemote = new CloudEntity(uuid.ToString("N"), "workspace", null, 1, new JsonObject { ["name"] = "Mesa" });
+Check(syncDatabase.Accept(stableRemote) && !syncDatabase.Accept(stableRemote),
+    "Leitura remota idêntica não dispara nova sincronização");
+var noteId = Guid.NewGuid().ToString("N");
+var noteOriginal = new CloudEntity(noteId, "boardObject", uuid.ToString("N"), 1, new JsonObject { ["text"] = "Original" });
+syncDatabase.Accept(noteOriginal);
+syncDatabase.Stage(noteOriginal with { Data = new JsonObject { ["text"] = "Primeira edição" } });
+var sentNote = syncDatabase.Pending(noteId).Single();
+syncDatabase.Stage(noteOriginal with { Data = new JsonObject { ["text"] = "Segunda edição" } });
+syncDatabase.Accept(noteOriginal with { Version = 2, Data = new JsonObject { ["text"] = "Primeira edição" } }, sentNote);
+Check(syncDatabase.Entities(noteId).Single().Data["text"]?.GetValue<string>() == "Segunda edição"
+    && syncDatabase.Pending(noteId).Count == 1,
+    "Resposta atrasada da nota preserva a edição mais recente");
 var first = new ClipboardHistoryEntry { Type = ClipboardItemType.Text, Text = prefix + "A", Preview = prefix };
 var second = new ClipboardHistoryEntry { Type = ClipboardItemType.Text, Text = prefix + "B", Preview = prefix };
 Check(!HistoryContent.AreEquivalent(first, second), "Textos com o mesmo preview preservam conteúdos diferentes");
@@ -42,10 +61,11 @@ Check(loaded[0].Width == 0 && loaded[0].Height == 0,
     "Itens antigos recebem tamanho adaptativo sem quebrar a leitura");
 loaded[0].Width = 420;
 loaded[0].Height = 280;
+loaded[0].ZIndex = 17;
 var resizedJson = JsonSerializer.Serialize(loaded, options);
 var resized = JsonSerializer.Deserialize<List<ClipboardItem>>(resizedJson, options)!;
-Check(resized[0].Width == 420 && resized[0].Height == 280,
-    "Dimensões personalizadas das prévias são persistidas");
+Check(resized[0].Width == 420 && resized[0].Height == 280 && resized[0].ZIndex == 17,
+    "Dimensões e ordem de sobreposição das prévias são persistidas");
 var todayHistory = new ClipboardHistoryEntry { CapturedAt = DateTime.Today.AddHours(9) };
 var yesterdayHistory = new ClipboardHistoryEntry { CapturedAt = DateTime.Today.AddDays(-1).AddHours(9) };
 Check(todayHistory.CapturedDayLabel == "Hoje" && yesterdayHistory.CapturedDayLabel == "Ontem",
@@ -53,4 +73,62 @@ Check(todayHistory.CapturedDayLabel == "Hoje" && yesterdayHistory.CapturedDayLab
 var historicEntry = new ClipboardHistoryEntry { CapturedAt = new DateTime(DateTime.Today.Year - 1, 3, 8) };
 Check(historicEntry.CapturedDayLabel.Contains((DateTime.Today.Year - 1).ToString()),
     "Histórico preserva o ano em datas antigas");
+var viewport = new BoardViewport(12000, 8000, 1200, 800, new BoardViewportState { Zoom = 1, PanX = -300, PanY = -200 });
+var anchor = new BoardPoint(200, 200);
+var beforeZoom = viewport.ScreenToWorld(anchor);
+viewport.SetZoomAt(.5, anchor);
+var afterZoom = viewport.ScreenToWorld(anchor);
+Check(Math.Abs(beforeZoom.X - afterZoom.X) < .001 && Math.Abs(beforeZoom.Y - afterZoom.Y) < .001,
+    "Zoom da mesa preserva o ponto sob o cursor");
+viewport.Fit();
+Check(Math.Abs(viewport.Zoom - .1) < .001 && viewport.WorldToScreen(new BoardPoint(0, 0)).X >= 0,
+    "Enquadramento usa a mesa inteira sem escala individual dos cards");
+var legacyBoard = new WorkspaceBoard { WorldWidth = 0, WorldHeight = double.NaN, SchemaVersion = 0, Items = [new ClipboardItem { X = 20000, Y = -4, Width = 340, Height = 220 }] };
+Check(BoardMigration.Normalize(legacyBoard) && legacyBoard.WorldWidth == BoardSpace.DefaultWidth && legacyBoard.Items[0].X <= legacyBoard.WorldWidth - 340 && legacyBoard.Items[0].Y == 0,
+    "Mesa antiga migra para coordenadas limitadas compartilhadas");
+var duplicateBoard = new WorkspaceBoard
+{
+    Id = legacyBoard.Id, Name = "Cópia", SyncMode = WorkspaceSyncMode.Shared, OwnerId = "old-owner",
+    Items = [new ClipboardItem { Id = "copied-card" }],
+    Objects = [new BoardObject { Id = "copied-object" }, new BoardObject { Kind = BoardObjectKind.Connector, Content = new() { ["nodeIds"] = "card:copied-card;object:copied-object" } }]
+};
+var duplicateBoards = new List<WorkspaceBoard> { legacyBoard, duplicateBoard };
+Check(BoardIdentityMigration.EnsureUniqueBoardIds(duplicateBoards) && duplicateBoards[0].Id != duplicateBoards[1].Id
+    && duplicateBoards[1].Name == "Cópia" && duplicateBoards[1].SyncMode == WorkspaceSyncMode.Local && duplicateBoards[1].OwnerId is null,
+    "Mesas copiadas com o mesmo ID são preservadas com identidades distintas");
+Check(!BoardIdentityMigration.EnsureUniqueBoardIds(duplicateBoards), "Migração de IDs repetidos é estável ao reabrir");
+Check(duplicateBoard.Items[0].Id != "copied-card" && duplicateBoard.Objects[0].Id != "copied-object"
+    && duplicateBoard.Objects[1].Content["nodeIds"] == $"card:{duplicateBoard.Items[0].Id};object:{duplicateBoard.Objects[0].Id}"
+    && duplicateBoard.Objects.All(obj => obj.WorkspaceId == duplicateBoard.Id.ToString("N")),
+    "Cópia da mesa mantém referências de conexões e IDs de elementos independentes");
+var futureObject = new BoardObject { Kind = BoardObjectKind.Stroke, Style = new() { ["color"] = "#22D3EE" }, Content = new() { ["points"] = "0,0;10,10" } };
+Check(futureObject.Kind == BoardObjectKind.Stroke && futureObject.Style["color"] == "#22D3EE" && futureObject.Content.ContainsKey("points"),
+    "Contrato de objeto suporta ferramentas criativas sem anexos");
+var calculator = BoardCalculator.Press("12+3", "=");
+Check(calculator.Expression == "15" && calculator.Display == "15", "Calculadora da mesa resolve operações básicas");
+calculator = BoardCalculator.Press(calculator.Expression, "×");
+calculator = BoardCalculator.Press(calculator.Expression, "4");
+calculator = BoardCalculator.Press(calculator.Expression, "=");
+Check(calculator.Display == "60", "Calculadora mantém a expressão para operações encadeadas");
+calculator = BoardCalculator.Press("10", "%");
+Check(calculator.Display == "0.1", "Calculadora aplica porcentagem sem depender da interface");
+var creativeBoard = new WorkspaceBoard { SyncMode = WorkspaceSyncMode.PersonalCloud, OwnerId = "owner" };
+creativeBoard.Objects.Add(new BoardObject
+{
+    Id = Guid.NewGuid().ToString("N"), WorkspaceId = creativeBoard.Id.ToString("N"), Kind = BoardObjectKind.StickyNote,
+    X = 210, Y = 320, Width = 240, Height = 180, Style = new() { ["fill"] = "#F6D365" }, Content = new() { ["text"] = "Nota sincronizada" }
+});
+creativeBoard.Objects.Add(new BoardObject
+{
+    Id = Guid.NewGuid().ToString("N"), WorkspaceId = creativeBoard.Id.ToString("N"), Kind = BoardObjectKind.Connector,
+    X = 100, Y = 120, Width = 500, Height = 260,
+    Style = new() { ["stroke"] = "#8393AD", ["thickness"] = "1.35" },
+    Content = new() { ["nodeIds"] = "card:card-a;object:text-a;card:card-c", ["points"] = "4,4;250,90;496,256" }
+});
+var creativeProjection = CloudProjection.Project([creativeBoard], [], "owner", false).ToList();
+var creativeRoundTrip = CloudProjection.Materialize(creativeProjection, new Dictionary<string, string>()).Single();
+Check(creativeProjection.Any(entity => entity.Kind == "boardObject") && creativeRoundTrip.Objects.Single(o => o.Kind == BoardObjectKind.StickyNote).Content["text"] == "Nota sincronizada",
+    "Objetos criativos são preservados na sincronização da mesa");
+Check(creativeRoundTrip.Objects.Single(o => o.Kind == BoardObjectKind.Connector).Content["nodeIds"] == "card:card-a;object:text-a;card:card-c",
+    "Conexões mistas preservam cards e objetos criativos na sincronização");
 Console.WriteLine($"{passed} verificações concluídas.");

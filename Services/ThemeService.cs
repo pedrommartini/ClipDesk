@@ -15,6 +15,9 @@ public static class ThemeService
         Set("AccentBrush", dark ? "#B59AFF" : "#7046CB");
         Set("AccentStrongBrush", dark ? "#9B7DFF" : "#6132C7");
         Set("HoverBrush", dark ? "#36354F" : "#EEE8FC");
+        Set("InvitePrimaryBrush", dark ? "#A88CFF" : "#7046CB");
+        Set("InvitePrimaryTextBrush", dark ? "#211B37" : "#FFFFFF");
+        Set("InviteBackdropBrush", dark ? "#8A07101F" : "#66222A3D");
     }
 
     private static void Set(string key, string color) =>

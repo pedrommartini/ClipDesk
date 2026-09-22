@@ -7,17 +7,27 @@ ClipDesk é um aplicativo desktop Windows em C# e WPF para guardar itens tempor�
 - [Baixar o instalador do ClipDesk para Windows](https://github.com/pedrommartini/ClipDesk/releases/latest/download/ClipDesk-Setup.exe)
 - [Conhecer o produto](https://clipdesk.pages.dev/)
 
-Depois de baixar, descompacte o arquivo e abra `ClipDesk.exe`.
+Depois de baixar, abra `ClipDesk-Setup.exe` e siga o instalador. Somente o pacote ZIP precisa ser descompactado.
 
 ## Requisitos
 
 - Windows 10 ou superior
-- .NET 8 Desktop Runtime para executar a versao compilada
+- .NET 8 Desktop Runtime para executar uma compilação não autossuficiente; o instalador já inclui o runtime
 - .NET 8 SDK com workload Windows Desktop para compilar
 
 O atalho `Executar ClipDesk.lnk` aponta para a versao compilada em `bin\Release\net8.0-windows\ClipDesk.exe`.
 
 ## Rodar em modo desenvolvimento
+
+O ambiente padrão é **Development**, com dados separados em `%LocalAppData%\ClipDesk-Dev`. Release é a configuração de compilação; não altera esse isolamento. DEV e Production usam o mesmo projeto Supabase, com perfis e instalações locais separados. Veja a [arquitetura Supabase](docs/SUPABASE-PRODUCTION.md). O [documento do antigo servidor DEV](docs/CLOUD-DEVELOPMENT.md) foi mantido como registro histórico.
+
+Para compilar e abrir o aplicativo DEV:
+
+```powershell
+.\scripts\Start-ClipDeskDev.ps1 -OpenApp
+```
+
+Para trabalhar apenas com o aplicativo local:
 
 ```powershell
 dotnet run --project .\ClipDesk.csproj
@@ -30,6 +40,8 @@ dotnet build .\ClipDesk.csproj -c Release
 ```
 
 ## Publicar executavel
+
+O comando abaixo gera a versão de desenvolvimento. Distribuição para usuários exige autorização e `-p:ClipDeskEnvironment=Production`; não substitua manualmente a instalação de uso diário.
 
 ```powershell
 dotnet publish .\ClipDesk.csproj -c Release -r win-x64 --self-contained false
@@ -62,15 +74,21 @@ dotnet publish .\ClipDesk.csproj -c Release -r win-x64 --self-contained false
 
 ## Persistencia local
 
-Os dados ficam em:
+Os dados ficam separados por edição:
 
 ```text
-%LocalAppData%\ClipDesk
+%LocalAppData%\ClipDesk-Dev   (desenvolvimento)
+%LocalAppData%\ClipDesk       (uso diário)
 ```
 
-- `items.json`: dados e posicoes dos cards.
-- `Assets`: imagens copiadas da área de transferência.
-- `settings.json`: preferências locais, incluindo o tema.
+- `Profiles\<perfil>\clipdesk.db`: mesas, posições, histórico, preferências e fila de sincronização em SQLite. O perfil sem login é `local`.
+- `Profiles\<perfil>\Assets`: imagens e anexos locais gerenciados.
+- JSON de versões anteriores são importados na primeira leitura e preservados como origem da migração.
+- Tokens de conta são protegidos pelo Windows. Arquivos originais externos e downloads do usuário não pertencem à pasta privada do app.
+
+Ao substituir uma instalação, **Preservar mesas, histórico e preferências** vem marcado. Desmarcar faz uma instalação local limpa da edição escolhida. Na desinstalação, **Apagar mesas, histórico e caches locais** é opcional e começa desmarcado. Nenhuma dessas opções apaga dados da conta na nuvem; entrar novamente pode recuperar mesas sincronizadas.
+
+Veja [instaladores e validação de desempenho](docs/PERFORMANCE-INSTALLER.md) para escopo da limpeza, comandos e limitações.
 
 ## Estrutura para Android
 

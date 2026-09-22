@@ -204,6 +204,7 @@ public sealed partial class ItemCard : UserControl
         var path = Item.FilePaths.FirstOrDefault();
         var extension = Path.GetExtension(path ?? string.Empty).TrimStart('.').ToUpperInvariant();
         var type = string.IsNullOrWhiteSpace(extension) ? "Arquivo" : extension;
+        if(Item.Attachments.Count>0) return $"{type}  •  {FormatBytes(Item.Attachments.Sum(a=>a.Size))}";
         if (Item.FilePaths.Count > 1)
         {
             return $"{type}  •  {Item.FilePaths.Count} arquivos";

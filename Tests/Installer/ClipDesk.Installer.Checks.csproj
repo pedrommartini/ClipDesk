@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings>
+    <DefineConstants>$(DefineConstants);CLIPDESK_DEV</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Installer/InstallationData.cs" Link="InstallationData.cs" />
+    <Compile Include="../../Installer/InstallerBrand.cs" Link="InstallerBrand.cs" />
+  </ItemGroup>
+</Project>

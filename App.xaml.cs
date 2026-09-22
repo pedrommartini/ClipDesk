@@ -5,8 +5,8 @@ namespace ClipDesk;
 
 public partial class App : Application
 {
-    private const string InstanceMutexName = "Local\\ClipDesk.SingleInstance";
-    private const string ActivateEventName = "Local\\ClipDesk.ActivateExistingInstance";
+    private static string InstanceMutexName => $"Local\\{AppEnvironment.Identity}.SingleInstance";
+    private static string ActivateEventName => $"Local\\{AppEnvironment.Identity}.ActivateExistingInstance";
     private Mutex? _instanceMutex;
     private EventWaitHandle? _activateEvent;
     private RegisteredWaitHandle? _activationRegistration;

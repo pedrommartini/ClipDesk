@@ -7,11 +7,11 @@ namespace ClipDesk.Installer;
 
 internal static class ShortcutService
 {
-    private const string AppName = "ClipDesk";
-    private const string UninstallKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\ClipDesk";
-    public static string DesktopShortcut => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "ClipDesk.lnk");
+    private static string AppName => InstallerBrand.AppName;
+    private static string UninstallKeyPath => @"Software\Microsoft\Windows\CurrentVersion\Uninstall\" + InstallerBrand.RegistryKeyName;
+    public static string DesktopShortcut => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), InstallerBrand.ShortcutFileName);
     public static string StartMenuDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), AppName);
-    public static string StartMenuShortcut => Path.Combine(StartMenuDirectory, "ClipDesk.lnk");
+    public static string StartMenuShortcut => Path.Combine(StartMenuDirectory, InstallerBrand.ShortcutFileName);
 
     public static void CreateShortcuts(string executable)
     {
@@ -31,8 +31,8 @@ internal static class ShortcutService
     public static void RegisterUninstaller(string installPath, string uninstallerPath, long estimatedBytes)
     {
         using var key = Registry.CurrentUser.CreateSubKey(UninstallKeyPath, writable: true);
-        key.SetValue("DisplayName", "ClipDesk");
-        key.SetValue("DisplayVersion", "0.3.2");
+        key.SetValue("DisplayName", InstallerBrand.AppName);
+        key.SetValue("DisplayVersion", "0.3.3");
         key.SetValue("Publisher", "ClipDesk");
         key.SetValue("InstallLocation", installPath);
         key.SetValue("DisplayIcon", Path.Combine(installPath, "ClipDesk.exe"));
@@ -48,20 +48,25 @@ internal static class ShortcutService
         return key?.GetValue("InstallLocation") as string;
     }
 
-    public static void Unregister() => Registry.CurrentUser.DeleteSubKeyTree(UninstallKeyPath, throwOnMissingSubKey: false);
+    public static void Unregister()
+    {
+        Registry.CurrentUser.DeleteSubKeyTree(UninstallKeyPath, throwOnMissingSubKey: false);
+        using var startup = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", writable: true);
+        startup?.DeleteValue(InstallerBrand.StartupValueName, throwOnMissingValue: false);
+    }
 
     private static void CreateShortcut(string shortcutPath, string executable)
     {
         var shellLinkType = Type.GetTypeFromCLSID(new Guid("00021401-0000-0000-C000-000000000046"))
             ?? throw new InvalidOperationException("O componente de atalhos do Windows não está disponível.");
         var linkObject = Activator.CreateInstance(shellLinkType)
-            ?? throw new InvalidOperationException("Não foi possível criar o atalho do ClipDesk.");
+            ?? throw new InvalidOperationException($"Não foi possível criar o atalho do {InstallerBrand.AppName}.");
         var link = (IShellLinkW)linkObject;
         try
         {
             link.SetPath(executable);
             link.SetWorkingDirectory(Path.GetDirectoryName(executable)!);
-            link.SetDescription("Abra suas mesas visuais do ClipDesk");
+            link.SetDescription($"Abra suas mesas visuais do {InstallerBrand.AppName}");
             link.SetIconLocation(executable, 0);
             ((IPersistFile)link).Save(shortcutPath, false);
         }

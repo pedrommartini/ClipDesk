@@ -3,12 +3,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:ClipDesk.Views"
         Title="ClipDesk"
-        Icon="Resources/Brand/clipdesk.ico"
         Width="1280"
         Height="760"
         MinWidth="900"
         MinHeight="560"
         WindowState="Maximized"
+        WindowStyle="SingleBorderWindow"
+        ResizeMode="CanResize"
         Background="#F4F4F2"
         AllowDrop="True"
         Drop="Window_Drop"
@@ -17,6 +18,7 @@
         PreviewKeyDown="Window_PreviewKeyDown">
     <Window.FontFamily>Segoe UI Variable Text</Window.FontFamily>
     <Window.Resources>
+        <FontFamily x:Key="MaterialSymbols">/ClipDesk;component/Resources/Fonts/#Material Symbols Rounded</FontFamily>
         <DrawingBrush x:Key="GridBrush"
                       TileMode="Tile"
                       Viewport="0,0,32,32"
@@ -51,6 +53,8 @@
             <Setter Property="Foreground" Value="#25282D" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -58,8 +62,8 @@
                                 Background="{TemplateBinding Background}"
                                 CornerRadius="16"
                                 Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center"
-                                              VerticalAlignment="Center" />
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -116,24 +120,37 @@
         <GridSplitter x:Name="HistorySplitter" Grid.Column="1" Width="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="{DynamicResource BorderBrush}" ResizeBehavior="PreviousAndNext" Visibility="Collapsed" />
     <Grid x:Name="Root" Grid.Column="2"
           AllowDrop="True"
-          Background="{StaticResource GridBrush}"
+          Background="#070C14"
           PreviewDragOver="Window_DragOver"
           PreviewDrop="Window_Drop"
           PreviewDragLeave="Window_DragLeave"
           SizeChanged="Root_SizeChanged"
           MouseDown="Root_MouseDown"
-          MouseMove="Root_MouseMove"
+          PreviewMouseMove="Root_MouseMove"
           MouseLeftButtonUp="Root_MouseLeftButtonUp"
-          MouseRightButtonDown="Root_MouseRightButtonDown">
-        <ScrollViewer x:Name="WorkspaceScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" SizeChanged="WorkspaceScroll_SizeChanged">
-        <Canvas x:Name="WorkspaceCanvas"
-                AllowDrop="True"
-                Background="Transparent"
-                ClipToBounds="True"
-                PreviewDragOver="Window_DragOver"
-                PreviewDrop="Window_Drop"
-                PreviewDragLeave="Window_DragLeave"
-                SizeChanged="WorkspaceCanvas_SizeChanged" />
+          MouseRightButtonDown="Root_MouseRightButtonDown"
+          MouseRightButtonUp="Root_MouseRightButtonUp"
+          PreviewMouseDown="Root_PreviewMouseDown"
+          PreviewMouseUp="Root_PreviewMouseUp">
+        <ScrollViewer x:Name="WorkspaceScroll" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden" CanContentScroll="False" SizeChanged="WorkspaceScroll_SizeChanged" ScrollChanged="WorkspaceScroll_ScrollChanged">
+            <Grid x:Name="WorkspaceExtentHost" HorizontalAlignment="Left" VerticalAlignment="Top" ClipToBounds="False">
+                <Canvas x:Name="WorkspaceCanvas"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Top"
+                        RenderTransformOrigin="0,0"
+                        AllowDrop="True"
+                        Background="{StaticResource GridBrush}"
+                        ClipToBounds="True"
+                        PreviewDragOver="Window_DragOver"
+                        PreviewDrop="Window_Drop"
+                        PreviewDragLeave="Window_DragLeave"
+                        MouseWheel="WorkspaceCanvas_MouseWheel"
+                        SizeChanged="WorkspaceCanvas_SizeChanged">
+                    <Canvas.RenderTransform>
+                        <ScaleTransform x:Name="WorkspaceBoardScale" ScaleX="1" ScaleY="1" />
+                    </Canvas.RenderTransform>
+                </Canvas>
+            </Grid>
         </ScrollViewer>
 
         <Border x:Name="SelectionMarquee"
@@ -147,28 +164,88 @@
                 IsHitTestVisible="False"
                 Panel.ZIndex="18" />
 
+        <Canvas x:Name="AlignmentGuideLayer"
+                IsHitTestVisible="False"
+                Visibility="Collapsed"
+                ClipToBounds="True"
+                Panel.ZIndex="24">
+            <Line x:Name="VerticalAlignmentGuide" Visibility="Collapsed" Stroke="#D5B998FF" StrokeThickness="1.25" StrokeDashArray="3,3" />
+            <Line x:Name="HorizontalAlignmentGuide" Visibility="Collapsed" Stroke="#D5B998FF" StrokeThickness="1.25" StrokeDashArray="3,3" />
+        </Canvas>
+
         <Border x:Name="CanvasContextMenu"
-                Width="248"
+                Width="232"
                 Visibility="Collapsed"
                 HorizontalAlignment="Left"
                 VerticalAlignment="Top"
-                Padding="10"
-                Background="#F21D2432"
-                BorderBrush="#607C8DA6"
+                Padding="11,10,11,11"
+                Background="#F51A2434"
+                BorderBrush="#637B96B8"
                 BorderThickness="1"
-                CornerRadius="16"
+                CornerRadius="0"
                 Panel.ZIndex="60"
                 RenderTransformOrigin="0,0">
-            <Border.RenderTransform><ScaleTransform x:Name="CanvasContextMenuScale" ScaleX="0.94" ScaleY="0.94" /></Border.RenderTransform>
-            <Border.Effect><DropShadowEffect BlurRadius="24" ShadowDepth="8" Opacity="0.34" Color="#020617" /></Border.Effect>
+            <Border.RenderTransform><ScaleTransform x:Name="CanvasContextMenuScale" ScaleX="0.96" ScaleY="0.96" /></Border.RenderTransform>
+            <Border.Effect><DropShadowEffect BlurRadius="21" ShadowDepth="7" Opacity="0.34" Color="#020617" /></Border.Effect>
             <StackPanel>
-                <TextBlock Text="ADICIONAR À MESA" Margin="7,3,0,8" FontSize="10" FontWeight="Bold" Foreground="#AAB8D8" />
-                <Button Height="38" Padding="10,0" HorizontalContentAlignment="Left" Click="AddTextFromCanvasMenu_Click">
-                    <StackPanel Orientation="Horizontal"><TextBlock Text="+" FontSize="22" Foreground="#B79BFF" Margin="0,-2,10,0" /><TextBlock Text="Adicionar texto" FontSize="14" /></StackPanel>
+                <Grid Margin="4,1,3,7">
+                    <TextBlock Text="ADICIONAR À MESA" VerticalAlignment="Center" FontSize="9.5" FontWeight="Bold" Foreground="#D9E3F6" />
+                    <TextBlock Text="&#xE145;" HorizontalAlignment="Right" FontFamily="{StaticResource MaterialSymbols}" FontSize="19" Foreground="#B998FF" />
+                </Grid>
+                <Border Height="1" Margin="0,0,0,5" Background="#38536B87" />
+                <Button Height="31" Padding="7,0" HorizontalContentAlignment="Left" Foreground="#F3F6FF" Click="AddTextFromCanvasMenu_Click" ToolTip="Adicionar texto à mesa">
+                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE262;" Width="29" FontFamily="{StaticResource MaterialSymbols}" FontSize="18" Foreground="#F2F5FF" /><TextBlock Text="Texto" FontSize="12" VerticalAlignment="Center" /></StackPanel>
                 </Button>
-                <Button Height="38" Margin="0,3,0,0" Padding="10,0" HorizontalContentAlignment="Left" Click="AddChecklistFromCanvasMenu_Click">
-                    <StackPanel Orientation="Horizontal"><TextBlock Text="☑" FontSize="17" Foreground="#77D9FF" Margin="0,0,11,0" /><TextBlock Text="Adicionar checklist" FontSize="14" /></StackPanel>
+                <Button Height="31" Padding="7,0" HorizontalContentAlignment="Left" Foreground="#F3F6FF" Click="AddChecklistFromCanvasMenu_Click" ToolTip="Adicionar checklist à mesa">
+                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE6B1;" Width="29" FontFamily="{StaticResource MaterialSymbols}" FontSize="17" Foreground="#F2F5FF" /><TextBlock Text="Checklist" FontSize="12" VerticalAlignment="Center" /></StackPanel>
                 </Button>
+                <Button Height="31" Padding="7,0" HorizontalContentAlignment="Left" Foreground="#F3F6FF" Click="AddCalculatorFromCanvasMenu_Click" ToolTip="Adicionar calculadora à mesa">
+                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xEA5F;" Width="29" FontFamily="{StaticResource MaterialSymbols}" FontSize="17" Foreground="#F2F5FF" /><TextBlock Text="Calculadora" FontSize="12" VerticalAlignment="Center" /></StackPanel>
+                </Button>
+                <Button Height="31" Padding="7,0" HorizontalContentAlignment="Left" Foreground="#F3F6FF" Click="AddTranslatorFromCanvasMenu_Click" ToolTip="Adicionar tradutor à mesa">
+                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8E2;" Width="29" FontFamily="{StaticResource MaterialSymbols}" FontSize="17" Foreground="#F2F5FF" /><TextBlock Text="Tradutor" FontSize="12" VerticalAlignment="Center" /></StackPanel>
+                </Button>
+                <Button Height="31" Padding="7,0" HorizontalContentAlignment="Left" Foreground="#F3F6FF" Click="AddCurrencyConverterFromCanvasMenu_Click" ToolTip="Adicionar conversor de moeda à mesa">
+                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xEB70;" Width="29" FontFamily="{StaticResource MaterialSymbols}" FontSize="17" Foreground="#F2F5FF" /><TextBlock Text="Conversor de moeda" FontSize="12" VerticalAlignment="Center" /></StackPanel>
+                </Button>
+                <Button Height="31" Padding="7,0" HorizontalContentAlignment="Left" Foreground="#F3F6FF" Click="MorePluginsFromCanvasMenu_Click" ToolTip="Em breve">
+                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE87B;" Width="29" FontFamily="{StaticResource MaterialSymbols}" FontSize="17" Foreground="#F2F5FF" /><TextBlock Text="Mais plug-ins" FontSize="12" VerticalAlignment="Center" /></StackPanel>
+                </Button>
+            </StackPanel>
+        </Border>
+
+        <Border x:Name="CreativeFormatMenu"
+                Visibility="Collapsed"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Padding="8,6"
+                Background="#F21A2332"
+                BorderBrush="#526784A6"
+                BorderThickness="1"
+                CornerRadius="14"
+                Panel.ZIndex="145">
+            <Border.Effect><DropShadowEffect BlurRadius="22" ShadowDepth="6" Opacity="0.3" Color="#020617" /></Border.Effect>
+            <StackPanel x:Name="CreativeFormatMenuContent" Orientation="Vertical" />
+        </Border>
+
+        <Border x:Name="BoardObjectContextMenu"
+                Visibility="Collapsed"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Padding="6"
+                Background="#F4263040"
+                BorderBrush="#61748E"
+                BorderThickness="1"
+                CornerRadius="13"
+                Panel.ZIndex="150"
+                RenderTransformOrigin="0.9,0">
+            <Border.RenderTransform><ScaleTransform x:Name="BoardObjectContextMenuScale" ScaleX="0.88" ScaleY="0.88" /></Border.RenderTransform>
+            <Border.Effect><DropShadowEffect BlurRadius="20" ShadowDepth="6" Opacity="0.34" Color="#020617" /></Border.Effect>
+            <StackPanel Orientation="Horizontal">
+                <Button Width="34" Height="31" Padding="0" Margin="0,0,3,0" Click="BoardObjectCopy_Click" ToolTip="Copiar conteúdo"><TextBlock Text="&#xE14D;" FontFamily="{StaticResource MaterialSymbols}" FontSize="17" /></Button>
+                <Button Width="34" Height="31" Padding="0" Margin="0,0,3,0" Click="BoardObjectDuplicate_Click" ToolTip="Duplicar"><TextBlock Text="2×" FontWeight="Bold" FontSize="14" /></Button>
+                <Button Width="34" Height="31" Padding="0" Margin="0,0,3,0" Click="BoardObjectInfo_Click" ToolTip="Detalhes"><TextBlock Text="&#xE88E;" FontFamily="{StaticResource MaterialSymbols}" FontSize="17" /></Button>
+                <Button Width="34" Height="31" Padding="0" Click="BoardObjectDelete_Click" ToolTip="Excluir"><TextBlock Text="&#xE92E;" FontFamily="{StaticResource MaterialSymbols}" FontSize="17" /></Button>
             </StackPanel>
         </Border>
 
@@ -183,139 +260,160 @@
             <TextBlock x:Name="HistoryDropGlowText" Text="Solte para adicionar à mesa" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" FontSize="16" />
         </Border>
 
-        <Grid x:Name="HeaderBar" Height="66" Margin="24,17,126,0" HorizontalAlignment="Stretch" VerticalAlignment="Top" Panel.ZIndex="20">
+        <Border x:Name="HeaderBackdrop" Height="74" VerticalAlignment="Top" Background="Transparent" BorderThickness="0" IsHitTestVisible="False" Panel.ZIndex="19" />
+        <Grid x:Name="HeaderBar" Height="74" Margin="16,0,12,0" HorizontalAlignment="Stretch" VerticalAlignment="Top" Panel.ZIndex="20">
             <Grid.RowDefinitions>
-                <RowDefinition Height="38" />
-                <RowDefinition Height="28" />
+                <RowDefinition Height="74" />
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition x:Name="BrandColumn" Width="126" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition x:Name="WorkspaceColumn" Width="174" />
+                <ColumnDefinition x:Name="BrandColumn" Width="154" />
+                <ColumnDefinition x:Name="ToolbarColumn" Width="184" />
+                <ColumnDefinition x:Name="WorkspaceColumn" Width="178" />
+                <ColumnDefinition x:Name="StatusColumn" Width="72" />
+                <ColumnDefinition x:Name="SearchColumn" Width="0" />
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition x:Name="ZoomColumn" Width="172" />
+                <ColumnDefinition x:Name="ZoomColumn" Width="250" />
             </Grid.ColumnDefinitions>
-            <Grid Grid.Column="0" Grid.RowSpan="2" IsHitTestVisible="False">
-                <Grid.RowDefinitions><RowDefinition Height="38" /><RowDefinition Height="28" /></Grid.RowDefinitions>
+            <Grid Grid.Column="0" IsHitTestVisible="False">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Image x:Name="BrandMark" Source="Resources/Brand/clipdesk-icon.png" Width="24" Height="24" Stretch="Uniform" />
-                    <TextBlock x:Name="BrandNameText" Text="ClipDesk" Margin="9,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}" FontSize="18" FontWeight="SemiBold" />
+                    <Image x:Name="BrandMark" Width="34" Height="34" Stretch="Uniform" />
+                    <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
+                        <TextBlock x:Name="BrandNameText" Text="ClipDesk" Foreground="{DynamicResource TextBrush}" FontSize="19" FontWeight="SemiBold" />
+                        <TextBlock x:Name="InstalledVersionText" Margin="1,3,0,0" Foreground="#AAB8D8" FontSize="10" FontWeight="SemiBold" />
+                    </StackPanel>
                 </StackPanel>
-                <TextBlock x:Name="InstalledVersionText" Grid.Row="1" Margin="33,0,0,0" VerticalAlignment="Top" Foreground="#AAB8D8" FontSize="10" FontWeight="SemiBold" />
             </Grid>
 
         <Border x:Name="TopToolbar" Grid.Column="1"
                 HorizontalAlignment="Left"
                 VerticalAlignment="Center"
-                Margin="0"
-                Background="#B8FFFFFF"
-                BorderBrush="#55FFFFFF"
+                Margin="2,0,6,0"
+                Width="176"
+                Height="46"
+                Background="#A8172232"
+                BorderBrush="#334D6E"
                 BorderThickness="1"
-                CornerRadius="18"
-                Padding="5">
+                CornerRadius="23"
+                Padding="7,4">
             <Border.Effect>
                 <DropShadowEffect BlurRadius="18" ShadowDepth="5" Opacity="0.12" Color="#475569" />
             </Border.Effect>
-            <StackPanel Orientation="Horizontal">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                 <Button x:Name="UndoButton"
-                        Width="27"
-                        Height="27"
-                        Margin="0,0,4,0"
+                        Width="30"
+                        Height="34"
+                        Margin="0,0,2,0"
                         Padding="0"
                         Click="UndoButton_Click"
                         ToolTip="Desfazer">
-                    <TextBlock Text="&#xE72B;"
-                               FontFamily="Segoe MDL2 Assets"
-                               FontSize="14"
+                    <TextBlock Text="&#xE166;"
+                               FontFamily="{StaticResource MaterialSymbols}"
+                               FontSize="19"
                                HorizontalAlignment="Center"
                                VerticalAlignment="Center" />
                 </Button>
                 <Button x:Name="RedoButton"
-                        Width="27"
-                        Height="27"
-                        Margin="0,0,4,0"
+                        Width="30"
+                        Height="34"
+                        Margin="0,0,2,0"
                         Padding="0"
                         Click="RedoButton_Click"
                         ToolTip="Refazer">
-                    <TextBlock Text="&#xE72A;"
-                               FontFamily="Segoe MDL2 Assets"
-                               FontSize="14"
+                    <TextBlock Text="&#xE15A;"
+                               FontFamily="{StaticResource MaterialSymbols}"
+                               FontSize="19"
                                HorizontalAlignment="Center"
                                VerticalAlignment="Center" />
                 </Button>
-                <Button Width="27"
-                        Height="27"
-                        Margin="0,0,4,0"
+                <Button Width="30"
+                        Height="34"
+                        Margin="0,0,2,0"
                         Padding="0"
                         Click="HistoryButton_Click"
                         ToolTip="Histórico do clipboard">
-                    <TextBlock Text="&#xE823;"
-                               FontFamily="Segoe MDL2 Assets"
-                               FontSize="14"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center" />
+                    <TextBlock Text="&#xE14F;" FontFamily="{StaticResource MaterialSymbols}" FontSize="19" />
                 </Button>
                 <Button x:Name="ThemeButton"
-                        Width="27"
-                        Height="27"
+                        Width="30"
+                        Height="34"
                         Padding="0"
                         Click="ThemeButton_Click"
                         ToolTip="Modo claro/escuro">
                     <TextBlock x:Name="ThemeIcon"
-                               Text="&#xE708;"
-                               FontFamily="Segoe MDL2 Assets"
-                               FontSize="14"
+                               Text="&#xE51C;"
+                               FontFamily="{StaticResource MaterialSymbols}"
+                               FontSize="19"
                                HorizontalAlignment="Center"
                                VerticalAlignment="Center" />
                 </Button>
                 <Button x:Name="StartupButton"
-                        Width="27"
-                        Height="27"
-                        Margin="4,0,0,0"
+                        Width="30"
+                        Height="34"
+                        Margin="2,0,0,0"
                         Padding="0"
                         Click="StartupButton_Click"
                         ToolTip="Iniciar com o Windows">
-                    <Grid Width="15" Height="15" ToolTip="">
-                        <Grid.RowDefinitions><RowDefinition /><RowDefinition /></Grid.RowDefinitions>
-                        <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
-                        <Border Grid.Row="0" Grid.Column="0" Background="#5D77E8" Margin="0,0,1,1" />
-                        <Border Grid.Row="0" Grid.Column="1" Background="#7E8EF1" Margin="1,0,0,1" />
-                        <Border Grid.Row="1" Grid.Column="0" Background="#8B6DEB" Margin="0,1,1,0" />
-                        <Border Grid.Row="1" Grid.Column="1" Background="#B59AFF" Margin="1,1,0,0" />
-                    </Grid>
+                    <!-- Font Awesome Free 7.3.1 Windows brand icon (CC BY 4.0). -->
+                    <Path x:Name="StartupIcon"
+                          Width="17" Height="17" Stretch="Uniform"
+                          Fill="{DynamicResource TextBrush}"
+                          Data="M0 93.7l183.6-25.3 0 177.4-183.6 0 0-152.1zM0 418.3l183.6 25.3 0-175.2-183.6 0 0 149.9zm203.8 28l244.2 33.7 0-211.6-244.2 0 0 177.9zm0-380.6l0 180.1 244.2 0 0-213.8-244.2 33.7z" />
                 </Button>
             </StackPanel>
         </Border>
 
-            <Button x:Name="WorkspaceButton" Grid.Column="2" Height="36" Margin="12,0,10,0" Padding="7,0" HorizontalAlignment="Left" VerticalAlignment="Center" Click="WorkspaceButton_Click" ToolTip="Trocar mesa">
+            <Button x:Name="WorkspaceButton" Grid.Column="2" Panel.ZIndex="2" Height="42" Margin="0,0,2,0" Padding="4,0" HorizontalAlignment="Stretch" VerticalAlignment="Center" Click="WorkspaceButton_Click" ToolTip="Trocar mesa">
                 <StackPanel Orientation="Horizontal" Opacity="0.8">
-                    <TextBlock x:Name="WorkspaceNameText" Text="Mesa principal" MaxWidth="130" TextTrimming="CharacterEllipsis" FontSize="17" FontWeight="SemiBold" />
-                    <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="9,3,0,0" />
+                    <TextBlock x:Name="WorkspaceNameText" Text="Mesa principal" MaxWidth="145" TextTrimming="CharacterEllipsis" FontSize="16" FontWeight="SemiBold" />
+                    <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" FontSize="11" Margin="6,3,0,0" />
                 </StackPanel>
             </Button>
 
-            <Border x:Name="ZoomSurface" Grid.Column="4" Height="40" VerticalAlignment="Center" Background="#A81B2230" BorderBrush="#50647A" BorderThickness="1" CornerRadius="20" Padding="11,0">
+            <Button x:Name="CloudStatusButton" Grid.Column="3" Panel.ZIndex="2" Height="34" VerticalAlignment="Center" HorizontalAlignment="Stretch" Padding="2,2" Margin="0" Click="CloudMode_Click" ToolTip="Escolher onde salvar esta mesa">
+                <StackPanel Orientation="Horizontal" Opacity="0.72">
+                    <TextBlock x:Name="CloudStatusIcon" Text="✓" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource MutedBrush}" Margin="0,0,4,0" />
+                    <TextBlock x:Name="CloudStatusText" Text="Salvo" FontSize="11" Foreground="{DynamicResource MutedBrush}" MaxWidth="48" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+            </Button>
+            <Border x:Name="WorkspaceSearchSurface" Grid.Column="0" Grid.ColumnSpan="7" Panel.ZIndex="1" Width="460" Height="46" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0" Background="#A8172232" BorderBrush="#334D6E" BorderThickness="1" CornerRadius="23">
+                <Grid Margin="13,0,12,0">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="25" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <TextBlock Text="&#xEF7A;" FontFamily="{StaticResource MaterialSymbols}" FontSize="18" Foreground="#AAB7C8" VerticalAlignment="Center" />
+                    <TextBox x:Name="WorkspaceSearchBox" Grid.Column="1" Background="Transparent" BorderThickness="0" Foreground="#F8FAFC" CaretBrush="#A78BFA" FontSize="14" VerticalContentAlignment="Center" TextChanged="WorkspaceSearchBox_TextChanged" />
+                    <TextBlock x:Name="WorkspaceSearchPlaceholder" Grid.Column="1" Text="Pesquisar na mesa" Foreground="#8090A5" FontSize="13" VerticalAlignment="Center" IsHitTestVisible="False" />
+                    <TextBlock x:Name="WorkspaceSearchCount" Grid.Column="2" Foreground="#9385C4" FontSize="11" VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+            <StackPanel x:Name="CloudActions" Grid.Column="5" Panel.ZIndex="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,18,0">
+                <StackPanel x:Name="CollaboratorAvatars" Orientation="Horizontal" VerticalAlignment="Center" />
+                <Button x:Name="InviteButton" Width="42" Height="42" Padding="0" Margin="5,0,4,0" Background="#8C17233A" Click="Invite_Click" ToolTip="Convidar colaborador por username">
+                    <TextBlock Text="&#xE145;" FontFamily="{StaticResource MaterialSymbols}" FontSize="21" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                </Button>
+                <Button x:Name="CloudAccountButton" Height="34" Padding="9,0" Click="CloudAccount_Click" ToolTip="Conta Google">
+                    <StackPanel Orientation="Horizontal">
+                        <Grid Width="24" Height="24" Margin="0,0,6,0">
+                            <Grid x:Name="AccountAvatar" Width="24" Height="24">
+                                <Ellipse Stroke="{DynamicResource BorderBrush}" StrokeThickness="1" Fill="{DynamicResource SurfaceBrush}" />
+                                <TextBlock x:Name="AccountInitial" Text="G" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource TextBrush}" />
+                            </Grid>
+                            <Ellipse x:Name="InviteNotificationDot" Width="8" Height="8" Fill="#A78BFA" Stroke="#141820" StrokeThickness="1.5" HorizontalAlignment="Right" VerticalAlignment="Top" Visibility="Collapsed" />
+                        </Grid>
+                        <TextBlock x:Name="CloudAccountText" Text="Entrar com Google" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+            <Border x:Name="ZoomSurface" Grid.Column="6" Panel.ZIndex="2" Height="46" VerticalAlignment="Center" Margin="18,0,0,0" Background="#A8172232" BorderBrush="#334D6E" BorderThickness="1" CornerRadius="23" Padding="14,0">
                 <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="20" /><ColumnDefinition Width="*" /><ColumnDefinition Width="38" /></Grid.ColumnDefinitions>
-                    <TextBlock Text="−" FontSize="18" Foreground="#AAB7C8" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                    <Slider x:Name="ZoomSlider" Grid.Column="1" Minimum="50" Maximum="100" Value="100" SmallChange="5" LargeChange="10" Style="{StaticResource ZoomSliderStyle}" ValueChanged="ZoomSlider_ValueChanged" ToolTip="Tamanho dos elementos" />
+                    <TextBlock Text="&#xE15B;" FontFamily="{StaticResource MaterialSymbols}" FontSize="18" Foreground="#AAB7C8" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                    <Slider x:Name="ZoomSlider" Grid.Column="1" Minimum="10" Maximum="100" Value="100" SmallChange="2" LargeChange="10" Style="{StaticResource ZoomSliderStyle}" ValueChanged="ZoomSlider_ValueChanged" ToolTip="Zoom da mesa" />
                     <TextBlock x:Name="ZoomValueText" Grid.Column="2" Text="100%" Foreground="#D8D4F0" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" TextAlignment="Right" />
                 </Grid>
             </Border>
         </Grid>
 
-        <Border x:Name="WorkspaceSearchSurface" Width="390" Height="40" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,19,0,0" Panel.ZIndex="22" Background="#A81B2230" BorderBrush="#50647A" BorderThickness="1" CornerRadius="20">
-            <Grid Margin="13,0,12,0">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="25" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                <TextBlock Text="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="15" Foreground="#AAB7C8" VerticalAlignment="Center" />
-                <TextBox x:Name="WorkspaceSearchBox" Grid.Column="1" Background="Transparent" BorderThickness="0" Foreground="#F8FAFC" CaretBrush="#A78BFA" FontSize="14" VerticalContentAlignment="Center" TextChanged="WorkspaceSearchBox_TextChanged" />
-                <TextBlock x:Name="WorkspaceSearchPlaceholder" Grid.Column="1" Text="Pesquisar na mesa" Foreground="#8090A5" FontSize="13" VerticalAlignment="Center" IsHitTestVisible="False" />
-                <TextBlock x:Name="WorkspaceSearchCount" Grid.Column="2" Foreground="#9385C4" FontSize="11" VerticalAlignment="Center" />
-            </Grid>
-        </Border>
-
         <Border x:Name="WorkspaceDropdown"
-                Width="308"
+                Width="342"
                 HorizontalAlignment="Left"
                 VerticalAlignment="Top"
                 Margin="326,76,0,0"
@@ -334,58 +432,190 @@
             <Border.Effect>
                 <DropShadowEffect BlurRadius="28" ShadowDepth="10" Opacity="0.28" Color="#020617" />
             </Border.Effect>
-            <StackPanel>
-                <TextBlock Text="MESA ATUAL" FontSize="10" FontWeight="Bold" Foreground="#94A3B8" />
-                <Grid Margin="0,5,0,0">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="34" /></Grid.ColumnDefinitions>
-                    <TextBlock x:Name="WorkspaceDropdownTitle" VerticalAlignment="Center" FontSize="18" FontWeight="SemiBold" Foreground="#F8FAFC" TextTrimming="CharacterEllipsis" />
-                    <Button x:Name="WorkspaceDropdownEditButton" Grid.Column="1" Width="32" Height="32" Padding="0" Click="WorkspaceEditButton_Click" ToolTip="Editar nome da mesa">
-                        <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" FontSize="14" />
-                    </Button>
-                </Grid>
-                <Border Height="1" Margin="0,20,0,14" Background="#3564748B" />
-                <StackPanel x:Name="WorkspaceDropdownItems" />
-                <Border Height="1" Margin="0,14,0,10" Background="#3564748B" />
-                <StackPanel x:Name="WorkspaceDropdownActions" />
-            </StackPanel>
+            <Grid>
+                <StackPanel x:Name="WorkspaceDropdownHome">
+                    <TextBlock Text="MESA ATUAL" FontSize="10" FontWeight="Bold" Foreground="#94A3B8" />
+                    <Grid Margin="0,5,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="36" /><ColumnDefinition Width="*" /><ColumnDefinition Width="34" /><ColumnDefinition Width="34" /><ColumnDefinition Width="34" /></Grid.ColumnDefinitions>
+                        <TextBlock Text="&#xE8F1;" HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="{StaticResource MaterialSymbols}" FontSize="17" Foreground="#D6DEEB" />
+                        <TextBlock x:Name="WorkspaceDropdownTitle" Grid.Column="1" VerticalAlignment="Center" FontSize="18" FontWeight="SemiBold" Foreground="#F8FAFC" TextTrimming="CharacterEllipsis" />
+                        <Button x:Name="WorkspaceDropdownCurrentStatusButton" Grid.Column="2" Width="30" Height="30" Padding="0" Click="WorkspaceCurrentStatusButton_Click" ToolTip="Onde salvar esta mesa">
+                            <TextBlock x:Name="WorkspaceDropdownCurrentStatusIcon" FontFamily="{StaticResource MaterialSymbols}" FontSize="18" Foreground="#B8C5D8" />
+                        </Button>
+                        <Button x:Name="WorkspaceDropdownEditButton" Grid.Column="3" Width="30" Height="30" Padding="0" Click="WorkspaceEditButton_Click" ToolTip="Editar nome da mesa">
+                            <TextBlock Text="&#xE3C9;" FontFamily="{StaticResource MaterialSymbols}" FontSize="17" />
+                        </Button>
+                        <Button x:Name="WorkspaceDropdownDeleteButton" Grid.Column="4" Width="30" Height="30" Padding="0" Click="WorkspaceDeleteButton_Click" ToolTip="Excluir esta mesa completamente">
+                            <TextBlock Text="&#xE92E;" FontFamily="{StaticResource MaterialSymbols}" FontSize="17" />
+                        </Button>
+                    </Grid>
+                    <Border Height="1" Margin="0,20,0,12" Background="#3564748B" />
+                    <ScrollViewer MaxHeight="420" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel x:Name="WorkspaceDropdownItems" />
+                    </ScrollViewer>
+                    <Border Height="1" Margin="0,14,0,10" Background="#3564748B" />
+                    <StackPanel x:Name="WorkspaceDropdownActions" />
+                </StackPanel>
+                <StackPanel x:Name="WorkspaceDropdownModePage" Visibility="Collapsed">
+                    <DockPanel LastChildFill="True">
+                        <Button x:Name="WorkspaceModeBackButton" DockPanel.Dock="Left" Width="32" Height="32" Margin="0,0,8,0" Padding="0" Click="WorkspaceModeBackButton_Click" ToolTip="Voltar para as mesas">
+                            <TextBlock Text="&#xE5C4;" FontFamily="{StaticResource MaterialSymbols}" FontSize="19" Foreground="#D8E0EC" />
+                        </Button>
+                        <TextBlock Text="Onde salvar" VerticalAlignment="Center" FontSize="16" FontWeight="SemiBold" Foreground="#F8FAFC" />
+                    </DockPanel>
+                    <TextBlock x:Name="WorkspaceModeTargetName" Margin="40,2,0,14" FontSize="11" Foreground="#94A3B8" TextTrimming="CharacterEllipsis" />
+                    <StackPanel x:Name="WorkspaceDropdownModes" />
+                </StackPanel>
+            </Grid>
         </Border>
 
+        <Border x:Name="CloudPanel" Width="300" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,64,300,0" Padding="16" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="16" Visibility="Collapsed" Panel.ZIndex="70">
+            <Border.Effect><DropShadowEffect BlurRadius="22" ShadowDepth="5" Opacity="0.25" Color="#020617" /></Border.Effect>
+            <ScrollViewer MaxHeight="560" VerticalScrollBarVisibility="Auto"><StackPanel x:Name="CloudPanelContent" /></ScrollViewer>
+        </Border>
         <StackPanel x:Name="WorkspaceEmptyState" VerticalAlignment="Center" HorizontalAlignment="Center" IsHitTestVisible="False" MaxWidth="330">
             <TextBlock Text="Sua mesa, suas ideias." FontSize="23" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" TextAlignment="Center" />
             <TextBlock Text="Cole com Ctrl+V ou arraste itens do histórico para organizar seu próximo trabalho." Foreground="{DynamicResource MutedBrush}" FontSize="14" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10,0,0" />
         </StackPanel>
         <Border x:Name="TrashZone"
-                Width="92"
-                Height="98"
+                Width="306"
+                Height="78"
                 HorizontalAlignment="Right"
-                VerticalAlignment="Top"
-                Margin="0,17,18,0"
-                Background="#44FFFFFF"
-                BorderBrush="#9AA0A8"
-                BorderThickness="2"
-                CornerRadius="18"
-                Opacity="0.78"
+                VerticalAlignment="Bottom"
+                Margin="0,0,22,24"
+                Background="#331E2531"
+                BorderBrush="#66748694"
+                BorderThickness="0"
+                CornerRadius="17"
+                Opacity="0.92"
                 MouseLeftButtonDown="TrashZone_MouseLeftButtonDown"
                 RenderTransformOrigin="0.5,0.5">
             <Border.RenderTransform>
                 <ScaleTransform x:Name="TrashScale" ScaleX="1" ScaleY="1" />
             </Border.RenderTransform>
-            <StackPanel HorizontalAlignment="Center"
-                        VerticalAlignment="Center">
-                <TextBlock x:Name="TrashIcon"
-                           Text="&#xE74D;"
-                           FontFamily="Segoe MDL2 Assets"
-                           FontSize="34"
-                           Foreground="#737983"
-                           HorizontalAlignment="Center" />
-                <TextBlock x:Name="TrashLabel"
-                           Text="Lixeira"
-                           FontSize="15"
-                           FontWeight="Medium"
-                           Foreground="#34373D"
-                           HorizontalAlignment="Center"
-                           Margin="0,8,0,0" />
+            <Grid>
+                <Rectangle x:Name="TrashOutline" RadiusX="17" RadiusY="17" Stroke="#66748694" StrokeThickness="1" StrokeDashArray="5,5" IsHitTestVisible="False" />
+                <TextBlock x:Name="TrashIcon" Text="&#xE92E;" FontFamily="{StaticResource MaterialSymbols}" FontSize="18" Foreground="#737983" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <TextBlock x:Name="TrashLabel" Text="Solte aqui para excluir" FontSize="11" Foreground="#94A3B8" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,8" Visibility="Collapsed" />
+            </Grid>
+        </Border>
+
+        <Border x:Name="FollowCameraBanner"
+                Visibility="Collapsed"
+                Opacity="0"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Bottom"
+                Margin="0,0,0,26"
+                Padding="10,8,10,8"
+                Background="#F21A2434"
+                BorderBrush="#657C8EAA"
+                BorderThickness="1"
+                CornerRadius="16"
+                Panel.ZIndex="86"
+                RenderTransformOrigin="0.5,1">
+            <Border.RenderTransform><TranslateTransform x:Name="FollowCameraBannerTranslate" Y="14" /></Border.RenderTransform>
+            <Border.Effect><DropShadowEffect BlurRadius="22" ShadowDepth="7" Opacity="0.34" Color="#020617" /></Border.Effect>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Border x:Name="FollowCameraAccent" Width="4" Height="34" CornerRadius="2" VerticalAlignment="Center" />
+                <Grid Grid.Column="1" Width="34" Height="34" Margin="10,0,9,0" VerticalAlignment="Center">
+                    <Ellipse x:Name="FollowCameraAvatarRing" StrokeThickness="2" />
+                    <TextBlock x:Name="FollowCameraAvatarInitial" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="#F8FAFC" />
+                </Grid>
+                <StackPanel Grid.Column="2" VerticalAlignment="Center" MinWidth="164" Margin="0,0,13,0">
+                    <TextBlock x:Name="FollowCameraTitle" FontSize="12.5" FontWeight="SemiBold" Foreground="#F4F7FF" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="Câmera e zoom sincronizados" Margin="0,2,0,0" FontSize="9.5" Foreground="#A8B5C8" />
+                </StackPanel>
+                <Button Grid.Column="3" Height="32" MinWidth="68" Padding="12,0" Background="#4D6547C9" BorderBrush="#807C68DB" BorderThickness="1" Foreground="#F8F6FF" Click="StopFollowCamera_Click" ToolTip="Parar de acompanhar">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE034;" Margin="0,0,6,0" FontFamily="{StaticResource MaterialSymbols}" FontSize="16" VerticalAlignment="Center" />
+                        <TextBlock Text="Parar" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Border>
+
+        <Border x:Name="CreativeToolRail" Width="54" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,22,0" Padding="6,8" Background="#B8172232" BorderBrush="#405A7C" BorderThickness="1" CornerRadius="19" Panel.ZIndex="30">
+            <Border.Effect><DropShadowEffect BlurRadius="18" ShadowDepth="4" Opacity="0.22" Color="#020617" /></Border.Effect>
+            <StackPanel>
+                <Button x:Name="SelectionToolButton" Width="40" Height="40" Padding="0" Background="#4C5B36B8" Click="CreativeToolButton_Click" Tag="Select" ToolTip="Seleção (V)"><TextBlock Text="&#xF82F;" FontFamily="{StaticResource MaterialSymbols}" FontSize="21" Foreground="#F4F0FF" /></Button>
+                <Button x:Name="PanToolButton" Width="40" Height="40" Padding="0" Foreground="#F4F7FF" Click="CreativeToolButton_Click" Tag="Pan" ToolTip="Pan (H)"><TextBlock Text="&#xE925;" FontFamily="{StaticResource MaterialSymbols}" FontSize="20" Foreground="#F4F7FF" /></Button>
+                <Border Height="1" Margin="5,5" Background="#4A6078" />
+                <Button x:Name="PenToolButton" Width="40" Height="40" Padding="0" Click="CreativeToolButton_Click" Tag="Pen" ToolTip="Caneta (P)"><TextBlock Text="&#xE746;" Foreground="#EEF3FF" FontFamily="{StaticResource MaterialSymbols}" FontSize="20" /></Button>
+                <Button x:Name="TextToolButton" Width="40" Height="40" Padding="0" Click="CreativeToolButton_Click" Tag="Text" ToolTip="Texto (T)"><TextBlock Text="&#xE262;" Foreground="#EEF3FF" FontFamily="{StaticResource MaterialSymbols}" FontSize="20" /></Button>
+                <Button x:Name="NoteToolButton" Width="40" Height="40" Padding="0" Click="CreativeToolButton_Click" Tag="Note" ToolTip="Nota (N)"><TextBlock Text="&#xF1FC;" Foreground="#EEF3FF" FontFamily="{StaticResource MaterialSymbols}" FontSize="20" /></Button>
+                <Button x:Name="ShapeToolButton" Width="40" Height="40" Padding="0" Click="CreativeToolButton_Click" Tag="Shape" ToolTip="Forma (R)"><TextBlock Text="&#xE602;" Foreground="#EEF3FF" FontFamily="{StaticResource MaterialSymbols}" FontSize="20" /></Button>
+                <Button x:Name="ConnectorToolButton" Width="40" Height="40" Padding="0" Click="CreativeToolButton_Click" PreviewMouseDoubleClick="ConnectorToolButton_DoubleClick" Tag="Connector" ToolTip="Conectar cards (C) · duplo clique: mover conexões juntas">
+                    <Grid Width="26" Height="26">
+                        <TextBlock Text="&#xEBBB;" Foreground="#EEF3FF" FontFamily="{StaticResource MaterialSymbols}" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <Ellipse x:Name="ConnectorMoveIndicator" Width="7" Height="7" HorizontalAlignment="Right" VerticalAlignment="Bottom" Fill="#34D399" Stroke="#E8FFF7" StrokeThickness="1" Visibility="Collapsed" />
+                    </Grid>
+                </Button>
+                <Border Height="1" Margin="5,5" Background="#4A6078" />
+                <Button x:Name="MagnetToolButton" Width="40" Height="40" Padding="0" Click="MagnetToolButton_Click" ToolTip="Alinhamento magnético ligado (M)">
+                    <Grid Width="27" Height="27">
+                        <!-- Lucide "Magnet", ISC license: https://lucide.dev/icons/magnet -->
+                        <Path x:Name="MagnetToolGlyph"
+                              Width="24" Height="24"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                              Data="M 12,15 L 16,19 M 2.352,10.648 A 1.205,1.205 0 0 0 2.352,12.352 L 4.648,14.648 A 1.205,1.205 0 0 0 6.352,14.648 L 12.381,8.619 A 1,1 0 1 1 15.381,11.619 L 9.352,17.648 A 1.205,1.205 0 0 0 9.352,19.352 L 11.648,21.648 A 1.205,1.205 0 0 0 13.352,21.648 L 19.717,15.281 A 1,1 0 0 0 8.716,4.282 Z M 5,8 L 9,12"
+                              Fill="Transparent" Stroke="#F4F0FF" StrokeThickness="2"
+                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                              Stretch="Uniform" />
+                        <Ellipse x:Name="MagnetToolIndicator" Width="6" Height="6" Margin="0,1,1,0" HorizontalAlignment="Right" VerticalAlignment="Top" Fill="#34D399" Stroke="#E8FFF7" StrokeThickness="1" />
+                    </Grid>
+                </Button>
             </StackPanel>
+        </Border>
+
+        <Border x:Name="InviteBackdrop" Background="{DynamicResource InviteBackdropBrush}"
+                Visibility="Collapsed" Panel.ZIndex="89" />
+        <Border x:Name="InvitePopup" Width="380" HorizontalAlignment="Center" VerticalAlignment="Center"
+                Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource AccentBrush}"
+                BorderThickness="1" CornerRadius="22" Visibility="Collapsed" Panel.ZIndex="90" ClipToBounds="True">
+            <Border.Effect><DropShadowEffect BlurRadius="32" ShadowDepth="12" Opacity="0.35" Color="#020617" /></Border.Effect>
+            <Grid>
+                <Grid.RowDefinitions><RowDefinition Height="5" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                <Border Background="{DynamicResource InvitePrimaryBrush}" />
+                <StackPanel Grid.Row="1" Margin="23,20,23,23">
+                    <TextBlock Text="CONVITE PARA COLABORAR" FontSize="10" FontWeight="Bold"
+                               Foreground="{DynamicResource AccentBrush}" />
+                    <TextBlock Text="Uma mesa quer você por perto" Margin="0,5,0,19" FontSize="18"
+                               FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" />
+                    <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1" CornerRadius="14" Padding="12">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse x:Name="InviteSenderAvatar" Width="42" Height="42" Fill="#6D5BD0"
+                                         Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.5" />
+                                <StackPanel Margin="11,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock x:Name="InviteSenderName" FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextBrush}" />
+                                    <TextBlock x:Name="InviteSenderUsername" FontSize="11" Foreground="{DynamicResource MutedBrush}" />
+                                </StackPanel>
+                            </StackPanel>
+                            <TextBlock Text="convidou você para a mesa" Margin="0,12,0,3" FontSize="11"
+                                       Foreground="{DynamicResource MutedBrush}" />
+                            <TextBlock x:Name="InviteWorkspaceName" FontSize="16" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextBrush}" TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </Border>
+                    <Grid Margin="0,20,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
+                        <Button x:Name="InviteDeclineButton" Height="39" Margin="0,0,6,0" Content="Recusar"
+                                Background="{DynamicResource HoverBrush}" Foreground="{DynamicResource TextBrush}"
+                                Click="InviteDecline_Click" />
+                        <Button x:Name="InviteAcceptButton" Grid.Column="1" Height="39" Margin="6,0,0,0"
+                                Content="Aceitar convite" Background="{DynamicResource InvitePrimaryBrush}"
+                                Foreground="{DynamicResource InvitePrimaryTextBrush}" Click="InviteAccept_Click" />
+                    </Grid>
+                </StackPanel>
+            </Grid>
         </Border>
 
         <Grid x:Name="FolderOverlay"

@@ -6,6 +6,22 @@
         AllowsTransparency="True" Background="Transparent" FontFamily="Segoe UI Variable Display,Segoe UI"
         MouseLeftButtonDown="Window_MouseLeftButtonDown">
     <Window.Resources>
+        <Style x:Key="DataOption" TargetType="CheckBox">
+            <Setter Property="Foreground" Value="#DCE5F6" /><Setter Property="FontSize" Value="13" /><Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="CheckBox">
+                <Grid Background="Transparent"><Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <Border x:Name="Box" Width="20" Height="20" VerticalAlignment="Top" CornerRadius="5" Background="#25334C" BorderBrush="#8A79B9" BorderThickness="1.2">
+                        <TextBlock x:Name="Check" Text="✓" Visibility="Collapsed" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" />
+                    </Border>
+                    <ContentPresenter Grid.Column="1" Margin="8,0,0,0" RecognizesAccessKey="True" />
+                </Grid>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsChecked" Value="True"><Setter TargetName="Check" Property="Visibility" Value="Visible" /><Setter TargetName="Box" Property="Background" Value="#7953D3" /></Trigger>
+                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Box" Property="BorderBrush" Value="White" /></Trigger>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Box" Property="BorderBrush" Value="#D6C5FF" /></Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate></Setter.Value></Setter>
+        </Style>
         <LinearGradientBrush x:Key="PrimaryGradient" StartPoint="0,0" EndPoint="1,1">
             <GradientStop Color="#B071FF" Offset="0" /><GradientStop Color="#713BFA" Offset="1" />
         </LinearGradientBrush>
@@ -59,7 +75,7 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal">
                             <Image Source="Resources/Brand/clipdesk-icon.png" Width="62" Height="62" Stretch="Uniform" />
-                            <TextBlock Text="ClipDesk" VerticalAlignment="Center" Margin="15,0,0,0" FontSize="35" FontWeight="SemiBold" Foreground="#F4F1FF" />
+                            <TextBlock x:Name="BrandTitle" Text="ClipDesk" VerticalAlignment="Center" Margin="15,0,0,0" FontSize="35" FontWeight="SemiBold" Foreground="#F4F1FF" />
                         </StackPanel>
                         <TextBlock Margin="0,42,0,0" FontSize="45" FontWeight="Bold" LineHeight="50" Foreground="White"><Run Text="Seu clipboard," /><LineBreak /><Run Text="organizado." Foreground="#A16CFF" /></TextBlock>
                         <TextBlock Text="Salve, visualize e organize tudo o que você copia em mesas visuais." Margin="0,19,10,0" FontSize="20" LineHeight="29" TextWrapping="Wrap" Foreground="#D2DBEC" />
@@ -83,8 +99,14 @@
                 <Grid Grid.Column="1" Margin="52,76,52,42">
                     <Grid x:Name="IntroState" VerticalAlignment="Center">
                         <StackPanel>
-                            <TextBlock x:Name="ActionTitle" Text="Pronto para começar?" FontSize="31" FontWeight="Bold" Foreground="White" />
+                            <TextBlock x:Name="ActionTitle" Text="Pronto para começar?" TextWrapping="Wrap" FontSize="31" FontWeight="Bold" Foreground="White" />
                             <TextBlock x:Name="ActionBody" Text="Instale o ClipDesk em poucos segundos." Margin="0,13,0,0" FontSize="18" Foreground="#BCC8DE" TextWrapping="Wrap" />
+                            <StackPanel x:Name="UninstallDataOptions" Visibility="Collapsed" Margin="0,22,0,0">
+                                <CheckBox x:Name="DeleteDataCheck" Style="{StaticResource DataOption}" IsChecked="False">
+                                    <TextBlock Text="Apagar mesas, histórico e caches locais" TextWrapping="Wrap" />
+                                </CheckBox>
+                                <TextBlock Text="Inclui preferências e contas salvas neste computador. Arquivos originais, downloads exportados e dados na nuvem permanecem." Margin="32,8,0,0" TextWrapping="Wrap" FontSize="11" Foreground="#A0AEC5" />
+                            </StackPanel>
                             <Button x:Name="InstallButton" Margin="0,46,0,0" Style="{StaticResource PrimaryButton}" Click="InstallButton_Click">
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                     <TextBlock x:Name="InstallButtonText" Text="Instalar ClipDesk" VerticalAlignment="Center" />
@@ -103,10 +125,15 @@
                     <Grid x:Name="ExistingState" Visibility="Collapsed" Opacity="0" VerticalAlignment="Center">
                         <StackPanel>
                             <Border Width="66" Height="66" HorizontalAlignment="Left" Background="#3C2D2551" BorderBrush="#936DA8E8" BorderThickness="1" CornerRadius="19"><TextBlock Text="↻" FontSize="35" Foreground="#B889FF" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
-                            <TextBlock Text="ClipDesk já está instalado" Margin="0,24,0,0" FontSize="30" FontWeight="Bold" Foreground="White" />
+                            <TextBlock x:Name="ExistingTitle" Text="ClipDesk já está instalado" TextWrapping="Wrap" Margin="0,24,0,0" FontSize="30" FontWeight="Bold" Foreground="White" />
                             <TextBlock Text="Os arquivos atuais do aplicativo serão substituídos pela nova versão." Margin="0,13,0,0" FontSize="17" LineHeight="25" Foreground="#C3CEE1" TextWrapping="Wrap" />
                             <Border Margin="0,20,0,0" Padding="15,12" Background="#301C2A48" BorderBrush="#596E62A0" BorderThickness="1" CornerRadius="12">
-                                <StackPanel Orientation="Horizontal"><TextBlock Text="✓" Foreground="#74DEBE" FontWeight="Bold" FontSize="16" /><TextBlock Text="Suas mesas, itens e preferências serão preservados." Margin="9,0,0,0" Foreground="#AFC4D9" FontSize="13" TextWrapping="Wrap" /></StackPanel>
+                                <StackPanel>
+                                    <CheckBox x:Name="PreserveDataCheck" Style="{StaticResource DataOption}" IsChecked="True">
+                                        <TextBlock Text="Preservar mesas, histórico e preferências" TextWrapping="Wrap" />
+                                    </CheckBox>
+                                    <TextBlock Text="Desmarque para começar do zero neste computador. A limpeza inclui contas e caches locais desta edição." Margin="32,8,0,0" TextWrapping="Wrap" FontSize="11" Foreground="#A0AEC5" />
+                                </StackPanel>
                             </Border>
                             <TextBlock x:Name="ExistingLocationText" Margin="0,15,0,0" Foreground="#7789A5" FontSize="11" TextTrimming="CharacterEllipsis" />
                             <Button Margin="0,32,0,0" Style="{StaticResource PrimaryButton}" Click="OverwriteButton_Click">
@@ -118,7 +145,7 @@
 
                     <Grid x:Name="ProgressState" Visibility="Collapsed" Opacity="0" VerticalAlignment="Center">
                         <StackPanel>
-                            <TextBlock x:Name="ProgressTitle" Text="Instalando o ClipDesk" FontSize="31" FontWeight="Bold" Foreground="White" />
+                            <TextBlock x:Name="ProgressTitle" Text="Instalando o ClipDesk" TextWrapping="Wrap" FontSize="31" FontWeight="Bold" Foreground="White" />
                             <TextBlock x:Name="ProgressMessage" Text="Preparando os arquivos…" Margin="0,13,0,0" FontSize="17" Foreground="#BCC8DE" />
                             <Grid Margin="0,42,0,0" Height="10">
                                 <Border Background="#2D3B506C" CornerRadius="5" />
@@ -131,7 +158,7 @@
                     <Grid x:Name="FinishState" Visibility="Collapsed" Opacity="0" VerticalAlignment="Center">
                         <StackPanel>
                             <Border Width="74" Height="74" HorizontalAlignment="Left" Background="{StaticResource PrimaryGradient}" CornerRadius="22"><TextBlock Text="✓" FontSize="38" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
-                            <TextBlock x:Name="FinishTitle" Text="ClipDesk está pronto" Margin="0,25,0,0" FontSize="31" FontWeight="Bold" Foreground="White" />
+                            <TextBlock x:Name="FinishTitle" Text="ClipDesk está pronto" TextWrapping="Wrap" Margin="0,25,0,0" FontSize="31" FontWeight="Bold" Foreground="White" />
                             <TextBlock x:Name="FinishBody" Text="A instalação foi concluída com sucesso." Margin="0,13,0,0" FontSize="18" Foreground="#BCC8DE" TextWrapping="Wrap" />
                             <Button x:Name="LaunchButton" Margin="0,42,0,0" Style="{StaticResource PrimaryButton}" Content="Abrir ClipDesk" Click="LaunchButton_Click" />
                             <Button Margin="0,14,0,0" Style="{StaticResource SecondaryButton}" Content="Fechar" Click="CancelButton_Click" />
@@ -190,7 +217,7 @@
                     <Button Style="{StaticResource WindowButton}" Click="MinimizeButton_Click"><TextBlock Text="−" FontSize="21" /></Button>
                     <Button Style="{StaticResource WindowButton}" Click="CancelButton_Click"><TextBlock Text="×" FontSize="24" /></Button>
                 </StackPanel>
-                <TextBlock Grid.Column="1" Text="Versão 0.3.2" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,28,22" Foreground="#73829D" FontSize="11" />
+                <TextBlock Grid.Column="1" Text="Versão 0.3.3" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,28,22" Foreground="#73829D" FontSize="11" />
             </Grid>
         </Border>
     </Grid>

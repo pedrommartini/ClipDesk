@@ -13,7 +13,10 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if(args.Contains("--presence-protocol")) { PresenceProtocolChecks.Run(); return; }
+        Environment.SetEnvironmentVariable("CLIPDESK_DEV_DATA_ROOT",Path.Combine(Path.GetTempPath(),"ClipDesk-Visual-Checks",Guid.NewGuid().ToString("N")));
         var app = new Application();
+        PresenceProtocolChecks.Run();
         var storage = new StorageService(); // No user data is loaded or saved.
         var canvas = new Canvas { Width = 1100, Height = 780, Background = new SolidColorBrush(Color.FromRgb(16,21,32)) };
         ItemCard Card(ClipboardItem item, double x, double y)
@@ -94,6 +97,9 @@ internal static class Program
             if(pixels[((int)(size.Height/2)*(int)size.Width+(int)(size.Width/2))*4+3] !=255) throw new Exception("Image center missing.");
         }
         Console.WriteLine("PASS: image corners are transparent and center is intact in landscape, portrait and native-size slots.");
+        CloudVisualChecks.Run(app);
+        HistoryPerformanceChecks.Run(app);
+        InstallerVisualChecks.Run();
         if (args.FirstOrDefault() is { Length: > 0 } pdfPath)
         {
             var pdf = new PdfPreviewService().RenderFirstPageAsync(pdfPath).GetAwaiter().GetResult();

@@ -10,7 +10,7 @@ public sealed record AvailableUpdate(Version Version, string TagName, string Dow
 
 public static class UpdateService
 {
-    public const string CurrentVersion = "0.3.2";
+    public const string CurrentVersion = "0.3.3";
     private const string LatestReleaseUrl = "https://api.github.com/repos/pedrommartini/ClipDesk/releases/latest";
     private const string PackageName = "ClipDesk-Windows-x64.zip";
 
@@ -18,6 +18,7 @@ public static class UpdateService
 
     public static async Task<AvailableUpdate?> CheckForUpdateAsync(CancellationToken cancellationToken = default)
     {
+        if (AppEnvironment.IsTestClient) return null;
         using var response = await Http.GetAsync(LatestReleaseUrl, cancellationToken);
         response.EnsureSuccessStatusCode();
 
@@ -45,6 +46,7 @@ public static class UpdateService
 
     public static async Task DownloadAndStartAsync(AvailableUpdate update, CancellationToken cancellationToken = default)
     {
+        if (AppEnvironment.IsTestClient) throw new InvalidOperationException("As instâncias de teste são atualizadas junto com o pacote do ClipDesk.");
         var applicationDirectory = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
         var updaterSource = Path.Combine(applicationDirectory, "ClipDesk.Updater.exe");
         if (!File.Exists(updaterSource)) throw new FileNotFoundException("O componente de atualização não está instalado.", updaterSource);
@@ -116,7 +118,7 @@ public static class UpdateService
     private static HttpClient CreateHttpClient()
     {
         var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("ClipDesk-Updater/0.3.2");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("ClipDesk-Updater/0.3.3");
         client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
         return client;
     }

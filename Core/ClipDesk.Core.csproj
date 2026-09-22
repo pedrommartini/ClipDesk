@@ -5,6 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.31" />
     <Compile Include="..\Models\Clipboard*.cs" Link="Models\%(Filename)%(Extension)" />
     <Compile Include="..\Models\WorkspaceBoard.cs" Link="Models\WorkspaceBoard.cs" />
   </ItemGroup>

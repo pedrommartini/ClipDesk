@@ -16,7 +16,7 @@ public sealed class FileIconService
             ClipboardItemType.Link => new FileVisual("\uE71B", "LINK", "#8B5CF6", true),
             ClipboardItemType.AppFolder => new FileVisual("\uE8B7", $"{item.Children.Count} ITENS", "#8B5CF6", true),
             ClipboardItemType.Folder => new FileVisual("\uE8B7", "PASTA", "#A855F7", true),
-            ClipboardItemType.File => GetFileVisual(item.FilePaths.FirstOrDefault()),
+            ClipboardItemType.File => GetFileVisual(item.FilePaths.FirstOrDefault() ?? item.Attachments.FirstOrDefault()?.Name ?? item.DisplayName),
             _ => new FileVisual("\uE7C3", "ARQ", "#667085", true)
         };
     }

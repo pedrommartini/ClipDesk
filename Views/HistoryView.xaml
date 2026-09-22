@@ -82,6 +82,8 @@
             <ListBox x:Name="HistoryList" Background="Transparent" BorderThickness="0" Padding="0"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto"
                      VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                     VirtualizingPanel.IsVirtualizingWhenGrouping="True" ScrollViewer.CanContentScroll="True"
+                     VirtualizingPanel.ScrollUnit="Pixel"
                      PreviewMouseLeftButtonDown="List_MouseDown" MouseMove="List_MouseMove" MouseDoubleClick="List_DoubleClick" PreviewKeyDown="List_KeyDown"
                      AutomationProperties.Name="Itens recentes do clipboard">
                 <ListBox.GroupStyle>

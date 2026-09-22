@@ -19,6 +19,8 @@ public partial class HistoryView : UserControl
     public const string DragFormat = "ClipDesk.ClipboardHistoryEntry";
     private ObservableCollection<ClipboardHistoryEntry>? _entries;
     private ICollectionView? _view;
+    private string _searchQuery = "";
+    private readonly System.Windows.Threading.DispatcherTimer _searchDelay = new() { Interval = TimeSpan.FromMilliseconds(160) };
     private Point _dragStart;
     private ClipboardHistoryEntry? _dragEntry;
     private ListBoxItem? _dragContainer;
@@ -28,7 +30,12 @@ public partial class HistoryView : UserControl
     public event EventHandler<ClipboardHistoryEntry>? CopyRequested;
     public event EventHandler<ClipboardHistoryEntry>? AddRequested;
 
-    public HistoryView() => InitializeComponent();
+    public HistoryView()
+    {
+        InitializeComponent();
+        _searchDelay.Tick += (_, _) => { _searchDelay.Stop(); _searchQuery = SearchBox.Text.Trim(); _view?.Refresh(); RefreshSummary(); };
+        Unloaded += (_, _) => _searchDelay.Stop();
+    }
 
     public void Bind(ObservableCollection<ClipboardHistoryEntry> entries, bool compact = false)
     {
@@ -45,27 +52,31 @@ public partial class HistoryView : UserControl
 
     public void ShowStatus(string message) => StatusText.Text = message;
     public void FocusSearch() => SearchBox.Focus();
-    public void Detach() { if (_entries is not null) _entries.CollectionChanged -= EntriesChanged; }
+    public void Detach() { _searchDelay.Stop(); if (_entries is not null) _entries.CollectionChanged -= EntriesChanged; HistoryList.ItemsSource = null; _view = null; _entries = null; }
 
     private bool MatchesSearch(object value)
     {
         if (value is not ClipboardHistoryEntry entry) return false;
-        var query = SearchBox.Text.Trim();
-        return query.Length == 0 || new[] { entry.Title, entry.Text, entry.Url, entry.Preview, entry.TypeLabel, entry.SourceSummary }
-            .Any(text => text?.Contains(query, StringComparison.CurrentCultureIgnoreCase) == true);
+        var query = _searchQuery;
+        return query.Length == 0 || entry.Title.Contains(query, StringComparison.CurrentCultureIgnoreCase)
+            || entry.Text?.Contains(query, StringComparison.CurrentCultureIgnoreCase) == true
+            || entry.Url?.Contains(query, StringComparison.CurrentCultureIgnoreCase) == true
+            || entry.Preview.Contains(query, StringComparison.CurrentCultureIgnoreCase)
+            || entry.TypeLabel.Contains(query, StringComparison.CurrentCultureIgnoreCase)
+            || entry.SourceSummary.Contains(query, StringComparison.CurrentCultureIgnoreCase);
     }
 
     private void Search_TextChanged(object sender, TextChangedEventArgs e)
     {
-        _view?.Refresh();
-        RefreshSummary();
+        _searchDelay.Stop();
+        _searchDelay.Start();
     }
 
     private void EntriesChanged(object? sender, NotifyCollectionChangedEventArgs e) => RefreshSummary();
     private void RefreshSummary()
     {
         if (CountText is null || HistoryList is null || EmptyState is null) return;
-        var count = _view?.Cast<object>().Count() ?? 0;
+        var count = (_view as ListCollectionView)?.Count ?? 0;
         CountText.Text = count == 1 ? "1 item salvo no histórico" : $"{count} itens salvos no histórico";
         EmptyState.Visibility = count == 0 ? Visibility.Visible : Visibility.Collapsed;
         var searching = !string.IsNullOrWhiteSpace(SearchBox.Text);
@@ -158,9 +169,11 @@ public partial class HistoryView : UserControl
 
 public sealed class HistoryThumbnailConverter : IValueConverter
 {
+    private static readonly Dictionary<string, BitmapImage> Cache = new(StringComparer.OrdinalIgnoreCase);
     public object? Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         if (value is not string path || !File.Exists(path)) return null;
+        lock (Cache) if (Cache.TryGetValue(path, out var cached)) return cached;
         try
         {
             var bitmap = new BitmapImage();
@@ -170,6 +183,11 @@ public sealed class HistoryThumbnailConverter : IValueConverter
             bitmap.UriSource = new Uri(path, UriKind.Absolute);
             bitmap.EndInit();
             bitmap.Freeze();
+            lock (Cache)
+            {
+                if (Cache.Count >= 128) Cache.Remove(Cache.Keys.First());
+                Cache[path] = bitmap;
+            }
             return bitmap;
         }
         catch (Exception ex) when (ex is IOException or NotSupportedException or ArgumentException) { return null; }

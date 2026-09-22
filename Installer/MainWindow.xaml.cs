@@ -20,17 +20,28 @@ public partial class MainWindow : Window
     public MainWindow(string? uninstallPath)
     {
         InitializeComponent();
+        BrandTitle.Text = InstallerBrand.AppName;
+        ExistingTitle.Text = $"{InstallerBrand.AppName} já está instalado";
         _uninstallPath = uninstallPath;
         _installPath = InstallerEngine.FindExistingInstallPath() ?? InstallerEngine.DefaultInstallPath;
         UpdateInstallLocation();
+        if (InstallerBrand.IsDevelopment && uninstallPath is null)
+        {
+            Title = "Instalar ClipDesk DEV";
+            ActionTitle.Text = "Pronto para testar?";
+            ActionBody.Text = "Instale o ClipDesk DEV com dados isolados para testar colaboração entre dispositivos.";
+            InstallButtonText.Text = "Instalar ClipDesk DEV";
+            InstallLocationText.Text = $"Ambiente de testes  •  {_installPath}  •  Não altera o ClipDesk de uso diário.";
+        }
         if (uninstallPath is not null)
         {
-            Title = "Desinstalar ClipDesk";
-            ActionTitle.Text = "Remover o ClipDesk?";
+            Title = $"Desinstalar {InstallerBrand.AppName}";
+            ActionTitle.Text = $"Remover o {InstallerBrand.AppName}?";
             ActionBody.Text = "O aplicativo será removido deste computador.";
-            InstallButtonText.Text = "Remover ClipDesk";
-            InstallLocationText.Text = "Seus itens, mesas e preferências pessoais serão preservados.";
+            InstallButtonText.Text = $"Remover {InstallerBrand.AppName}";
+            InstallLocationText.Text = "Escolha abaixo se deseja preservar ou apagar os dados locais desta edição.";
             ChooseFolderButton.Visibility = Visibility.Collapsed;
+            UninstallDataOptions.Visibility = Visibility.Visible;
         }
         Closed += (_, _) => Application.Current.Shutdown();
     }
@@ -55,23 +66,25 @@ public partial class MainWindow : Window
         if (_working) return;
         _working = true;
         ShowState(ProgressState);
-        ProgressTitle.Text = _uninstallPath is null ? "Instalando o ClipDesk" : "Removendo o ClipDesk";
+        ProgressTitle.Text = _uninstallPath is null ? $"Instalando o {InstallerBrand.AppName}" : $"Removendo o {InstallerBrand.AppName}";
         var progress = new Progress<InstallProgress>(UpdateProgress);
         try
         {
             if (_uninstallPath is null)
             {
-                _result = await InstallerEngine.InstallAsync(_installPath, testMode: false, progress);
-                FinishTitle.Text = "ClipDesk está pronto";
+                var preserveData = PreserveDataCheck.IsChecked != false;
+                _result = await Task.Run(() => InstallerEngine.InstallAsync(_installPath, testMode: false, progress, preserveData));
+                FinishTitle.Text = $"{InstallerBrand.AppName} está pronto";
                 FinishBody.Text = "A instalação foi concluída com sucesso.";
-                LaunchButton.Content = "Abrir ClipDesk";
+                LaunchButton.Content = $"Abrir {InstallerBrand.AppName}";
                 LaunchButton.Visibility = Visibility.Visible;
             }
             else
             {
-                await InstallerEngine.UninstallAsync(_uninstallPath, progress);
-                FinishTitle.Text = "ClipDesk removido";
-                FinishBody.Text = "O aplicativo foi removido. Suas mesas e preferências foram preservadas.";
+                var deleteData = DeleteDataCheck.IsChecked == true;
+                await Task.Run(() => InstallerEngine.UninstallAsync(_uninstallPath, progress, deleteData));
+                FinishTitle.Text = $"{InstallerBrand.AppName} removido";
+                FinishBody.Text = deleteData ? "O aplicativo e todos os seus dados privados locais foram removidos." : "O aplicativo foi removido. Suas mesas e preferências foram preservadas.";
                 LaunchButton.Visibility = Visibility.Collapsed;
             }
             ShowState(FinishState);
@@ -222,6 +235,7 @@ public partial class MainWindow : Window
     private bool InstallationWillReplaceFiles()
     {
         if (InstallerEngine.FindExistingInstallPath() is not null) return true;
+        if (Directory.Exists(InstallationData.Root)) return true;
         try { return Directory.Exists(_installPath) && Directory.EnumerateFileSystemEntries(_installPath).Any(); }
         catch { return Directory.Exists(_installPath); }
     }
@@ -238,7 +252,7 @@ public partial class MainWindow : Window
     {
         while (source is not null)
         {
-            if (source is Button or TextBox or ListBoxItem or ScrollBar) return true;
+            if (source is ButtonBase or TextBox or ListBoxItem or ScrollBar) return true;
             source = VisualTreeHelper.GetParent(source);
         }
         return false;

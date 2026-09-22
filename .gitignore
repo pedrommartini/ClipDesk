@@ -10,3 +10,15 @@ landing/download/
 *.lnk
 Installer/Payload/
 dist/
+Backup/
+supabase/.temp/
+tmp/
+Core/artifacts/
+*_wpftmp.csproj
+visual-release-v*.txt
+Server/data/
+Server/appsettings.*.local.json
+**/cloud-config.local.json
+**/*.db
+**/*.db-shm
+**/*.db-wal

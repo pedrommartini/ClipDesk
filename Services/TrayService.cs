@@ -18,7 +18,7 @@ public sealed class TrayService : IDisposable
         _menu.Items.Add("Abrir mesa de trabalho", null, (_, _) => dispatcher.BeginInvoke(showWorkspace));
         _menu.Items.Add(new Forms.ToolStripSeparator());
         _menu.Items.Add("Sair do ClipDesk", null, (_, _) => dispatcher.BeginInvoke(exit));
-        _icon = new Forms.NotifyIcon { Icon = _image, Text = "ClipDesk — Histórico do clipboard", ContextMenuStrip = _menu, Visible = true };
+        _icon = new Forms.NotifyIcon { Icon = _image, Text = $"{AppEnvironment.Name} — Histórico do clipboard", ContextMenuStrip = _menu, Visible = true };
         _singleClickTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(Forms.SystemInformation.DoubleClickTime + 60) };
         _singleClickTimer.Tick += (_, _) =>
         {

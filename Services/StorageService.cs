@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using System.Windows.Media.Imaging;
 using System.Security.Cryptography;
 using ClipDesk.Models;
+using ClipDesk.Core;
 
 namespace ClipDesk.Services;
 
@@ -11,24 +12,37 @@ public sealed class StorageService
 {
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
-        WriteIndented = true
+        WriteIndented = false
     };
 
-    public string BaseDirectory { get; } =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClipDesk");
+    private string _profile = "local";
+    private readonly string _dataRoot = AppEnvironment.DataRoot;
+    public string Profile => _profile;
+    public string BaseDirectory => Path.Combine(_dataRoot, "Profiles", _profile);
+    public LocalDatabase Database { get; private set; } = null!;
 
     public string AssetsDirectory => Path.Combine(BaseDirectory, "Assets");
     public string DataPath => Path.Combine(BaseDirectory, "items.json");
     public string WorkspacesPath => Path.Combine(BaseDirectory, "workspaces.json");
     public string SettingsPath => Path.Combine(BaseDirectory, "settings.json");
     public string HistoryPath => Path.Combine(BaseDirectory, "clipboard-history.json");
+    public static string DownloadsDirectory => AppEnvironment.IsTestClient
+        ? Path.Combine(AppEnvironment.DataRoot, "Downloads")
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ClipDesk", "Downloads");
+    public static bool IsUserDownload(string? path)
+    {
+        if(string.IsNullOrWhiteSpace(path)) return false;
+        var root=Path.GetFullPath(DownloadsDirectory).TrimEnd(Path.DirectorySeparatorChar)+Path.DirectorySeparatorChar;
+        return Path.GetFullPath(path).StartsWith(root,StringComparison.OrdinalIgnoreCase);
+    }
 
     public AppSettings LoadSettings()
     {
         try
         {
-            return File.Exists(SettingsPath)
-                ? JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(SettingsPath)) ?? new()
+            var json = ReadDocument(SettingsPath);
+            return json is not null
+                ? JsonSerializer.Deserialize<AppSettings>(json) ?? new()
                 : new();
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
@@ -37,7 +51,7 @@ public sealed class StorageService
         }
     }
 
-    public void SaveSettings(AppSettings settings) => WriteAtomically(SettingsPath, JsonSerializer.Serialize(settings, _jsonOptions));
+    public void SaveSettings(AppSettings settings) => WriteDocument(SettingsPath, JsonSerializer.Serialize(settings, _jsonOptions));
 
     private static void WriteAtomically(string path, string json)
     {
@@ -48,22 +62,64 @@ public sealed class StorageService
 
     public StorageService()
     {
-        // All user data stays local and offline under the current Windows profile.
+        var profilePath = Path.Combine(_dataRoot, "active-profile.txt");
+        if (File.Exists(profilePath))
+        {
+            var saved = File.ReadAllText(profilePath).Trim();
+            if (TryNormalizeProfile(saved, out var normalized)) _profile = normalized;
+        }
         Directory.CreateDirectory(BaseDirectory);
         Directory.CreateDirectory(AssetsDirectory);
+        Database = new LocalDatabase(Path.Combine(BaseDirectory, "clipdesk.db"));
         _jsonOptions.Converters.Add(new JsonStringEnumConverter());
     }
 
+    public void SwitchProfile(string profile)
+    {
+        if (!TryNormalizeProfile(profile, out var normalized)) throw new ArgumentException("Perfil inválido.");
+        _profile = normalized;
+        Directory.CreateDirectory(AssetsDirectory);
+        Database = new LocalDatabase(Path.Combine(BaseDirectory, "clipdesk.db"));
+        WriteAtomically(Path.Combine(_dataRoot, "active-profile.txt"), normalized);
+    }
+
+    // Supabase returns standard UUIDs with hyphens. Keep profile folders in the
+    // compact canonical form while accepting both safe UUID representations.
+    private static bool TryNormalizeProfile(string value, out string normalized)
+    {
+        if (string.Equals(value, "local", StringComparison.Ordinal)) { normalized = "local"; return true; }
+        if (Guid.TryParse(value, out var id)) { normalized = id.ToString("N"); return true; }
+        normalized = "local";
+        return false;
+    }
+
+    private string? ReadDocument(string path)
+    {
+        var key = Path.GetFileName(path);
+        var json = Database.Read(key);
+        if (json is not null) return json;
+        // Import in place without modifying the original JSON. DEV never reads production data.
+        var legacy = File.Exists(path) ? path : Path.Combine(_dataRoot, key);
+        if (_profile != "local" || !File.Exists(legacy)) return null;
+        json = File.ReadAllText(legacy);
+        using var valid = JsonDocument.Parse(json);
+        Database.Write(key, json);
+        return json;
+    }
+
+    private void WriteDocument(string path, string json) => Database.Write(Path.GetFileName(path), json);
+
     public List<ClipboardItem> LoadItems()
     {
-        if (!File.Exists(DataPath))
+        var saved = ReadDocument(DataPath);
+        if (saved is null)
         {
             return [];
         }
 
         try
         {
-            var json = File.ReadAllText(DataPath);
+            var json = saved;
             return JsonSerializer.Deserialize<List<ClipboardItem>>(json, _jsonOptions) ?? [];
         }
         catch
@@ -75,17 +131,23 @@ public sealed class StorageService
     public void SaveItems(IEnumerable<ClipboardItem> items)
     {
         var json = JsonSerializer.Serialize(items, _jsonOptions);
-        WriteAtomically(DataPath, json);
+        WriteDocument(DataPath, json);
     }
 
     public List<WorkspaceBoard> LoadWorkspaces()
     {
         try
         {
-            if (File.Exists(WorkspacesPath))
+            var saved = ReadDocument(WorkspacesPath);
+            if (saved is not null)
             {
-                var boards = JsonSerializer.Deserialize<List<WorkspaceBoard>>(File.ReadAllText(WorkspacesPath), _jsonOptions);
-                if (boards is { Count: > 0 }) return boards;
+                var boards = JsonSerializer.Deserialize<List<WorkspaceBoard>>(saved, _jsonOptions);
+                if (boards is { Count: > 0 })
+                {
+                    foreach (var board in boards) BoardMigration.Normalize(board);
+                    if (BoardIdentityMigration.EnsureUniqueBoardIds(boards)) SaveWorkspaces(boards);
+                    return boards;
+                }
             }
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
@@ -93,18 +155,25 @@ public sealed class StorageService
             // A mesa principal abaixo mantém o app utilizável caso um arquivo seja interrompido externamente.
         }
 
-        return [new WorkspaceBoard { Name = "Mesa principal", Items = LoadItems() }];
+        var fallbackBoard = new WorkspaceBoard { Name = "Mesa principal", Items = LoadItems() };
+        BoardMigration.Normalize(fallbackBoard);
+        return [fallbackBoard];
     }
 
-    public void SaveWorkspaces(IEnumerable<WorkspaceBoard> boards) =>
-        WriteAtomically(WorkspacesPath, JsonSerializer.Serialize(boards, _jsonOptions));
+    public void SaveWorkspaces(IEnumerable<WorkspaceBoard> boards)
+    {
+        var list = boards as IList<WorkspaceBoard> ?? boards.ToList();
+        BoardIdentityMigration.EnsureUniqueBoardIds(list);
+        WriteDocument(WorkspacesPath, JsonSerializer.Serialize(list, _jsonOptions));
+    }
 
     public List<ClipboardHistoryEntry> LoadHistory()
     {
         try
         {
-            if (!File.Exists(HistoryPath)) return [];
-            return JsonSerializer.Deserialize<List<ClipboardHistoryEntry>>(File.ReadAllText(HistoryPath), _jsonOptions) ?? [];
+            var saved = ReadDocument(HistoryPath);
+            if (saved is null) return [];
+            return JsonSerializer.Deserialize<List<ClipboardHistoryEntry>>(saved, _jsonOptions) ?? [];
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
         {
@@ -118,7 +187,7 @@ public sealed class StorageService
             .OrderByDescending(entry => entry.CapturedAt)
             .Take(80)
             .ToList();
-        WriteAtomically(HistoryPath, JsonSerializer.Serialize(retained, _jsonOptions));
+        WriteDocument(HistoryPath, JsonSerializer.Serialize(retained, _jsonOptions));
     }
 
     public string SaveBitmap(BitmapSource source)

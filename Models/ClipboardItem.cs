@@ -12,10 +12,12 @@ public sealed class ClipboardItem
     public List<string> FilePaths { get; set; } = [];
     public List<ClipboardItem> Children { get; set; } = [];
     public string? StoredFilePath { get; set; }
+    public List<ClipDesk.Core.CloudAttachment> Attachments { get; set; } = [];
     public double X { get; set; }
     public double Y { get; set; }
     public double Width { get; set; }
     public double Height { get; set; }
+    public int ZIndex { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.Now;
 
     [JsonIgnore]
