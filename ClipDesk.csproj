@@ -21,11 +21,17 @@
   <ItemGroup>
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
-    <Compile Remove="Core\**\*.cs;Tests\**\*.cs;Server\**\*.cs;Updater\**\*.cs;Installer\**\*.cs;tmp\**\*.cs;Models\Clipboard*.cs;Models\WorkspaceBoard.cs" />
+    <Compile Remove="Core\**\*.cs;PluginSdk\**\*.cs;PluginSdk.Windows\**\*.cs;PluginPackages\**\*.cs;Tests\**\*.cs;Server\**\*.cs;Updater\**\*.cs;Installer\**\*.cs;tmp\**\*.cs;Models\Clipboard*.cs;Models\WorkspaceBoard.cs" />
     <Page Remove="Installer\**\*.xaml" />
     <ApplicationDefinition Remove="Installer\App.xaml" />
     <EmbeddedResource Remove="Installer\**\*" />
     <ProjectReference Include="Core\ClipDesk.Core.csproj" />
+    <ProjectReference Include="PluginSdk\ClipDesk.PluginSdk.csproj" />
+    <ProjectReference Include="PluginSdk.Windows\ClipDesk.PluginSdk.Windows.csproj" />
+    <ProjectReference Include="PluginPackages\Modules\Calculator\ClipDesk.Plugin.Calculator.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="PluginPackages\Modules\Checklist\ClipDesk.Plugin.Checklist.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="PluginPackages\Modules\Translator\ClipDesk.Plugin.Translator.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="PluginPackages\Modules\CurrencyConverter\ClipDesk.Plugin.CurrencyConverter.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.20.1" />
@@ -50,6 +56,17 @@
     <Content Include="Resources\Icons\Lucide\LICENSE.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="PluginPackages\Bundled\**\*" Link="Plugins\Bundled\%(RecursiveDir)%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="PluginPackages\Modules\Calculator\bin\$(Configuration)\net8.0-windows\ClipDesk.Plugin.Calculator.dll" Link="Plugins\Bundled\clipdesk.calculator\ClipDesk.Plugin.Calculator.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+    <Content Include="PluginPackages\Modules\Calculator\Core\bin\$(Configuration)\net8.0\ClipDesk.Plugin.Calculator.Core.dll" Link="Plugins\Bundled\clipdesk.calculator\ClipDesk.Plugin.Calculator.Core.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+    <Content Include="PluginPackages\Modules\Checklist\bin\$(Configuration)\net8.0-windows\ClipDesk.Plugin.Checklist.dll" Link="Plugins\Bundled\clipdesk.checklist\ClipDesk.Plugin.Checklist.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+    <Content Include="PluginPackages\Modules\Checklist\Core\bin\$(Configuration)\net8.0\ClipDesk.Plugin.Checklist.Core.dll" Link="Plugins\Bundled\clipdesk.checklist\ClipDesk.Plugin.Checklist.Core.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+    <Content Include="PluginPackages\Modules\Translator\bin\$(Configuration)\net8.0-windows\ClipDesk.Plugin.Translator.dll" Link="Plugins\Bundled\clipdesk.translator\ClipDesk.Plugin.Translator.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+    <Content Include="PluginPackages\Modules\Translator\Core\bin\$(Configuration)\net8.0\ClipDesk.Plugin.Translator.Core.dll" Link="Plugins\Bundled\clipdesk.translator\ClipDesk.Plugin.Translator.Core.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+    <Content Include="PluginPackages\Modules\CurrencyConverter\bin\$(Configuration)\net8.0-windows\ClipDesk.Plugin.CurrencyConverter.dll" Link="Plugins\Bundled\clipdesk.currency-converter\ClipDesk.Plugin.CurrencyConverter.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+    <Content Include="PluginPackages\Modules\CurrencyConverter\Core\bin\$(Configuration)\net8.0\ClipDesk.Plugin.CurrencyConverter.Core.dll" Link="Plugins\Bundled\clipdesk.currency-converter\ClipDesk.Plugin.CurrencyConverter.Core.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
   </ItemGroup>
   <Target Name="BuildUpdater" BeforeTargets="Publish">
     <MSBuild Projects="$(MSBuildProjectDirectory)\Updater\ClipDesk.Updater.csproj"
@@ -58,6 +75,21 @@
     <MSBuild Projects="$(MSBuildProjectDirectory)\Updater\ClipDesk.Updater.csproj"
              Targets="Publish"
              Properties="Configuration=$(Configuration);RuntimeIdentifier=win-x64;SelfContained=true;PublishSingleFile=true;IncludeNativeLibrariesForSelfExtract=true;EnableCompressionInSingleFile=true;PublishDir=$(MSBuildProjectDirectory)\Updater\bin\$(Configuration)\publish\" />
+  </Target>
+  <Target Name="CopyBundledPluginBinaries" AfterTargets="Build">
+    <ItemGroup>
+      <BundledPluginBinary Include="$(MSBuildProjectDirectory)\PluginPackages\Modules\Calculator\bin\$(Configuration)\net8.0-windows\ClipDesk.Plugin.Calculator.dll" PluginId="clipdesk.calculator" />
+      <BundledPluginBinary Include="$(MSBuildProjectDirectory)\PluginPackages\Modules\Calculator\Core\bin\$(Configuration)\net8.0\ClipDesk.Plugin.Calculator.Core.dll" PluginId="clipdesk.calculator" />
+      <BundledPluginBinary Include="$(MSBuildProjectDirectory)\PluginPackages\Modules\Checklist\bin\$(Configuration)\net8.0-windows\ClipDesk.Plugin.Checklist.dll" PluginId="clipdesk.checklist" />
+      <BundledPluginBinary Include="$(MSBuildProjectDirectory)\PluginPackages\Modules\Checklist\Core\bin\$(Configuration)\net8.0\ClipDesk.Plugin.Checklist.Core.dll" PluginId="clipdesk.checklist" />
+      <BundledPluginBinary Include="$(MSBuildProjectDirectory)\PluginPackages\Modules\Translator\bin\$(Configuration)\net8.0-windows\ClipDesk.Plugin.Translator.dll" PluginId="clipdesk.translator" />
+      <BundledPluginBinary Include="$(MSBuildProjectDirectory)\PluginPackages\Modules\Translator\Core\bin\$(Configuration)\net8.0\ClipDesk.Plugin.Translator.Core.dll" PluginId="clipdesk.translator" />
+      <BundledPluginBinary Include="$(MSBuildProjectDirectory)\PluginPackages\Modules\CurrencyConverter\bin\$(Configuration)\net8.0-windows\ClipDesk.Plugin.CurrencyConverter.dll" PluginId="clipdesk.currency-converter" />
+      <BundledPluginBinary Include="$(MSBuildProjectDirectory)\PluginPackages\Modules\CurrencyConverter\Core\bin\$(Configuration)\net8.0\ClipDesk.Plugin.CurrencyConverter.Core.dll" PluginId="clipdesk.currency-converter" />
+    </ItemGroup>
+    <Copy SourceFiles="@(BundledPluginBinary)"
+          DestinationFiles="@(BundledPluginBinary->'$(OutDir)Plugins\Bundled\%(PluginId)\%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
   </Target>
   <Target Name="CopyUpdaterToPublish" AfterTargets="Publish">
     <Copy SourceFiles="$(MSBuildProjectDirectory)\Updater\bin\$(Configuration)\publish\ClipDesk.Updater.exe"

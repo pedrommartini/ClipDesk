@@ -144,8 +144,10 @@ public sealed class StorageService
                 var boards = JsonSerializer.Deserialize<List<WorkspaceBoard>>(saved, _jsonOptions);
                 if (boards is { Count: > 0 })
                 {
-                    foreach (var board in boards) BoardMigration.Normalize(board);
-                    if (BoardIdentityMigration.EnsureUniqueBoardIds(boards)) SaveWorkspaces(boards);
+                    var migrated = false;
+                    foreach (var board in boards) migrated |= BoardMigration.Normalize(board);
+                    if (BoardIdentityMigration.EnsureUniqueBoardIds(boards)) migrated = true;
+                    if (migrated) SaveWorkspaces(boards);
                     return boards;
                 }
             }

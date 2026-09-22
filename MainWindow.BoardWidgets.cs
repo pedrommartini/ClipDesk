@@ -5,7 +5,9 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
+using System.Windows.Shapes;
 using ClipDesk.Core;
+using ClipDesk.PluginSdk;
 using ClipDesk.Views;
 
 namespace ClipDesk;
@@ -103,7 +105,12 @@ public partial class MainWindow
             new() { ["accent"] = "#62DDB0" },
             new() { ["sourceCurrency"] = "BRL", ["targetCurrency"] = "USD", ["amount"] = "1", ["result"] = "Escolha as moedas e converta" });
 
-    private void MorePluginsFromCanvasMenu_Click(object sender, RoutedEventArgs e) => HideCanvasContextMenu();
+    private void MorePluginsFromCanvasMenu_Click(object sender, RoutedEventArgs e)
+    {
+        var point = _canvasContextPoint;
+        HideCanvasContextMenu();
+        ShowPluginStore(point);
+    }
 
     private void CreateBoardWidgetFromCanvasMenu(BoardObjectKind kind, double width, double height,
         Dictionary<string, string> style, Dictionary<string, string> content)
@@ -112,6 +119,8 @@ public partial class MainWindow
         RegisterUndoSnapshot();
         var point = ClampObjectPosition(_canvasContextPoint, width, height);
         var obj = NewObject(kind, point.X, point.Y, width, height, style, content);
+        if (obj.PluginId is { } pluginId)
+            obj.PluginVersion = _pluginCatalogService.GetInstalledPackage(pluginId)?.Manifest.Version ?? BoardPluginIdentity.InitialVersion;
         _activeWorkspace.Objects.Add(obj);
         var view = AddBoardObjectView(obj); view.PlayPopIn();
         SelectBoardObject(view);
@@ -132,6 +141,8 @@ public partial class MainWindow
             return;
         }
         if (action == "settle") { QueueCloudSync(); return; }
+
+        if (action == "plugin:before-change") { RegisterUndoSnapshot(); return; }
 
         if (action.StartsWith("calculator:", StringComparison.Ordinal))
         {
@@ -269,6 +280,7 @@ public partial class MainWindow
     {
         HideCreativeFormatMenu();
         _contextBoardObjectView = view;
+        BoardObjectAccentButton.Visibility = IsPluginObject(view.Object) ? Visibility.Visible : Visibility.Collapsed;
         BoardObjectContextMenu.Visibility = Visibility.Visible;
         BoardObjectContextMenu.UpdateLayout();
         var objectRight = (view.Object.X + view.Object.Width) * _workspaceZoom - WorkspaceScroll.HorizontalOffset;
@@ -289,6 +301,114 @@ public partial class MainWindow
     {
         _contextBoardObjectView = null;
         if (BoardObjectContextMenu is not null) BoardObjectContextMenu.Visibility = Visibility.Collapsed;
+        HideCreativeFormatMenu();
+    }
+
+    private static bool IsPluginObject(BoardObject obj) => obj.Kind is BoardObjectKind.Checklist
+        or BoardObjectKind.Calculator or BoardObjectKind.Translator or BoardObjectKind.CurrencyConverter
+        or BoardObjectKind.Plugin || !string.IsNullOrWhiteSpace(obj.PluginId);
+
+    private static readonly string[] PluginAccentPalette =
+    [
+        "#A78BFA", "#38BDF8", "#22D3EE", "#34D399",
+        "#FBBF24", "#FB923C", "#FB7185", "#F472B6"
+    ];
+
+    private void BoardObjectAccent_Click(object sender, RoutedEventArgs e)
+    {
+        if (_contextBoardObjectView is not { } view || !IsPluginObject(view.Object)) return;
+        ShowPluginAccentMenu(view);
+        e.Handled = true;
+    }
+
+    private void ShowPluginAccentMenu(BoardObjectView view)
+    {
+        var obj = view.Object;
+        _formatObject = obj;
+        CreativeFormatMenuContent.Children.Clear();
+        CreativeFormatMenuContent.Children.Add(FormatRow("Destaque",
+            PluginAccentPalette.Select(color => PluginAccentColorButton(color, obj, view))));
+        CreativeFormatMenuContent.Children.Add(FormatRow("Opções",
+        [
+            FormatButton("Personalizada…", () => ChooseCustomPluginAccent(obj, view), toolTip: "Escolher qualquer cor"),
+            FormatButton("Padrão", () => ResetPluginAccent(obj, view), toolTip: "Usar a cor definida pelo plugin")
+        ]));
+        CreativeFormatMenu.Visibility = Visibility.Visible;
+        CreativeFormatMenu.UpdateLayout();
+        PositionCreativeFormatMenu(obj);
+    }
+
+    private Button PluginAccentColorButton(string color, BoardObject obj, BoardObjectView view)
+    {
+        var selected = obj.Style.GetValueOrDefault(PluginStyleKeys.AccentColor, PluginDefaultAccent(obj))
+            .Equals(color, StringComparison.OrdinalIgnoreCase);
+        var button = new Button
+        {
+            Width = 32, Height = 32, Padding = new Thickness(5), Margin = new Thickness(2, 0, 0, 0),
+            ToolTip = color, BorderThickness = new Thickness(selected ? 2 : 0),
+            BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(_isDarkMode ? "#F8FAFC" : "#263449"))
+        };
+        button.Content = new Ellipse
+        {
+            Width = 17, Height = 17, Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color)),
+            Stroke = new SolidColorBrush(Color.FromArgb(110, 255, 255, 255)), StrokeThickness = 1
+        };
+        button.Click += (_, e) => { ApplyPluginAccent(obj, view, color); e.Handled = true; };
+        return button;
+    }
+
+    private void ChooseCustomPluginAccent(BoardObject obj, BoardObjectView view)
+    {
+        using var dialog = new System.Windows.Forms.ColorDialog { FullOpen = true, AnyColor = true };
+        try
+        {
+            var current = (Color)ColorConverter.ConvertFromString(obj.Style.GetValueOrDefault(
+                PluginStyleKeys.AccentColor, PluginDefaultAccent(obj)));
+            dialog.Color = System.Drawing.Color.FromArgb(current.R, current.G, current.B);
+        }
+        catch (Exception ex) when (ex is FormatException or NotSupportedException) { }
+        if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK) return;
+        ApplyPluginAccent(obj, view, $"#{dialog.Color.R:X2}{dialog.Color.G:X2}{dialog.Color.B:X2}");
+    }
+
+    private void ResetPluginAccent(BoardObject obj, BoardObjectView view)
+    {
+        if (!obj.Style.ContainsKey(PluginStyleKeys.AccentColor)) return;
+        RegisterUndoSnapshot();
+        obj.Style.Remove(PluginStyleKeys.AccentColor);
+        FinishPluginAccentChange(obj, view);
+    }
+
+    private void ApplyPluginAccent(BoardObject obj, BoardObjectView view, string color)
+    {
+        if (obj.Style.GetValueOrDefault(PluginStyleKeys.AccentColor)
+            ?.Equals(color, StringComparison.OrdinalIgnoreCase) == true) return;
+        RegisterUndoSnapshot();
+        obj.Style[PluginStyleKeys.AccentColor] = color;
+        FinishPluginAccentChange(obj, view);
+    }
+
+    private void FinishPluginAccentChange(BoardObject obj, BoardObjectView view)
+    {
+        obj.UpdatedAt = DateTimeOffset.UtcNow;
+        view.RefreshFromObject();
+        Save();
+        QueueBoardObjectRealtime(obj, flush: true);
+        ShowPluginAccentMenu(view);
+    }
+
+    private string PluginDefaultAccent(BoardObject obj)
+    {
+        var pluginId = obj.PluginId ?? BoardPluginIdentity.FromKind(obj.Kind);
+        return _pluginCatalogEntries.FirstOrDefault(entry => entry.Manifest.Id == pluginId)?.Manifest.AccentColor
+            ?? obj.Kind switch
+            {
+                BoardObjectKind.Checklist => "#38BDF8",
+                BoardObjectKind.Calculator => "#A78BFA",
+                BoardObjectKind.Translator => "#38BDF8",
+                BoardObjectKind.CurrencyConverter => "#34D399",
+                _ => "#9B7DFF"
+            };
     }
 
     private void BoardObjectCopy_Click(object sender, RoutedEventArgs e)
@@ -316,6 +436,8 @@ public partial class MainWindow
             Math.Clamp(source.Y + 28, 0, Math.Max(0, _activeWorkspace.WorldHeight - source.Height)),
             source.Width, source.Height, new(source.Style), new(source.Content));
         copy.Rotation = source.Rotation;
+        copy.PluginId = source.PluginId;
+        copy.PluginVersion = source.PluginVersion;
         _activeWorkspace.Objects.Add(copy);
         var copyView = AddBoardObjectView(copy);
         HideBoardObjectContextMenu();
@@ -323,6 +445,86 @@ public partial class MainWindow
         Save();
         ShowToast("Objeto duplicado");
         e.Handled = true;
+    }
+
+    private void BoardObjectBringForward_Click(object sender, RoutedEventArgs e)
+    {
+        if (_contextBoardObjectView is not null) ChangeWorkspaceElementLayer(_contextBoardObjectView, 1);
+        e.Handled = true;
+    }
+
+    private void BoardObjectSendBackward_Click(object sender, RoutedEventArgs e)
+    {
+        if (_contextBoardObjectView is not null) ChangeWorkspaceElementLayer(_contextBoardObjectView, -1);
+        e.Handled = true;
+    }
+
+    private void Card_BringForwardRequested(object? sender, EventArgs e)
+    {
+        if (sender is ItemCard card) ChangeWorkspaceElementLayer(card, 1);
+    }
+
+    private void Card_SendBackwardRequested(object? sender, EventArgs e)
+    {
+        if (sender is ItemCard card) ChangeWorkspaceElementLayer(card, -1);
+    }
+
+    private void ChangeWorkspaceElementLayer(UIElement source, int direction)
+    {
+        if (source is BoardObjectView { Object.Kind: BoardObjectKind.Connector }) return;
+
+        var sourceBounds = WorkspaceElementBounds(source);
+        var ordered = WorkspaceCanvas.Children.Cast<UIElement>()
+            .Where(element => element is ItemCard || element is BoardObjectView { Object.Kind: not BoardObjectKind.Connector })
+            .Where(element => ReferenceEquals(element, source) || AreLayerNeighbors(sourceBounds, WorkspaceElementBounds(element)))
+            .OrderBy(Panel.GetZIndex)
+            .ToList();
+        var index = ordered.IndexOf(source);
+        if (index < 0) return;
+
+        var destination = Math.Clamp(index + direction, 0, ordered.Count - 1);
+        if (index == destination)
+        {
+            ShowToast(ordered.Count == 1 ? "Não há elementos próximos para reordenar" : direction > 0 ? "O elemento já está à frente dos próximos" : "O elemento já está atrás dos próximos");
+            return;
+        }
+
+        RegisterUndoSnapshot();
+        var neighbor = ordered[destination];
+        var sourceZIndex = Panel.GetZIndex(source);
+        SetWorkspaceElementZIndex(source, Panel.GetZIndex(neighbor));
+        SetWorkspaceElementZIndex(neighbor, sourceZIndex);
+        Save();
+        if (source is BoardObjectView sourceView) QueueBoardObjectRealtime(sourceView.Object, flush: true);
+        if (neighbor is BoardObjectView neighborView) QueueBoardObjectRealtime(neighborView.Object, flush: true);
+        ShowToast(direction > 0 ? "Elemento subiu uma camada" : "Elemento desceu uma camada");
+    }
+
+    private static bool AreLayerNeighbors(Rect source, Rect candidate)
+    {
+        var horizontalGap = Math.Max(0, Math.Max(source.Left - candidate.Right, candidate.Left - source.Right));
+        var verticalGap = Math.Max(0, Math.Max(source.Top - candidate.Bottom, candidate.Top - source.Bottom));
+        var distance = Math.Sqrt(horizontalGap * horizontalGap + verticalGap * verticalGap);
+        var maximumDistance = Math.Clamp((Math.Max(source.Width, source.Height) + Math.Max(candidate.Width, candidate.Height)) / 2, 160, 360);
+        return distance <= maximumDistance;
+    }
+
+    private Rect WorkspaceElementBounds(UIElement element) => element switch
+    {
+        ItemCard card => card.GetVisualBounds(WorkspaceCanvas),
+        BoardObjectView view => new Rect(view.Object.X, view.Object.Y, view.Object.Width, view.Object.Height),
+        _ => Rect.Empty
+    };
+
+    private static void SetWorkspaceElementZIndex(UIElement element, int zIndex)
+    {
+        Panel.SetZIndex(element, zIndex);
+        if (element is ItemCard card) card.Item.ZIndex = zIndex;
+        else if (element is BoardObjectView view)
+        {
+            view.Object.ZIndex = zIndex;
+            view.Object.UpdatedAt = DateTimeOffset.UtcNow;
+        }
     }
 
     private void BoardObjectInfo_Click(object sender, RoutedEventArgs e)

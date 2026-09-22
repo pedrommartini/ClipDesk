@@ -83,6 +83,7 @@ Os dados ficam separados por edição:
 
 - `Profiles\<perfil>\clipdesk.db`: mesas, posições, histórico, preferências e fila de sincronização em SQLite. O perfil sem login é `local`.
 - `Profiles\<perfil>\Assets`: imagens e anexos locais gerenciados.
+- Os plugins opcionais escolhidos pelo usuário ficam em `Documentos\Clipdesk` (DEV: `Documentos\Clipdesk\Dev`). Os quatro plugins incluídos ficam junto ao programa; atualizações deles usam um cache privado em `%LocalAppData%\ClipDesk[-Dev]\Plugins`.
 - JSON de versões anteriores são importados na primeira leitura e preservados como origem da migração.
 - Tokens de conta são protegidos pelo Windows. Arquivos originais externos e downloads do usuário não pertencem à pasta privada do app.
 
@@ -95,5 +96,9 @@ Veja [instaladores e validação de desempenho](docs/PERFORMANCE-INSTALLER.md) p
 Os modelos e as regras de transformação de itens ficam em `Core/ClipDesk.Core.csproj`, uma biblioteca C# sem dependências do Windows. Ela pode ser reutilizada por um futuro aplicativo Android em .NET MAUI. A interface WPF e as integrações exclusivas do Windows continuam no projeto principal.
 
 O plano técnico detalhado está em `ARCHITECTURE.md`.
+
+Para desenvolver, testar e publicar plugins sem atualizar o executável, consulte o [guia de plugins e identidade visual](docs/GUIA-DE-PLUGINS.md).
+
+A branch `clipdesk-new` é um laboratório de migração e não substitui o produto principal. O plano, as decisões e o status de cada etapa ficam em [ClipDesk New — plano e status da migração](docs/CLIPDESK-NEW-MIGRATION.md).
 
 Um exemplo de dados esta em `Resources/example-data.json`.

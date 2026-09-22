@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>ClipDesk.Plugin.Translator</AssemblyName>
+    <Version>2.0.0</Version>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Core\**\*.cs" />
+    <ProjectReference Include="..\..\..\PluginSdk.Windows\ClipDesk.PluginSdk.Windows.csproj" />
+    <ProjectReference Include="Core\ClipDesk.Plugin.Translator.Core.csproj" />
+    <Compile Include="..\Common\WidgetUi.cs" Link="WidgetUi.cs" />
+  </ItemGroup>
+</Project>

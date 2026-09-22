@@ -6,6 +6,9 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using ClipDesk.Core;
+using ClipDesk.PluginSdk.Windows;
+using ClipDesk.PluginSdk;
+using ClipDesk.Services;
 
 namespace ClipDesk.Views;
 
@@ -56,13 +59,18 @@ public sealed partial class BoardObjectView
     private TextBlock? _pluginResultText;
     private TextBlock? _pluginStatusText;
     private bool _utilityLoading;
+    private static readonly WindowsPluginLoader ExternalPlugins = new();
+    public static void InvalidateExternalPlugin(string pluginId) => ExternalPlugins.Invalidate(pluginId);
 
-    private bool IsPluginKind => Object.Kind is BoardObjectKind.Checklist or BoardObjectKind.Calculator or BoardObjectKind.Translator or BoardObjectKind.CurrencyConverter;
+    private bool IsPluginKind => Object.Kind is BoardObjectKind.Checklist or BoardObjectKind.Calculator or BoardObjectKind.Translator
+        or BoardObjectKind.CurrencyConverter || Object.Kind == BoardObjectKind.Plugin && !string.IsNullOrWhiteSpace(Object.PluginId);
     public bool IsEditingPluginInput => (Object.Kind is BoardObjectKind.Translator or BoardObjectKind.CurrencyConverter)
         && _pluginSurface?.IsKeyboardFocusWithin == true;
     private void ScheduleUtilityRefresh()
     {
         if (Object.Kind is not (BoardObjectKind.Translator or BoardObjectKind.CurrencyConverter)) return;
+        var pluginId = Object.PluginId ?? BoardPluginIdentity.FromKind(Object.Kind);
+        if (pluginId is not null && ExternalPlugins.Manifest(pluginId)?.Runtime == "wpf-v1") return;
         if (_utilityTimer is null)
         {
             _utilityTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(420) };
@@ -113,7 +121,9 @@ public sealed partial class BoardObjectView
             return;
         }
 
-        var signature = $"{Object.Kind}|{IsDarkMode}|{_pluginEditing}|{_currencyChoices.Count}|" +
+        var pluginId = Object.PluginId ?? BoardPluginIdentity.FromKind(Object.Kind);
+        var activeVersion = pluginId is null ? null : ExternalPlugins.ActiveVersion(pluginId);
+        var signature = $"{Object.Kind}|{activeVersion}|{IsDarkMode}|{_pluginEditing}|{_currencyChoices.Count}|" +
                         string.Join('|', Object.Content.OrderBy(entry => entry.Key).Select(entry => $"{entry.Key}={entry.Value}"));
         if (_pluginSurface is null || !string.Equals(signature, _pluginSignature, StringComparison.Ordinal))
         {
@@ -170,13 +180,33 @@ public sealed partial class BoardObjectView
             root.RowDefinitions.Add(headerRow);
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             root.Children.Add(BuildPluginHeader());
-            var body = Object.Kind switch
+            var pluginId = Object.PluginId ?? BoardPluginIdentity.FromKind(Object.Kind);
+            var externalBody = pluginId is null ? null : ExternalPlugins.CreateBody(pluginId,
+                new PluginState(Object.Content), IsDarkMode, _pluginEditing, Object.Width, Object.Height, scale, PluginAccentColor(),
+                () => WidgetActionRequested?.Invoke(this, "plugin:before-change"),
+                (state, rebuild) =>
+                {
+                    if (_buildingPlugin) return;
+                    Object.Content = state.ToDictionary();
+                    MarkPluginChanged();
+                    if (rebuild) { _pluginSignature = null; RefreshPluginSurface(); }
+                }, HandlePluginHostAction);
+            externalBody ??= pluginId is null ? null : ExternalPlugins.CreateBody(pluginId,
+                new PluginViewContext(Object.Content, IsDarkMode, _pluginEditing, Object.Width, Object.Height, scale,
+                    rebuild =>
+                    {
+                        if (_buildingPlugin) return;
+                        MarkPluginChanged();
+                        if (rebuild) { _pluginSignature = null; RefreshPluginSurface(); }
+                    }, action => WidgetActionRequested?.Invoke(this, action)));
+            var body = externalBody ?? (Object.Kind switch
             {
                 BoardObjectKind.Checklist => BuildChecklistBody(),
                 BoardObjectKind.Calculator => BuildCalculatorBody(),
                 BoardObjectKind.Translator => BuildTranslatorBody(),
-                _ => BuildCurrencyBody()
-            };
+                BoardObjectKind.CurrencyConverter => BuildCurrencyBody(),
+                _ => BuildUnavailableBody()
+            });
             Grid.SetRow(body, 1);
             root.Children.Add(body);
             shell.Child = root;
@@ -185,15 +215,34 @@ public sealed partial class BoardObjectView
         finally { _buildingPlugin = false; }
     }
 
+    private void HandlePluginHostAction(PluginHostAction action)
+    {
+        switch (action.Kind)
+        {
+            case PluginHostActionKind.CopyToClipboard when !string.IsNullOrEmpty(action.Value):
+                Clipboard.SetText(action.Value);
+                break;
+            case PluginHostActionKind.OpenUri when Uri.TryCreate(action.Value, UriKind.Absolute, out var uri)
+                                                   && uri.Scheme is "https" or "http":
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+                break;
+            case PluginHostActionKind.ShowMessage:
+                WidgetActionRequested?.Invoke(this, $"plugin:message:{action.Value}");
+                break;
+        }
+    }
+
     private Grid BuildPluginHeader()
     {
-        var (glyph, title, accent) = Object.Kind switch
+        var (glyph, title) = Object.Kind switch
         {
-            BoardObjectKind.Checklist => ("✓", Object.Content.GetValueOrDefault("title", "Checklist"), "#78D7FF"),
-            BoardObjectKind.Calculator => ("∑", "Calculadora", "#B998FF"),
-            BoardObjectKind.Translator => ("A", "Tradutor", "#72D5FF"),
-            _ => ("$", "Conversor de moeda", "#62DDB0")
+            BoardObjectKind.Checklist => ("✓", Object.Content.GetValueOrDefault("title", "Checklist")),
+            BoardObjectKind.Calculator => ("∑", "Calculadora"),
+            BoardObjectKind.Translator => ("A", "Tradutor"),
+            BoardObjectKind.CurrencyConverter => ("$", "Conversor de moeda"),
+            _ => ("◈", ExternalPlugins.Manifest(Object.PluginId ?? "")?.Name ?? "Plugin")
         };
+        var accent = PluginAccentColor();
         var header = new Grid { Background = ColorBrush("#12FFFFFF"), Tag = "plugin-header" };
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -374,6 +423,15 @@ public sealed partial class BoardObjectView
         return body;
     }
 
+    private FrameworkElement BuildUnavailableBody() => new TextBlock
+    {
+        Text = Object.Kind == BoardObjectKind.Plugin
+            ? "Este plugin ainda não está instalado neste dispositivo. Abra Mais plug-ins para instalá-lo e usar este objeto da mesa."
+            : "Este plugin não está disponível nesta versão do ClipDesk.",
+        Margin = new Thickness(16), TextWrapping = TextWrapping.Wrap,
+        Foreground = ColorBrush(IsDarkMode ? "#A9B3C7" : "#626C82")
+    };
+
     private Grid ChoiceRow(string leftText, string rightText, out Button left, out Button right, out Button swap)
     {
         var row = new Grid { Background = Brushes.Transparent };
@@ -467,7 +525,9 @@ public sealed partial class BoardObjectView
         var (baseWidth, baseHeight) = Object.Kind switch
         {
             BoardObjectKind.Checklist => (320d, 260d), BoardObjectKind.Calculator => (300d, 390d),
-            BoardObjectKind.Translator => (370d, 270d), _ => (350d, 245d)
+            BoardObjectKind.Translator => (370d, 270d), BoardObjectKind.CurrencyConverter => (350d, 245d),
+            _ => (ExternalPlugins.Manifest(Object.PluginId ?? "")?.DefaultSize.Width ?? 320d,
+                ExternalPlugins.Manifest(Object.PluginId ?? "")?.DefaultSize.Height ?? 240d)
         };
         var widthScale = Math.Max(.1, Object.Width / baseWidth); var heightScale = Math.Max(.1, Object.Height / baseHeight);
         var organic = Math.Sqrt(widthScale * heightScale);
@@ -478,6 +538,20 @@ public sealed partial class BoardObjectView
 
     private double Responsive(double value) => Math.Clamp(value * PluginScale(), 9, 220);
     private static SolidColorBrush ColorBrush(string value) => new((Color)ColorConverter.ConvertFromString(value));
+
+    private string PluginAccentColor(string? fallback = null)
+    {
+        fallback ??= ExternalPlugins.Manifest(Object.PluginId ?? BoardPluginIdentity.FromKind(Object.Kind) ?? "")?.AccentColor
+            ?? "#A78BFA";
+        var candidate = Object.Style.GetValueOrDefault(PluginStyleKeys.AccentColor, fallback);
+        try
+        {
+            var color = (Color)ColorConverter.ConvertFromString(candidate);
+            return color.A == byte.MaxValue ? candidate : fallback;
+        }
+        catch (FormatException) { return fallback; }
+        catch (NotSupportedException) { return fallback; }
+    }
     private static string LanguageLabel(string code) => LanguageChoices.FirstOrDefault(choice => choice.Code.Equals(code, StringComparison.OrdinalIgnoreCase)).Label is { Length: > 0 } label ? label : code;
 
     private bool IsPluginInteractiveSource(DependencyObject? source)

@@ -6,5 +6,5 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-  <ItemGroup><ProjectReference Include="..\..\ClipDesk.csproj" /><ProjectReference Include="..\..\Installer\ClipDesk.Installer.csproj" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="..\..\ClipDesk.csproj" /><ProjectReference Include="..\..\Installer\ClipDesk.Installer.csproj" /><ProjectReference Include="..\..\PluginPackages\Modules\Calculator\ClipDesk.Plugin.Calculator.csproj" /><ProjectReference Include="..\..\PluginPackages\Modules\Checklist\ClipDesk.Plugin.Checklist.csproj" /><ProjectReference Include="..\..\PluginPackages\Modules\Translator\ClipDesk.Plugin.Translator.csproj" /><ProjectReference Include="..\..\PluginPackages\Modules\CurrencyConverter\ClipDesk.Plugin.CurrencyConverter.csproj" /></ItemGroup>
 </Project>

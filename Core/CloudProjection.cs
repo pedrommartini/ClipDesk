@@ -22,7 +22,7 @@ public static class CloudProjection
     }
     public static CloudEntity ProjectBoardObject(BoardObject obj,string workspaceId)=>new(obj.Id,"boardObject",workspaceId,0,new JsonObject
     {
-        ["objectKind"]=(int)obj.Kind,["x"]=obj.X,["y"]=obj.Y,["width"]=obj.Width,["height"]=obj.Height,
+        ["objectKind"]=(int)obj.Kind,["pluginId"]=obj.PluginId,["pluginVersion"]=obj.PluginVersion,["x"]=obj.X,["y"]=obj.Y,["width"]=obj.Width,["height"]=obj.Height,
         ["rotation"]=obj.Rotation,["zIndex"]=obj.ZIndex,["locked"]=obj.Locked,["createdBy"]=obj.CreatedBy,
         ["createdAt"]=obj.CreatedAt.ToUniversalTime().ToString("O"),["updatedAt"]=obj.UpdatedAt.ToUniversalTime().ToString("O"),
         ["style"]=JsonSerializer.SerializeToNode(obj.Style),["content"]=JsonSerializer.SerializeToNode(obj.Content)
@@ -31,15 +31,18 @@ public static class CloudProjection
     public static BoardObject MaterializeBoardObject(CloudEntity entity)
     {
         var d=entity.Data;
-        return new BoardObject
+        var result = new BoardObject
         {
             Id=entity.Id,WorkspaceId=entity.WorkspaceId ?? "",Kind=(BoardObjectKind)(d["objectKind"]?.GetValue<int>() ?? 0),
+            PluginId=Text(d,"pluginId"),PluginVersion=Text(d,"pluginVersion"),
             X=Number(d,"x"),Y=Number(d,"y"),Width=Number(d,"width"),Height=Number(d,"height"),
             Rotation=Number(d,"rotation"),ZIndex=d["zIndex"]?.GetValue<int>() ?? 0,Locked=d["locked"]?.GetValue<bool>() ?? false,
             CreatedBy=Text(d,"createdBy"),CreatedAt=OffsetDate(d,"createdAt"),UpdatedAt=OffsetDate(d,"updatedAt"),
             Style=JsonSerializer.Deserialize<Dictionary<string,string>>(d["style"]?.ToJsonString() ?? "{}") ?? [],
             Content=JsonSerializer.Deserialize<Dictionary<string,string>>(d["content"]?.ToJsonString() ?? "{}") ?? []
         };
+        BoardPluginIdentity.Normalize(result);
+        return result;
     }
     private static IEnumerable<CloudEntity> Items(IEnumerable<ClipboardItem> items,string workspace,string? parent)
     {

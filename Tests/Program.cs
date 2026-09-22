@@ -86,6 +86,11 @@ Check(Math.Abs(viewport.Zoom - .1) < .001 && viewport.WorldToScreen(new BoardPoi
 var legacyBoard = new WorkspaceBoard { WorldWidth = 0, WorldHeight = double.NaN, SchemaVersion = 0, Items = [new ClipboardItem { X = 20000, Y = -4, Width = 340, Height = 220 }] };
 Check(BoardMigration.Normalize(legacyBoard) && legacyBoard.WorldWidth == BoardSpace.DefaultWidth && legacyBoard.Items[0].X <= legacyBoard.WorldWidth - 340 && legacyBoard.Items[0].Y == 0,
     "Mesa antiga migra para coordenadas limitadas compartilhadas");
+var legacyPlugin = new BoardObject { Kind = BoardObjectKind.Checklist };
+var legacyPluginBoard = new WorkspaceBoard { Objects = [legacyPlugin] };
+Check(BoardMigration.Normalize(legacyPluginBoard) && legacyPlugin.PluginId == "clipdesk.checklist" && legacyPlugin.PluginVersion == "1.0.0",
+    "Plugin antigo recebe identificador e versão estáveis sem perder o tipo original");
+Check(!BoardMigration.Normalize(legacyPluginBoard), "Migração de identidade do plugin é estável ao reabrir");
 var duplicateBoard = new WorkspaceBoard
 {
     Id = legacyBoard.Id, Name = "Cópia", SyncMode = WorkspaceSyncMode.Shared, OwnerId = "old-owner",
@@ -125,10 +130,45 @@ creativeBoard.Objects.Add(new BoardObject
     Style = new() { ["stroke"] = "#8393AD", ["thickness"] = "1.35" },
     Content = new() { ["nodeIds"] = "card:card-a;object:text-a;card:card-c", ["points"] = "4,4;250,90;496,256" }
 });
+creativeBoard.Objects.Add(new BoardObject
+{
+    Id = Guid.NewGuid().ToString("N"), WorkspaceId = creativeBoard.Id.ToString("N"), Kind = BoardObjectKind.Calculator,
+    PluginId = "clipdesk.calculator", PluginVersion = "1.0.0", X = 60, Y = 80, Width = 300, Height = 390,
+    Content = new() { ["expression"] = "6*7", ["display"] = "42" }
+});
 var creativeProjection = CloudProjection.Project([creativeBoard], [], "owner", false).ToList();
 var creativeRoundTrip = CloudProjection.Materialize(creativeProjection, new Dictionary<string, string>()).Single();
 Check(creativeProjection.Any(entity => entity.Kind == "boardObject") && creativeRoundTrip.Objects.Single(o => o.Kind == BoardObjectKind.StickyNote).Content["text"] == "Nota sincronizada",
     "Objetos criativos são preservados na sincronização da mesa");
 Check(creativeRoundTrip.Objects.Single(o => o.Kind == BoardObjectKind.Connector).Content["nodeIds"] == "card:card-a;object:text-a;card:card-c",
     "Conexões mistas preservam cards e objetos criativos na sincronização");
+Check(creativeRoundTrip.Objects.Single(o => o.Kind == BoardObjectKind.Calculator).PluginId == "clipdesk.calculator"
+    && creativeRoundTrip.Objects.Single(o => o.Kind == BoardObjectKind.Calculator).PluginVersion == "1.0.0",
+    "Sincronização preserva a identidade e a versão independente do plugin");
+foreach (var mode in new[] { WorkspaceSyncMode.Local, WorkspaceSyncMode.PersonalCloud, WorkspaceSyncMode.Shared })
+{
+    var board = new WorkspaceBoard { SyncMode = mode, OwnerId = mode == WorkspaceSyncMode.Shared ? "owner" : null };
+    board.Objects.Add(new BoardObject
+    {
+        WorkspaceId = board.Id.ToString("N"), Kind = BoardObjectKind.Plugin,
+        PluginId = "clipdesk.example", PluginVersion = "1.1.0",
+        Content = new() { ["value"] = "estado editado", ["completed"] = "true" }
+    });
+    var locallyRestored = JsonSerializer.Deserialize<WorkspaceBoard>(JsonSerializer.Serialize(board))!;
+    Check(locallyRestored.Objects.Single().PluginId == "clipdesk.example"
+        && locallyRestored.Objects.Single().Content["value"] == "estado editado",
+        $"Plugin preserva seu estado na mesa {mode} ao salvar localmente");
+    var projection = CloudProjection.Project([board], [], "owner", false).ToList();
+    if (mode == WorkspaceSyncMode.Local)
+        Check(projection.Count == 0, "Mesa somente local não envia plugin à nuvem");
+    else
+    {
+        var received = CloudProjection.Materialize(projection, new Dictionary<string, string>()).Single();
+        var plugin = received.Objects.Single();
+        Check(received.SyncMode == mode && plugin.PluginId == "clipdesk.example"
+            && plugin.PluginVersion == "1.1.0" && plugin.Content["value"] == "estado editado"
+            && plugin.Content["completed"] == "true",
+            $"Plugin preserva identidade, versão e estado na mesa {mode} após sincronização");
+    }
+}
 Console.WriteLine($"{passed} verificações concluídas.");

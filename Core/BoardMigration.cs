@@ -20,6 +20,8 @@ public static class BoardMigration
             var y = Math.Clamp(double.IsFinite(item.Y) ? item.Y : 0, 0, Math.Max(0, board.WorldHeight - height));
             if (item.X != x || item.Y != y) { item.X = x; item.Y = y; changed = true; }
         }
+        foreach (var obj in board.Objects)
+            if (BoardPluginIdentity.Normalize(obj)) changed = true;
         return changed;
     }
 

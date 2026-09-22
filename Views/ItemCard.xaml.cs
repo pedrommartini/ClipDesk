@@ -52,6 +52,8 @@ public sealed partial class ItemCard : UserControl
     public event EventHandler? DuplicateRequested;
     public event EventHandler? DeleteRequested;
     public event EventHandler? DetailsRequested;
+    public event EventHandler? BringForwardRequested;
+    public event EventHandler? SendBackwardRequested;
     public event EventHandler<string>? FolderCategoryRequested;
     public event EventHandler<string>? TitleEdited;
     public event EventHandler? DragStarted;
@@ -701,6 +703,8 @@ public sealed partial class ItemCard : UserControl
     private void QuickDuplicate_Click(object sender, RoutedEventArgs e) { DuplicateRequested?.Invoke(this, EventArgs.Empty); e.Handled = true; }
     private void QuickDetails_Click(object sender, RoutedEventArgs e) { DetailsRequested?.Invoke(this, EventArgs.Empty); e.Handled = true; }
     private void QuickDelete_Click(object sender, RoutedEventArgs e) { DeleteRequested?.Invoke(this, EventArgs.Empty); e.Handled = true; }
+    private void QuickBringForward_Click(object sender, RoutedEventArgs e) { BringForwardRequested?.Invoke(this, EventArgs.Empty); e.Handled = true; }
+    private void QuickSendBackward_Click(object sender, RoutedEventArgs e) { SendBackwardRequested?.Invoke(this, EventArgs.Empty); e.Handled = true; }
 }
 
 internal static class ItemCardVisualTreeExtensions

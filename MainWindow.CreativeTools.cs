@@ -41,6 +41,9 @@ public partial class MainWindow
     private string _penColor = "#A78BFA";
     private bool _penHighlighter;
     private string _shapeKind = "square";
+    private string _shapeStrokeColor = "#A78BFA";
+    private string _shapeFillColor = "#241096F3";
+    private double _shapeThickness = 2;
     private readonly DispatcherTimer _creativeMoveSaveTimer = new() { Interval = TimeSpan.FromMilliseconds(300) };
 
     private void InitializeCreativeTools()
@@ -59,7 +62,8 @@ public partial class MainWindow
 
     private void CreativeSelectionDismiss_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (BoardObjectContextMenu.Visibility == Visibility.Visible && !BoardObjectContextMenu.IsMouseOver)
+        if (BoardObjectContextMenu.Visibility == Visibility.Visible && !BoardObjectContextMenu.IsMouseOver
+            && (CreativeFormatMenu.Visibility != Visibility.Visible || !CreativeFormatMenu.IsMouseOver))
             HideBoardObjectContextMenu();
         if(CreativeFormatMenu.Visibility!=Visibility.Visible||CreativeFormatMenu.IsMouseOver)return;
         var source=e.OriginalSource as DependencyObject;var objectView=FindAncestor<BoardObjectView>(source);
@@ -246,19 +250,40 @@ public partial class MainWindow
         else if (_draftShape is not null)
         {
             var rect = RectFromPoints(_creativeStart, end);
-            if (rect.Width >= 12 && rect.Height >= 12) created = NewObject(BoardObjectKind.Shape, rect.X, rect.Y, rect.Width, rect.Height,
-                new() { ["stroke"] = "#A78BFA", ["fill"] = "#241096F3", ["thickness"] = "2", ["shape"] = _shapeKind });
+            var isLine = _shapeKind == "line" || (Math.Max(rect.Width, rect.Height) >= 12 && Math.Min(rect.Width, rect.Height) <= 10);
+            if (isLine)
+            {
+                // Um arrasto quase horizontal ou vertical é uma linha, sem exigir a troca manual de ferramenta.
+                created = NewObject(BoardObjectKind.Shape, rect.X, rect.Y, Math.Max(8, rect.Width), Math.Max(8, rect.Height),
+                    new() { ["stroke"] = _shapeStrokeColor, ["fill"] = "#00000000", ["thickness"] = _shapeThickness.ToString(CultureInfo.InvariantCulture), ["shape"] = "line",
+                        ["lineStartX"] = _creativeStart.X >= end.X ? "1" : "0", ["lineStartY"] = _creativeStart.Y >= end.Y ? "1" : "0",
+                        ["lineEndX"] = _creativeStart.X >= end.X ? "0" : "1", ["lineEndY"] = _creativeStart.Y >= end.Y ? "0" : "1" });
+            }
+            else if (rect.Width >= 12 && rect.Height >= 12)
+            {
+                created = NewObject(BoardObjectKind.Shape, rect.X, rect.Y, rect.Width, rect.Height,
+                    new() { ["stroke"] = _shapeStrokeColor, ["fill"] = _shapeFillColor, ["thickness"] = _shapeThickness.ToString(CultureInfo.InvariantCulture), ["shape"] = _shapeKind });
+            }
         }
         CancelCreativeDraft();
         if (created is not null)
         {
             _activeWorkspace.Objects.Add(created);
             var view = AddBoardObjectView(created); view.PlayPopIn();
-            SelectBoardObject(view);
             Save();
-            ShowCreativeFormatMenu(created, view);
+            if (_activeCreativeTool == CreativeTool.Pen)
+            {
+                // A caneta permanece ativa para permitir vários traços consecutivos.
+                ClearBoardObjectSelection();
+            }
+            else
+            {
+                SelectBoardObject(view);
+                ShowCreativeFormatMenu(created, view);
+            }
         }
-        if (created is not null) SetCreativeTool(CreativeTool.Select, keepFormatMenu: true);
+        if (created is not null && _activeCreativeTool != CreativeTool.Pen)
+            SetCreativeTool(CreativeTool.Select, keepFormatMenu: true);
         return true;
     }
 
@@ -278,8 +303,8 @@ public partial class MainWindow
         RegisterUndoSnapshot();
         var obj = NewObject(note ? BoardObjectKind.StickyNote : BoardObjectKind.Text, position.X, position.Y,
             note ? 220 : 300, note ? 180 : 90,
-            note ? new() { ["fill"] = "#DCCBFF", ["fontSize"] = "24", ["align"] = "center" }
-                 : new() { ["fontSize"] = "24", ["align"] = "left" },
+            note ? new() { ["fill"] = "#DCCBFF", ["color"] = "#2A2417", ["fontSize"] = "24", ["align"] = "center" }
+                 : new() { ["color"] = _isDarkMode ? "#F8FAFC" : "#1F2937", ["fontSize"] = "24", ["align"] = "left" },
             new() { ["text"] = note ? "Nova nota" : "Digite seu texto" });
         _activeWorkspace.Objects.Add(obj);
         var view = AddBoardObjectView(obj); view.PlayPopIn();
@@ -294,6 +319,7 @@ public partial class MainWindow
         Dictionary<string, string>? style = null, Dictionary<string, string>? content = null) => new()
     {
         WorkspaceId = _activeWorkspace.Id.ToString("N"), Kind = kind, X = x, Y = y, Width = width, Height = height,
+        PluginId = BoardPluginIdentity.FromKind(kind), PluginVersion = BoardPluginIdentity.FromKind(kind) is null ? null : BoardPluginIdentity.InitialVersion,
         CreatedBy = _cloud?.User?.Id, Style = style ?? [], Content = content ?? [], ZIndex = NextBoardZIndex(), UpdatedAt = DateTimeOffset.UtcNow
     };
 
@@ -343,12 +369,15 @@ public partial class MainWindow
         HideBoardObjectContextMenu();
         ClearSelection();
         _selectedBoardObjectView = view;
+        _selectedBoardObjectViews.Add(view);
         view.SetSelected(true);
         ShowCreativeFormatMenu(view.Object, view);
     }
 
     private void ClearBoardObjectSelection()
     {
+        foreach (var view in _selectedBoardObjectViews) view.SetSelected(false);
+        _selectedBoardObjectViews.Clear();
         _selectedBoardObjectView?.SetSelected(false);
         _selectedBoardObjectView = null;
         HideCreativeFormatMenu();
@@ -384,7 +413,7 @@ public partial class MainWindow
             Text = view.Object.Content.GetValueOrDefault("text", ""), Width = view.Object.Width, Height = view.Object.Height,
             AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, FontSize = Number(view.Object.Style.GetValueOrDefault("fontSize"), note ? 16 : 18), Padding = note ? new Thickness(16) : new Thickness(4),
             TextAlignment = ReadAlignment(view.Object.Style.GetValueOrDefault("align", note ? "center" : "left")),
-            Foreground = note ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2A2417")) : (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#F8FAFC" : "#1F2937")!,
+            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(view.Object.Style.GetValueOrDefault("color", note ? "#2A2417" : (_isDarkMode ? "#F8FAFC" : "#1F2937")))),
             Background = note ? new SolidColorBrush((Color)ColorConverter.ConvertFromString(view.Object.Style.GetValueOrDefault("fill", "#DCCBFF"))) : new SolidColorBrush(Color.FromArgb(220, 16, 26, 43)),
             BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#A78BFA")), BorderThickness = new Thickness(1.5), CaretBrush = Brushes.White,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto
@@ -450,13 +479,24 @@ public partial class MainWindow
                 FormatButton("\uE234", () => ApplyObjectStyle(obj, view, "align", "center"), materialIcon: true),
                 FormatButton("\uE237", () => ApplyObjectStyle(obj, view, "align", "right"), materialIcon: true)
             ]));
+            CreativeFormatMenuContent.Children.Add(FormatRow("Cor do texto", TextColorButtons(obj, view)));
+            if (obj.Kind == BoardObjectKind.StickyNote)
+                CreativeFormatMenuContent.Children.Add(FormatRow("Nota", FillColorButtons(obj, view)));
         }
         else if (obj.Kind == BoardObjectKind.Shape)
         {
             CreativeFormatMenuContent.Children.Add(FormatRow("Forma", [
                 FormatButton("\uE836", () => { _shapeKind = "circle"; ApplyObjectStyle(obj, view, "shape", "circle"); }, materialIcon: true, toolTip: "Círculo"),
                 FormatButton("\uE835", () => { _shapeKind = "square"; ApplyObjectStyle(obj, view, "shape", "square"); }, materialIcon: true, toolTip: "Quadrado"),
-                FormatButton("\uE86B", () => { _shapeKind = "triangle"; ApplyObjectStyle(obj, view, "shape", "triangle"); }, materialIcon: true, toolTip: "Triângulo")
+                FormatButton("\uE86B", () => { _shapeKind = "triangle"; ApplyObjectStyle(obj, view, "shape", "triangle"); }, materialIcon: true, toolTip: "Triângulo"),
+                FormatButton("╱", () => { _shapeKind = "line"; ApplyObjectStyle(obj, view, "shape", "line"); }, 19, toolTip: "Linha")
+            ]));
+            CreativeFormatMenuContent.Children.Add(FormatRow("Contorno", ShapeStrokeColorButtons(obj, view)));
+            CreativeFormatMenuContent.Children.Add(FormatRow("Preencher", FillColorButtons(obj, view, rememberForShape: true)));
+            CreativeFormatMenuContent.Children.Add(FormatRow("Espessura", [
+                FormatButton("1", () => ApplyShapeThickness(obj, view, 1), toolTip: "Contorno fino"),
+                FormatButton("2", () => ApplyShapeThickness(obj, view, 2), toolTip: "Contorno médio"),
+                FormatButton("4", () => ApplyShapeThickness(obj, view, 4), toolTip: "Contorno espesso")
             ]));
         }
         else if (obj.Kind == BoardObjectKind.Stroke)
@@ -495,12 +535,43 @@ public partial class MainWindow
         return button;
     }
 
-    private Button ColorButton(string color, BoardObject obj, BoardObjectView view)
+    private IEnumerable<Button> TextColorButtons(BoardObject obj, BoardObjectView view) =>
+    [
+        ColorButton("#F8FAFC", obj, view, "color"), ColorButton("#1F2937", obj, view, "color"),
+        ColorButton("#A78BFA", obj, view, "color"), ColorButton("#38BDF8", obj, view, "color"),
+        ColorButton("#FB7185", obj, view, "color")
+    ];
+
+    private IEnumerable<Button> ShapeStrokeColorButtons(BoardObject obj, BoardObjectView view) =>
+    [
+        ColorButton("#A78BFA", obj, view, "stroke", color => _shapeStrokeColor = color),
+        ColorButton("#38BDF8", obj, view, "stroke", color => _shapeStrokeColor = color),
+        ColorButton("#34D399", obj, view, "stroke", color => _shapeStrokeColor = color),
+        ColorButton("#FBBF24", obj, view, "stroke", color => _shapeStrokeColor = color),
+        ColorButton("#FB7185", obj, view, "stroke", color => _shapeStrokeColor = color)
+    ];
+
+    private IEnumerable<Button> FillColorButtons(BoardObject obj, BoardObjectView view, bool rememberForShape = false) =>
+    [
+        ColorButton("#00000000", obj, view, "fill", rememberForShape ? color => _shapeFillColor = color : null, "Sem preenchimento"),
+        ColorButton("#241096F3", obj, view, "fill", rememberForShape ? color => _shapeFillColor = color : null),
+        ColorButton("#4438BDF8", obj, view, "fill", rememberForShape ? color => _shapeFillColor = color : null),
+        ColorButton("#4434D399", obj, view, "fill", rememberForShape ? color => _shapeFillColor = color : null),
+        ColorButton("#44FB7185", obj, view, "fill", rememberForShape ? color => _shapeFillColor = color : null)
+    ];
+
+    private Button ColorButton(string color, BoardObject obj, BoardObjectView view, string styleKey = "stroke", Action<string>? remember = null, string? toolTip = null)
     {
-        var button = new Button { Width = 30, Height = 30, Padding = new Thickness(6), Margin = new Thickness(2, 0, 0, 0) };
+        var button = new Button { Width = 30, Height = 30, Padding = new Thickness(6), Margin = new Thickness(2, 0, 0, 0), ToolTip = toolTip };
         button.Content = new Ellipse { Width = 14, Height = 14, Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color)), Stroke = new SolidColorBrush(Color.FromArgb(90, 255, 255, 255)), StrokeThickness = 1 };
-        button.Click += (_, e) => { _penColor = color; ApplyObjectStyle(obj, view, "stroke", color); e.Handled = true; };
+        button.Click += (_, e) => { if (styleKey == "stroke" && obj.Kind == BoardObjectKind.Stroke) _penColor = color; remember?.Invoke(color); ApplyObjectStyle(obj, view, styleKey, color); e.Handled = true; };
         return button;
+    }
+
+    private void ApplyShapeThickness(BoardObject obj, BoardObjectView view, double thickness)
+    {
+        _shapeThickness = thickness;
+        ApplyObjectStyle(obj, view, "thickness", thickness.ToString(CultureInfo.InvariantCulture));
     }
 
     private void ApplyObjectStyle(BoardObject obj, BoardObjectView view, string key, string value)

@@ -18,6 +18,15 @@ public static class ThemeService
         Set("InvitePrimaryBrush", dark ? "#A88CFF" : "#7046CB");
         Set("InvitePrimaryTextBrush", dark ? "#211B37" : "#FFFFFF");
         Set("InviteBackdropBrush", dark ? "#8A07101F" : "#66222A3D");
+        Set("StoreBackdropBrush", dark ? "#111820" : "#F6F8FA");
+        Set("StoreCardBrush", dark ? "#1A242E" : "#FFFFFF");
+        Set("StoreCardHoverBrush", dark ? "#22303B" : "#F1F5F7");
+        Set("StoreCardBorderBrush", dark ? "#2B3945" : "#DFE6EB");
+        Set("StoreAccentWashBrush", dark ? "#253747" : "#EAF0F4");
+        Set("StoreAccentBrush", dark ? "#AFC7D8" : "#37576A");
+        Set("StoreActionBrush", dark ? "#B5CDE0" : "#29495D");
+        Set("StoreActionTextBrush", dark ? "#13212B" : "#FFFFFF");
+        Set("StoreSuccessBrush", dark ? "#8BC9AD" : "#287457");
     }
 
     private static void Set(string key, string color) =>

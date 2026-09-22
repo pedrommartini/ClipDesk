@@ -29,4 +29,18 @@ public static class AppEnvironment
         ? Path.GetFullPath(root) : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             IsTestClient ? $"ClipDesk-{(IsDevelopment ? "Dev" : "Production")}-Test{TestClientNumber}"
                 : IsDevelopment ? "ClipDesk-Dev" : "ClipDesk");
+
+    // Optional plugins are user-visible. Keep DEV and test clients separate from the daily installation.
+    public static string UserPluginsRoot
+    {
+        get
+        {
+            if (IsDevelopment && Environment.GetEnvironmentVariable("CLIPDESK_DEV_DATA_ROOT") is { Length: > 0 } root)
+                return Path.Combine(Path.GetFullPath(root), "UserPlugins");
+            var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            var pluginRoot = Path.Combine(documents, "Clipdesk");
+            if (IsTestClient) return Path.Combine(pluginRoot, IsDevelopment ? "Dev" : "Production", $"Test{TestClientNumber}");
+            return IsDevelopment ? Path.Combine(pluginRoot, "Dev") : pluginRoot;
+        }
+    }
 }

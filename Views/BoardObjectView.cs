@@ -56,7 +56,8 @@ public sealed partial class BoardObjectView : Canvas
     public event EventHandler? ContextActionsRequested;
 
     private bool UsesFloatingVisual => Object.Kind is BoardObjectKind.Text or BoardObjectKind.Shape or BoardObjectKind.StickyNote
-        or BoardObjectKind.Checklist or BoardObjectKind.Calculator or BoardObjectKind.Translator or BoardObjectKind.CurrencyConverter;
+        or BoardObjectKind.Checklist or BoardObjectKind.Calculator or BoardObjectKind.Translator or BoardObjectKind.CurrencyConverter
+        or BoardObjectKind.Plugin;
 
     public void SetSelected(bool selected) { IsSelected = selected; Cursor = selected && !IsPluginKind ? Cursors.SizeAll : Cursors.Arrow; InvalidateVisual(); }
     public void SetCollaboratorSelection(SolidColorBrush? color) { _collaboratorSelection=color; InvalidateVisual(); }
@@ -182,12 +183,13 @@ public sealed partial class BoardObjectView : Canvas
         {
             case BoardObjectKind.Stroke: DrawStroke(dc, pen, bounds); break;
             case BoardObjectKind.Shape: DrawShape(dc, fill, pen, bounds); break;
-            case BoardObjectKind.StickyNote: DrawStickyNote(dc, fill, bounds); DrawText(dc, Object.Content.GetValueOrDefault("text", "Nova nota"), "#211C32", Number(Object.Style.GetValueOrDefault("fontSize"), 24), bounds, new Thickness(16)); break;
-            case BoardObjectKind.Text: DrawText(dc, Object.Content.GetValueOrDefault("text", "Texto"), IsDarkMode ? "#F8FAFC" : "#1F2937", Number(Object.Style.GetValueOrDefault("fontSize"), 24), bounds, new Thickness(4)); break;
+            case BoardObjectKind.StickyNote: DrawStickyNote(dc, fill, bounds); DrawText(dc, Object.Content.GetValueOrDefault("text", "Nova nota"), Object.Style.GetValueOrDefault("color", "#211C32"), Number(Object.Style.GetValueOrDefault("fontSize"), 24), bounds, new Thickness(16)); break;
+            case BoardObjectKind.Text: DrawText(dc, Object.Content.GetValueOrDefault("text", "Texto"), Object.Style.GetValueOrDefault("color", IsDarkMode ? "#F8FAFC" : "#1F2937"), Number(Object.Style.GetValueOrDefault("fontSize"), 24), bounds, new Thickness(4)); break;
             case BoardObjectKind.Checklist:
             case BoardObjectKind.Calculator:
             case BoardObjectKind.Translator:
-            case BoardObjectKind.CurrencyConverter: break;
+            case BoardObjectKind.CurrencyConverter:
+            case BoardObjectKind.Plugin: break;
         }
         if(_collaboratorSelection is not null) dc.DrawRoundedRectangle(null,new Pen(_collaboratorSelection,2.2),bounds,10,10);
         if(_draggingVisual) dc.DrawRoundedRectangle(null,new Pen(Brush("#C4B5FD","#C4B5FD"),2.4){DashStyle=new DashStyle([8d,3d],0)},bounds,10,10);
@@ -197,7 +199,7 @@ public sealed partial class BoardObjectView : Canvas
     private Rect ContentBounds => new(SelectionPadding, RotationSpace, Math.Max(8, Object.Width), Math.Max(8, Object.Height));
     private void DrawSelection(DrawingContext dc, Rect bounds)
     {
-        var accent = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#A78BFA")); var line = new Pen(accent, 1.4) { DashStyle = new DashStyle([4d, 3d], 0) }; dc.DrawRectangle(null, line, bounds);
+        var accent = new SolidColorBrush((Color)ColorConverter.ConvertFromString(IsPluginKind ? PluginAccentColor() : "#A78BFA")); var line = new Pen(accent, 1.4) { DashStyle = new DashStyle([4d, 3d], 0) }; dc.DrawRectangle(null, line, bounds);
         var points = HandlePoints(bounds); foreach (var point in points.Take(8)) dc.DrawRoundedRectangle(Brushes.White, new Pen(accent, 1.5), new Rect(point.X - HandleRadius, point.Y - HandleRadius, HandleRadius * 2, HandleRadius * 2), 2.5, 2.5);
         var rotate = points[8]; dc.DrawLine(new Pen(accent, 1.2), new Point(bounds.Left + bounds.Width / 2, bounds.Top), rotate); dc.DrawEllipse(Brush(IsDarkMode ? "#172132" : "#FFFFFF", "#172132"), new Pen(accent, 1.5), rotate, 6, 6);
     }
@@ -220,6 +222,7 @@ public sealed partial class BoardObjectView : Canvas
         {
             BoardObjectKind.Checklist => (220d, 170d), BoardObjectKind.Calculator => (215d, 285d),
             BoardObjectKind.Translator => (270d, 205d), BoardObjectKind.CurrencyConverter => (260d, 190d),
+            BoardObjectKind.Plugin => (190d, 140d),
             _ => (48d, 32d)
         };
         var left = _objectStart.Left; var top = _objectStart.Top; var right = _objectStart.Right; var bottom = _objectStart.Bottom;
@@ -246,7 +249,7 @@ public sealed partial class BoardObjectView : Canvas
     }
     private void DrawShape(DrawingContext dc,Brush fill,Pen pen,Rect bounds)
     {
-        switch(Object.Style.GetValueOrDefault("shape","square")){case "circle":dc.DrawEllipse(fill,pen,new Point(bounds.Left+bounds.Width/2,bounds.Top+bounds.Height/2),bounds.Width/2,bounds.Height/2);break;case "triangle":var triangle=new StreamGeometry();using(var context=triangle.Open()){context.BeginFigure(new Point(bounds.Left+bounds.Width/2,bounds.Top),true,true);context.LineTo(bounds.BottomRight,true,false);context.LineTo(bounds.BottomLeft,true,false);}triangle.Freeze();dc.DrawGeometry(fill,pen,triangle);break;default:dc.DrawRoundedRectangle(fill,pen,bounds,9,9);break;}
+        switch(Object.Style.GetValueOrDefault("shape","square")){case "line":var start=new Point(bounds.Left+bounds.Width*Number(Object.Style.GetValueOrDefault("lineStartX"),0),bounds.Top+bounds.Height*Number(Object.Style.GetValueOrDefault("lineStartY"),0));var end=new Point(bounds.Left+bounds.Width*Number(Object.Style.GetValueOrDefault("lineEndX"),1),bounds.Top+bounds.Height*Number(Object.Style.GetValueOrDefault("lineEndY"),1));dc.DrawLine(pen,start,end);break;case "circle":dc.DrawEllipse(fill,pen,new Point(bounds.Left+bounds.Width/2,bounds.Top+bounds.Height/2),bounds.Width/2,bounds.Height/2);break;case "triangle":var triangle=new StreamGeometry();using(var context=triangle.Open()){context.BeginFigure(new Point(bounds.Left+bounds.Width/2,bounds.Top),true,true);context.LineTo(bounds.BottomRight,true,false);context.LineTo(bounds.BottomLeft,true,false);}triangle.Freeze();dc.DrawGeometry(fill,pen,triangle);break;default:dc.DrawRoundedRectangle(fill,pen,bounds,9,9);break;}
     }
     private static void DrawStickyNote(DrawingContext dc,Brush fill,Rect bounds){dc.DrawRoundedRectangle(fill,null,bounds,16,16);dc.DrawRoundedRectangle(new LinearGradientBrush(Color.FromArgb(36,255,255,255),Colors.Transparent,90),null,new Rect(bounds.X+1,bounds.Y+1,Math.Max(1,bounds.Width-2),Math.Min(42,bounds.Height-2)),15,15);var fold=new StreamGeometry();using(var context=fold.Open()){context.BeginFigure(new Point(bounds.Right-25,bounds.Bottom),true,true);context.LineTo(new Point(bounds.Right,bounds.Bottom-25),true,false);context.LineTo(bounds.BottomRight,true,false);}fold.Freeze();dc.DrawGeometry(new SolidColorBrush(Color.FromArgb(34,33,28,50)),null,fold);}
     private void DrawText(DrawingContext dc,string text,string color,double size,Rect bounds,Thickness padding){var formatted=new FormattedText(text,CultureInfo.CurrentUICulture,FlowDirection.LeftToRight,new Typeface("Segoe UI Variable Text"),size,Brush(color,"#F8FAFC"),VisualTreeHelper.GetDpi(this).PixelsPerDip){MaxTextWidth=Math.Max(1,bounds.Width-padding.Left-padding.Right),MaxTextHeight=Math.Max(1,bounds.Height-padding.Top-padding.Bottom),Trimming=TextTrimming.WordEllipsis,TextAlignment=Object.Style.GetValueOrDefault("align",Object.Kind==BoardObjectKind.StickyNote?"center":"left") switch{"center"=>TextAlignment.Center,"right"=>TextAlignment.Right,_=>TextAlignment.Left}};dc.DrawText(formatted,new Point(bounds.Left+padding.Left,bounds.Top+padding.Top));}

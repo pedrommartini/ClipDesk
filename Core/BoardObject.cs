@@ -11,6 +11,8 @@ public sealed class BoardObject
     public string WorkspaceId { get; set; } = "";
     public BoardObjectKind Kind { get; set; } = BoardObjectKind.Card;
     public int SchemaVersion { get; set; } = 1;
+    public string? PluginId { get; set; }
+    public string? PluginVersion { get; set; }
     public double X { get; set; }
     public double Y { get; set; }
     public double Width { get; set; }
@@ -37,7 +39,8 @@ public enum BoardObjectKind
     Checklist,
     Calculator,
     Translator,
-    CurrencyConverter
+    CurrencyConverter,
+    Plugin
 }
 
 public interface IBoardTool

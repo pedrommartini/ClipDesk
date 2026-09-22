@@ -50,6 +50,7 @@ public partial class MainWindow : Window
     private WorkspaceBoard _activeWorkspace = null!;
     private readonly StartupService _startupService = new();
     private readonly List<ItemCard> _selectedCards = [];
+    private readonly List<BoardObjectView> _selectedBoardObjectViews = [];
     private readonly ObservableCollection<ClipboardHistoryEntry> _history = [];
     private ClipboardPopupWindow? _historyPopup;
     private TrayService? _trayService;
@@ -128,6 +129,7 @@ public partial class MainWindow : Window
             : 1;
         ZoomSlider.Value = Math.Clamp(_workspaceZoom * 100, ZoomSlider.Minimum, ZoomSlider.Maximum);
         ThemeService.Apply(_isDarkMode);
+        InitializePluginStore();
         foreach (var entry in _storageService.LoadHistory().OrderByDescending(entry => entry.CapturedAt).Take(80))
         {
             _history.Add(entry);
@@ -165,6 +167,7 @@ public partial class MainWindow : Window
             _updateCheckStarted = true;
             _ = CheckForUpdatesAsync();
         }
+        _ = CheckForPluginUpdatesAsync();
     }
 
     private async Task CheckForUpdatesAsync()
@@ -288,6 +291,8 @@ public partial class MainWindow : Window
         card.DuplicateRequested += Card_DuplicateRequested;
         card.DeleteRequested += Card_DeleteRequested;
         card.DetailsRequested += Card_DetailsRequested;
+        card.BringForwardRequested += Card_BringForwardRequested;
+        card.SendBackwardRequested += Card_SendBackwardRequested;
         card.DragStarted += Card_DragStarted;
         card.DragMoved += Card_DragMoved;
         card.DragFinished += Card_DragFinished;
@@ -388,6 +393,12 @@ public partial class MainWindow : Window
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (e.Key == Key.Escape && PluginStoreOverlay.Visibility == Visibility.Visible)
+        {
+            HidePluginStore();
+            e.Handled = true;
+            return;
+        }
         if (e.Key == Key.Escape && UpdateOverlay.Visibility == Visibility.Visible && !_isInstallingUpdate)
         {
             HideUpdateOverlay();
@@ -1794,9 +1805,7 @@ public partial class MainWindow : Window
         _marqueeStart = start;
         _isMarqueeSelecting = true;
         ClearSelection();
-        SelectionMarquee.Margin = new Thickness(start.X, start.Y, 0, 0);
-        SelectionMarquee.Width = 0;
-        SelectionMarquee.Height = 0;
+        UpdateMarqueeVisual(new Rect(start, start));
         SelectionMarquee.Visibility = Visibility.Visible;
         Root.CaptureMouse();
     }
@@ -1806,9 +1815,7 @@ public partial class MainWindow : Window
         var left = Math.Min(_marqueeStart.X, current.X);
         var top = Math.Min(_marqueeStart.Y, current.Y);
         var rectangle = new Rect(new Point(left, top), new Point(Math.Max(_marqueeStart.X, current.X), Math.Max(_marqueeStart.Y, current.Y)));
-        SelectionMarquee.Margin = new Thickness(left, top, 0, 0);
-        SelectionMarquee.Width = rectangle.Width;
-        SelectionMarquee.Height = rectangle.Height;
+        UpdateMarqueeVisual(rectangle);
 
         foreach (var card in WorkspaceCanvas.Children.OfType<ItemCard>())
         {
@@ -1817,6 +1824,24 @@ public partial class MainWindow : Window
             if (!selected) _selectedCards.Remove(card);
             card.SetSelected(selected);
         }
+        foreach (var view in WorkspaceCanvas.Children.OfType<BoardObjectView>().Where(view => view.Object.Kind != BoardObjectKind.Connector))
+        {
+            var selected = rectangle.IntersectsWith(new Rect(view.Object.X, view.Object.Y, view.Object.Width, view.Object.Height));
+            if (selected && !_selectedBoardObjectViews.Contains(view)) _selectedBoardObjectViews.Add(view);
+            if (!selected) _selectedBoardObjectViews.Remove(view);
+            view.SetSelected(selected);
+        }
+        _selectedBoardObjectView = _selectedBoardObjectViews.Count == 1 ? _selectedBoardObjectViews[0] : null;
+        if (_selectedBoardObjectView is null) HideCreativeFormatMenu();
+    }
+
+    private void UpdateMarqueeVisual(Rect worldRectangle)
+    {
+        var topLeft = WorkspaceCanvas.TranslatePoint(worldRectangle.TopLeft, Root);
+        var bottomRight = WorkspaceCanvas.TranslatePoint(worldRectangle.BottomRight, Root);
+        SelectionMarquee.Margin = new Thickness(Math.Min(topLeft.X, bottomRight.X), Math.Min(topLeft.Y, bottomRight.Y), 0, 0);
+        SelectionMarquee.Width = Math.Abs(bottomRight.X - topLeft.X);
+        SelectionMarquee.Height = Math.Abs(bottomRight.Y - topLeft.Y);
     }
 
     private void EndMarqueeSelection()

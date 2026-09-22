@@ -123,7 +123,9 @@
                 <Button Width="32" Height="30" Padding="0" Margin="0,0,4,0" Click="QuickCopy_Click" ToolTip="Copiar"><TextBlock Text="&#xE8C8;" FontFamily="Segoe MDL2 Assets" FontSize="14" /></Button>
                 <Button Width="32" Height="30" Padding="0" Margin="0,0,4,0" Click="QuickDuplicate_Click" ToolTip="Duplicar"><TextBlock Text="2×" FontFamily="Segoe UI" FontWeight="Bold" FontSize="14" /></Button>
                 <Button Width="32" Height="30" Padding="0" Margin="0,0,4,0" Click="QuickDetails_Click" ToolTip="Detalhes"><TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets" FontSize="14" /></Button>
-                <Button Width="32" Height="30" Padding="0" Click="QuickDelete_Click" ToolTip="Excluir"><TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="14" /></Button>
+                <Button Width="32" Height="30" Padding="0" Margin="0,0,4,0" Click="QuickDelete_Click" ToolTip="Excluir"><TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="14" /></Button>
+                <Button Width="32" Height="30" Padding="0" Margin="0,0,4,0" Click="QuickBringForward_Click" ToolTip="Subir uma camada"><TextBlock Text="&#xE5D8;" FontFamily="{StaticResource MaterialSymbols}" FontSize="18" /></Button>
+                <Button Width="32" Height="30" Padding="0" Click="QuickSendBackward_Click" ToolTip="Descer uma camada"><TextBlock Text="&#xE5DB;" FontFamily="{StaticResource MaterialSymbols}" FontSize="18" /></Button>
             </StackPanel>
         </Border>
 

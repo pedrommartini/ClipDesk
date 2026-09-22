@@ -16,6 +16,9 @@ internal static class Program
         if(args.Contains("--presence-protocol")) { PresenceProtocolChecks.Run(); return; }
         Environment.SetEnvironmentVariable("CLIPDESK_DEV_DATA_ROOT",Path.Combine(Path.GetTempPath(),"ClipDesk-Visual-Checks",Guid.NewGuid().ToString("N")));
         var app = new Application();
+        if(args.Contains("--plugin-store")) { PluginStoreVisualChecks.Run(app); return; }
+        if(args.Contains("--plugin-delivery")) { PluginDeliveryChecks.Run(app); return; }
+        if(args.Contains("--plugin-v2")) { PluginV2Checks.Run(); return; }
         PresenceProtocolChecks.Run();
         var storage = new StorageService(); // No user data is loaded or saved.
         var canvas = new Canvas { Width = 1100, Height = 780, Background = new SolidColorBrush(Color.FromRgb(16,21,32)) };
