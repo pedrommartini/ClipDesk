@@ -72,6 +72,7 @@ Esse gate promove uma versão validada da loja; ele não conecta produção perm
 - Feed de desenvolvimento separado do feed de produção.
 - Adicionada cor de destaque por instância, sincronizável e configurável no submenu de seleção.
 - Criados testes portáveis e validações de carregamento, instalação, loja e ZIP.
+- Criado Plugin AI DevKit autossuficiente, com especificação compacta, template compilável e SDKs isolados para desenvolver plugins sem analisar a codebase do aplicativo.
 
 ## Próximos passos recomendados
 

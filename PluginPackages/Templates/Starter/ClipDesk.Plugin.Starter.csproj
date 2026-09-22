@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>ClipDesk.Plugin.Starter</AssemblyName>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Core\**\*.cs" />
+    <ProjectReference Include="..\..\..\PluginSdk.Windows\ClipDesk.PluginSdk.Windows.csproj" />
+    <ProjectReference Include="Core\ClipDesk.Plugin.Starter.Core.csproj" />
+  </ItemGroup>
+</Project>

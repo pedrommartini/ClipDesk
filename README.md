@@ -99,6 +99,8 @@ O plano técnico detalhado está em `ARCHITECTURE.md`.
 
 Para desenvolver, testar e publicar plugins sem atualizar o executável, consulte o [guia de plugins e identidade visual](docs/GUIA-DE-PLUGINS.md).
 
+Para desenvolver plugins com outro modelo de IA sem expor ou analisar a codebase inteira, use o [Plugin AI DevKit autossuficiente](docs/PLUGIN-AI-DEVKIT.md) junto com `docs/ClipDesk-Plugin-AI-DevKit.zip`.
+
 A branch `clipdesk-new` é um laboratório de migração e não substitui o produto principal. O plano, as decisões e o status de cada etapa ficam em [ClipDesk New — plano e status da migração](docs/CLIPDESK-NEW-MIGRATION.md).
 
 Um exemplo de dados esta em `Resources/example-data.json`.

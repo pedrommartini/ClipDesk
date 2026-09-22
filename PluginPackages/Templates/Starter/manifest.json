@@ -1,0 +1,44 @@
+{
+  "manifestVersion": 2,
+  "id": "clipdesk.starter",
+  "name": "Plugin inicial",
+  "description": "Template autossuficiente para novos plugins ClipDesk.",
+  "version": "1.0.0",
+  "publisher": "Seu nome",
+  "iconGlyph": "\ue8a5",
+  "accentColor": "#7C5CFC",
+  "runtime": "portable-v2",
+  "pluginApiVersion": 2,
+  "stateVersion": 1,
+  "module": {
+    "assembly": "ClipDesk.Plugin.Starter.Core.dll",
+    "type": "ClipDesk.Plugin.Starter.StarterModule"
+  },
+  "renderers": [
+    {
+      "platform": "windows",
+      "runtime": "wpf-v2",
+      "assembly": "ClipDesk.Plugin.Starter.dll",
+      "type": "ClipDesk.Plugin.Starter.StarterPlugin"
+    }
+  ],
+  "minimumHostVersion": "0.3.3",
+  "installByDefault": false,
+  "sortOrder": 100,
+  "defaultSize": {
+    "width": 320,
+    "height": 250
+  },
+  "defaultContent": {
+    "$schema": "1",
+    "text": "Meu primeiro plugin"
+  },
+  "platforms": [
+    "windows"
+  ],
+  "permissions": [],
+  "capabilities": [
+    "board-widget"
+  ],
+  "networkHosts": []
+}

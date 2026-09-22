@@ -2,6 +2,8 @@
 
 Este guia mostra como criar, testar e distribuir um plugin no padrão compartilhável do ClipDesk. Consulte [Arquitetura de plugins](PLUGIN-ARCHITECTURE.md) para decisões de segurança, compatibilidade e Android.
 
+Para delegar a criação de um plugin a outro modelo de IA sem fornecer a codebase inteira, envie apenas [ClipDesk Plugin AI DevKit](PLUGIN-AI-DEVKIT.md) e `ClipDesk-Plugin-AI-DevKit.zip`. O kit contém uma especificação compacta, um template compilável e cópias dos SDKs usadas somente como dependências.
+
 ## Estrutura recomendada
 
 ```text
