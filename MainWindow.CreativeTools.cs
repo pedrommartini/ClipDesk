@@ -67,7 +67,11 @@ public partial class MainWindow
             HideBoardObjectContextMenu();
         if(CreativeFormatMenu.Visibility!=Visibility.Visible||CreativeFormatMenu.IsMouseOver)return;
         var source=e.OriginalSource as DependencyObject;var objectView=FindAncestor<BoardObjectView>(source);
-        if(objectView==_selectedBoardObjectView)return;
+        if(objectView==_selectedBoardObjectView)
+        {
+            if(objectView?.IsPluginInteractionSource(source)==true) ClearBoardObjectSelection();
+            return;
+        }
         var editor=FindAncestor<TextBox>(source);if(editor is not null&&WorkspaceCanvas.Children.Contains(editor))return;
         ClearBoardObjectSelection();
     }
@@ -464,6 +468,11 @@ public partial class MainWindow
 
     private void ShowCreativeFormatMenu(BoardObject obj, BoardObjectView view)
     {
+        if (IsPluginObject(obj))
+        {
+            ShowPluginAccentMenu(view);
+            return;
+        }
         _formatObject = obj;
         CreativeFormatMenuContent.Children.Clear();
         if (obj.Kind is BoardObjectKind.Text or BoardObjectKind.StickyNote)

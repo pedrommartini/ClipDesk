@@ -113,9 +113,9 @@ O host fornece tema, modo de edição, dimensões e escala. Use layouts fluidos,
 
 ### Cor de destaque por instância
 
-`manifest.accentColor` define a cor inicial. Depois de adicionar o plugin à mesa, o usuário pode selecioná-lo, abrir a barra de movimentação e usar **Cor de destaque**. A escolha é persistida em `BoardObject.Style["accent"]`, separada do estado funcional e sincronizada com a mesa.
+`manifest.accentColor` define a cor inicial. Depois de adicionar o plugin à mesa, o usuário o seleciona pelo cabeçalho para entrar no modo de movimentação; a paleta **Destaque** aparece automaticamente junto às alças de seleção. Ela não pertence ao menu de contexto, não aparece com o botão direito e é fechada quando o usuário interage com os controles internos do plugin. A escolha é persistida em `BoardObject.Style["accent"]`, separada do estado funcional e sincronizada com a mesa.
 
-O renderizador recebe o valor resolvido em `WindowsPluginViewContext.AccentColor`. Use essa propriedade em ações principais, indicadores e resultados relevantes, sempre garantindo contraste. Não grave uma cópia da cor em `PluginState`: isso quebraria o reset para o padrão do manifesto e misturaria apresentação com regras compartilhadas. Um futuro renderizador MAUI receberá o mesmo valor pelo adaptador de apresentação da plataforma.
+O renderizador recebe o valor resolvido em `WindowsPluginViewContext.AccentColor`. Use essa propriedade em ações principais, indicadores e resultados relevantes, sempre garantindo contraste. Não crie um seletor de cor próprio no renderizador: seleção, paleta e persistência visual são responsabilidades do host. Não grave uma cópia da cor em `PluginState`: isso quebraria o reset para o padrão do manifesto e misturaria apresentação com regras compartilhadas. Um futuro renderizador MAUI receberá o mesmo valor pelo adaptador de apresentação da plataforma.
 
 ## 3. Declare o manifesto
 

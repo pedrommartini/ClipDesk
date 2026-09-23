@@ -73,6 +73,7 @@ Esse gate promove uma versão validada da loja; ele não conecta produção perm
 - Adicionada cor de destaque por instância, sincronizável e configurável no submenu de seleção.
 - Criados testes portáveis e validações de carregamento, instalação, loja e ZIP.
 - Criado Plugin AI DevKit autossuficiente, com especificação compacta, template compilável e SDKs isolados para desenvolver plugins sem analisar a codebase do aplicativo.
+- Ajustada a paleta de destaque para aparecer exclusivamente na seleção de movimentação do plugin, separada da interação interna e do menu de contexto.
 
 ## Próximos passos recomendados
 

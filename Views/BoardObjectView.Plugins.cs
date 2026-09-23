@@ -564,6 +564,9 @@ public sealed partial class BoardObjectView
         return false;
     }
 
+    public bool IsPluginInteractionSource(DependencyObject? source) =>
+        IsPluginKind && IsPluginInteractiveSource(source);
+
     private void SetPluginChoice(string key, string value) { Object.Content[key] = value; RebuildPluginAndPersist(); ScheduleUtilityRefresh(); }
     private void MarkPluginChanged() { Object.UpdatedAt = DateTimeOffset.UtcNow; WidgetActionRequested?.Invoke(this, "persist"); }
     private void RebuildPluginAndPersist() { MarkPluginChanged(); _pluginSignature = null; RefreshPluginSurface(); }

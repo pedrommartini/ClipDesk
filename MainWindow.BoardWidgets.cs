@@ -280,7 +280,6 @@ public partial class MainWindow
     {
         HideCreativeFormatMenu();
         _contextBoardObjectView = view;
-        BoardObjectAccentButton.Visibility = IsPluginObject(view.Object) ? Visibility.Visible : Visibility.Collapsed;
         BoardObjectContextMenu.Visibility = Visibility.Visible;
         BoardObjectContextMenu.UpdateLayout();
         var objectRight = (view.Object.X + view.Object.Width) * _workspaceZoom - WorkspaceScroll.HorizontalOffset;
@@ -313,13 +312,6 @@ public partial class MainWindow
         "#A78BFA", "#38BDF8", "#22D3EE", "#34D399",
         "#FBBF24", "#FB923C", "#FB7185", "#F472B6"
     ];
-
-    private void BoardObjectAccent_Click(object sender, RoutedEventArgs e)
-    {
-        if (_contextBoardObjectView is not { } view || !IsPluginObject(view.Object)) return;
-        ShowPluginAccentMenu(view);
-        e.Handled = true;
-    }
 
     private void ShowPluginAccentMenu(BoardObjectView view)
     {

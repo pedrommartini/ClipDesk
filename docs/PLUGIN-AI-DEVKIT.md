@@ -108,6 +108,7 @@ A UI deve:
 - funcionar em tema claro e escuro e aproximadamente a partir de 300×240;
 - redimensionar sem cortar conteúdo e usar rolagem quando necessário;
 - usar `context.AccentColor` em ações ou indicadores principais, com contraste legível;
+- não criar seletor de cor dentro do plugin; o host mostra a paleta somente quando o objeto é selecionado pelo cabeçalho para mover/redimensionar;
 - respeitar `context.Scale`, teclado, foco e alvos de toque confortáveis;
 - cancelar operações pendentes em `Unloaded`;
 - apresentar erros curtos e recuperáveis, sem detalhes técnicos na tela.
@@ -193,4 +194,3 @@ Na futura promoção DEV → Main, a loja deve ir funcional: plugins padrão apa
 - [ ] Manifesto anuncia somente recursos realmente implementados.
 - [ ] Build e empacotamento terminam sem erro.
 - [ ] Nenhum feed, SDK, aplicativo ou branch foi modificado.
-
