@@ -48,6 +48,59 @@
         "board-widget"
       ],
       "networkHosts": []
+    },
+    {
+      "manifestVersion": 2,
+      "id": "clipdesk.audiorecorder",
+      "name": "Gravador de Áudio",
+      "description": "Grave áudio do microfone e do sistema com controle de volume independente e adicione diretamente à mesa.",
+      "version": "1.0.0",
+      "url": "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-1.0.0/clipdesk.audiorecorder-1.0.0.zip",
+      "sha256": "1e0dd9147a863b2319d1032b7609f74ac26ee8acf8bf38c975a756c76e84ca20",
+      "runtime": "portable-v2",
+      "pluginApiVersion": 2,
+      "minimumHostVersion": "0.3.3",
+      "maximumHostVersion": null,
+      "entryAssembly": null,
+      "entryType": null,
+      "iconGlyph": "\ue720",
+      "accentColor": "#EF4444",
+      "sortOrder": 120,
+      "defaultSize": {
+        "width": 490,
+        "height": 165
+      },
+      "defaultContent": {
+        "$schema": "1",
+        "micEnabled": "true",
+        "micVolume": "100",
+        "systemEnabled": "true",
+        "systemVolume": "100",
+        "status": "idle",
+        "duration": "0",
+        "lastFile": ""
+      },
+      "platforms": [
+        "windows"
+      ],
+      "stateVersion": 1,
+      "module": {
+        "assembly": "ClipDesk.Plugin.AudioRecorder.Core.dll",
+        "type": "ClipDesk.Plugin.AudioRecorder.AudioRecorderModule"
+      },
+      "renderers": [
+        {
+          "platform": "windows",
+          "runtime": "wpf-v2",
+          "assembly": "ClipDesk.Plugin.AudioRecorder.dll",
+          "type": "ClipDesk.Plugin.AudioRecorder.AudioRecorderPlugin"
+        }
+      ],
+      "permissions": [],
+      "capabilities": [
+        "board-widget"
+      ],
+      "networkHosts": []
     }
   ]
 }
