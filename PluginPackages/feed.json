@@ -56,7 +56,7 @@
       "description": "Grave áudio do microfone e do sistema com controle de volume independente e adicione diretamente à mesa.",
       "version": "1.0.1",
       "url": "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-1.0.1/clipdesk.audiorecorder-1.0.1.zip",
-      "sha256": "ac060eed0c45ef84ab13aab30219a482b3511556696a401e4a041dbb708ad915",
+      "sha256": "45f2a0c68140d7fad5c4e9fcca57af9480eab0ebc6fa7a1e6eae52a03e85ce54",
       "runtime": "portable-v2",
       "pluginApiVersion": 2,
       "minimumHostVersion": "0.3.3",
