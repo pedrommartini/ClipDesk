@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "packages": [
+    {
+      "manifestVersion": 2,
+      "id": "clipdesk.qrcode",
+      "name": "Gerador de QR Code",
+      "description": "Gera e exibe códigos QR a partir de links ou textos diretamente no seu quadro.",
+      "version": "1.0.0",
+      "url": "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-1.0.0/clipdesk.qrcode-1.0.0.zip",
+      "sha256": "6393b7aa22361e5d94e57abc732b758cd66998f65e98ac07a90db70adb1a1dbc",
+      "runtime": "portable-v2",
+      "pluginApiVersion": 2,
+      "minimumHostVersion": "0.3.3",
+      "maximumHostVersion": null,
+      "entryAssembly": null,
+      "entryType": null,
+      "iconGlyph": "\ue977",
+      "accentColor": "#10B981",
+      "sortOrder": 110,
+      "defaultSize": {
+        "width": 300,
+        "height": 340
+      },
+      "defaultContent": {
+        "$schema": "1",
+        "text": "https://github.com/pedrommartini/ClipDesk",
+        "ecc": "M"
+      },
+      "platforms": [
+        "windows"
+      ],
+      "stateVersion": 1,
+      "module": {
+        "assembly": "ClipDesk.Plugin.QrCode.Core.dll",
+        "type": "ClipDesk.Plugin.QrCode.QrCodeModule"
+      },
+      "renderers": [
+        {
+          "platform": "windows",
+          "runtime": "wpf-v2",
+          "assembly": "ClipDesk.Plugin.QrCode.dll",
+          "type": "ClipDesk.Plugin.QrCode.QrCodePlugin"
+        }
+      ],
+      "permissions": [],
+      "capabilities": [
+        "board-widget"
+      ],
+      "networkHosts": []
+    }
+  ]
+}
