@@ -102,6 +102,28 @@ internal static class PluginV2Checks
         if (icon?.Foreground is not System.Windows.Media.SolidColorBrush headerAccent
             || headerAccent.Color != (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FB7185"))
             throw new Exception("The board did not render the persisted plugin accent.");
+
+        boardView.Object.Style[PluginStyleKeys.AccentColor] = "#34D399";
+        boardView.RefreshFromObject();
+        var refreshedIcon = Descendants<TextBlock>(boardView).FirstOrDefault(text => text.Text == "∑");
+        var refreshedOperator = Descendants<Button>(boardView).FirstOrDefault(button =>
+            (button.Content as TextBlock)?.Text == "÷");
+        var expected = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#34D399");
+        if (refreshedIcon?.Foreground is not System.Windows.Media.SolidColorBrush refreshedHeader
+            || refreshedHeader.Color != expected
+            || refreshedOperator?.Background is not System.Windows.Media.SolidColorBrush refreshedButton
+            || refreshedButton.Color != expected)
+            throw new Exception("Changing the accent did not refresh the plugin header and primary controls.");
+
+        var collaboratorColor = new System.Windows.Media.SolidColorBrush(
+            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#22D3EE"));
+        boardView.SetSelectionColor(collaboratorColor);
+        boardView.SetSelected(true);
+        var selectionColor = (System.Windows.Media.SolidColorBrush)typeof(BoardObjectView)
+            .GetField("_selectionColor", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(boardView)!;
+        if (selectionColor.Color != collaboratorColor.Color || selectionColor.Color == expected)
+            throw new Exception("The collaborator selection color is not independent from the plugin accent.");
     }
 
     private static PluginExecutionContext Context(IPluginNetworkClient? network = null) =>

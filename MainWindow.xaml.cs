@@ -1829,6 +1829,7 @@ public partial class MainWindow : Window
             var selected = rectangle.IntersectsWith(new Rect(view.Object.X, view.Object.Y, view.Object.Width, view.Object.Height));
             if (selected && !_selectedBoardObjectViews.Contains(view)) _selectedBoardObjectViews.Add(view);
             if (!selected) _selectedBoardObjectViews.Remove(view);
+            if (selected) view.SetSelectionColor(LocalPresenceColor());
             view.SetSelected(selected);
         }
         _selectedBoardObjectView = _selectedBoardObjectViews.Count == 1 ? _selectedBoardObjectViews[0] : null;

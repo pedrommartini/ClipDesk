@@ -114,7 +114,7 @@ internal static class WidgetUi
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         left = Button(context, leftLabel + "  ▾"); right = Button(context, rightLabel + "  ▾");
-        swap = Button(context, "↔"); swap.Margin = new Thickness(5, 0, 5, 0);
+        swap = Button(context, "↔", true); swap.Margin = new Thickness(5, 0, 5, 0);
         left.HorizontalContentAlignment = HorizontalAlignment.Center;
         right.HorizontalContentAlignment = HorizontalAlignment.Center;
         Grid.SetColumn(right, 2); Grid.SetColumn(swap, 1);

@@ -21,6 +21,7 @@ public sealed partial class BoardObjectView : Canvas
     private TransformAction _action;
     private bool _transformStarted;
     private bool _draggingVisual;
+    private SolidColorBrush _selectionColor = new((Color)ColorConverter.ConvertFromString("#22D3EE"));
     private SolidColorBrush? _collaboratorSelection;
     private readonly ScaleTransform _motionScale = new(1, 1);
     private readonly TranslateTransform _motionTranslate = new();
@@ -60,6 +61,7 @@ public sealed partial class BoardObjectView : Canvas
         or BoardObjectKind.Plugin;
 
     public void SetSelected(bool selected) { IsSelected = selected; Cursor = selected && !IsPluginKind ? Cursors.SizeAll : Cursors.Arrow; InvalidateVisual(); }
+    public void SetSelectionColor(SolidColorBrush color) { _selectionColor = color; InvalidateVisual(); }
     public void SetCollaboratorSelection(SolidColorBrush? color) { _collaboratorSelection=color; InvalidateVisual(); }
     public void RefreshFromObject()
     {
@@ -192,14 +194,14 @@ public sealed partial class BoardObjectView : Canvas
             case BoardObjectKind.Plugin: break;
         }
         if(_collaboratorSelection is not null) dc.DrawRoundedRectangle(null,new Pen(_collaboratorSelection,2.2),bounds,10,10);
-        if(_draggingVisual) dc.DrawRoundedRectangle(null,new Pen(Brush("#C4B5FD","#C4B5FD"),2.4){DashStyle=new DashStyle([8d,3d],0)},bounds,10,10);
+        if(_draggingVisual) dc.DrawRoundedRectangle(null,new Pen(_selectionColor,2.4){DashStyle=new DashStyle([8d,3d],0)},bounds,10,10);
         if (IsSelected) DrawSelection(dc, bounds); dc.Pop();
     }
 
     private Rect ContentBounds => new(SelectionPadding, RotationSpace, Math.Max(8, Object.Width), Math.Max(8, Object.Height));
     private void DrawSelection(DrawingContext dc, Rect bounds)
     {
-        var accent = new SolidColorBrush((Color)ColorConverter.ConvertFromString(IsPluginKind ? PluginAccentColor() : "#A78BFA")); var line = new Pen(accent, 1.4) { DashStyle = new DashStyle([4d, 3d], 0) }; dc.DrawRectangle(null, line, bounds);
+        var accent = _selectionColor; var line = new Pen(accent, 1.4) { DashStyle = new DashStyle([4d, 3d], 0) }; dc.DrawRectangle(null, line, bounds);
         var points = HandlePoints(bounds); foreach (var point in points.Take(8)) dc.DrawRoundedRectangle(Brushes.White, new Pen(accent, 1.5), new Rect(point.X - HandleRadius, point.Y - HandleRadius, HandleRadius * 2, HandleRadius * 2), 2.5, 2.5);
         var rotate = points[8]; dc.DrawLine(new Pen(accent, 1.2), new Point(bounds.Left + bounds.Width / 2, bounds.Top), rotate); dc.DrawEllipse(Brush(IsDarkMode ? "#172132" : "#FFFFFF", "#172132"), new Pen(accent, 1.5), rotate, 6, 6);
     }

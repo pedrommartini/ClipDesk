@@ -123,7 +123,7 @@ public sealed partial class BoardObjectView
 
         var pluginId = Object.PluginId ?? BoardPluginIdentity.FromKind(Object.Kind);
         var activeVersion = pluginId is null ? null : ExternalPlugins.ActiveVersion(pluginId);
-        var signature = $"{Object.Kind}|{activeVersion}|{IsDarkMode}|{_pluginEditing}|{_currencyChoices.Count}|" +
+        var signature = $"{Object.Kind}|{activeVersion}|{IsDarkMode}|{_pluginEditing}|{_currencyChoices.Count}|{PluginAccentColor()}|" +
                         string.Join('|', Object.Content.OrderBy(entry => entry.Key).Select(entry => $"{entry.Key}={entry.Value}"));
         if (_pluginSurface is null || !string.Equals(signature, _pluginSignature, StringComparison.Ordinal))
         {
@@ -385,7 +385,7 @@ public sealed partial class BoardObjectView
         input.TextChanged += (_, _) => { if (_buildingPlugin) return; Object.Content["input"] = input.Text; MarkPluginChanged(); ScheduleUtilityRefresh(); };
         input.LostKeyboardFocus += (_, _) => WidgetActionRequested?.Invoke(this, "settle");
         Grid.SetRow(input, 1); body.Children.Add(input);
-        var output = _pluginResultText = ResponsiveText(Object.Content.GetValueOrDefault("output", "A tradução aparece aqui"), 14, "#BCA9FF");
+        var output = _pluginResultText = ResponsiveText(Object.Content.GetValueOrDefault("output", "A tradução aparece aqui"), 14, PluginAccentColor());
         output.TextWrapping = TextWrapping.Wrap; output.Margin = new Thickness(4, 6, 4, 3);
         var outputScroll = new ScrollViewer { Content = output, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         Grid.SetRow(outputScroll, 2); body.Children.Add(outputScroll);
@@ -414,7 +414,7 @@ public sealed partial class BoardObjectView
         amount.TextChanged += (_, _) => { if (_buildingPlugin) return; Object.Content["amount"] = amount.Text; MarkPluginChanged(); ScheduleUtilityRefresh(); };
         amount.LostKeyboardFocus += (_, _) => WidgetActionRequested?.Invoke(this, "settle");
         Grid.SetRow(amount, 1); body.Children.Add(amount);
-        var result = _pluginResultText = ResponsiveText(Object.Content.GetValueOrDefault("result", "Escolha as moedas e converta"), 17, "#7EE2BD", FontWeights.SemiBold);
+        var result = _pluginResultText = ResponsiveText(Object.Content.GetValueOrDefault("result", "Escolha as moedas e converta"), 17, PluginAccentColor(), FontWeights.SemiBold);
         result.TextWrapping = TextWrapping.Wrap; result.VerticalAlignment = VerticalAlignment.Center; result.Margin = new Thickness(3, 2, 3, 2);
         Grid.SetRow(result, 2); body.Children.Add(result);
         var status = _pluginStatusText = ResponsiveText(_utilityLoading ? "Convertendo…" : "Atualização automática", 11, IsDarkMode ? "#91A0B7" : "#64748B");
@@ -475,12 +475,12 @@ public sealed partial class BoardObjectView
 
     private Button FlatButton(string text, bool accent)
     {
-        var label = ResponsiveText(text, 13.5, accent ? "#FFFFFF" : (IsDarkMode ? "#E8EDF7" : "#263449"), FontWeights.SemiBold);
+        var label = ResponsiveText(text, 13.5, accent ? PluginAccentForeground() : (IsDarkMode ? "#E8EDF7" : "#263449"), FontWeights.SemiBold);
         label.HorizontalAlignment = HorizontalAlignment.Center; label.VerticalAlignment = VerticalAlignment.Center;
         return new Button
         {
             Content = label, Cursor = Cursors.Hand, FocusVisualStyle = null,
-            Background = ColorBrush(accent ? "#5E4BC5" : (IsDarkMode ? "#293750" : "#E6EDF6")),
+            Background = ColorBrush(accent ? PluginAccentColor() : (IsDarkMode ? "#293750" : "#E6EDF6")),
             BorderBrush = Brushes.Transparent, BorderThickness = new Thickness(0), Padding = new Thickness(7, 3, 7, 3),
             HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center
         };
@@ -493,7 +493,7 @@ public sealed partial class BoardObjectView
             Text = text, AcceptsReturn = acceptsReturn, TextWrapping = acceptsReturn ? TextWrapping.Wrap : TextWrapping.NoWrap,
             VerticalScrollBarVisibility = acceptsReturn ? ScrollBarVisibility.Auto : ScrollBarVisibility.Disabled,
             FontFamily = new FontFamily("Segoe UI Variable Text"), FontSize = Responsive(baseFontSize), Tag = $"plugin-font:{baseFontSize.ToString(CultureInfo.InvariantCulture)}",
-            Foreground = ColorBrush(IsDarkMode ? "#F0F4FC" : "#263449"), CaretBrush = ColorBrush("#B998FF"),
+            Foreground = ColorBrush(IsDarkMode ? "#F0F4FC" : "#263449"), CaretBrush = ColorBrush(PluginAccentColor()),
             Background = ColorBrush(IsDarkMode ? "#7F111A28" : "#F1F5F9"), BorderBrush = ColorBrush(IsDarkMode ? "#31445E" : "#D7E0EA"),
             BorderThickness = new Thickness(1), Padding = new Thickness(8, 5, 8, 5), VerticalContentAlignment = VerticalAlignment.Center
         };
@@ -551,6 +551,13 @@ public sealed partial class BoardObjectView
         }
         catch (FormatException) { return fallback; }
         catch (NotSupportedException) { return fallback; }
+    }
+
+    private string PluginAccentForeground()
+    {
+        var color = (Color)ColorConverter.ConvertFromString(PluginAccentColor());
+        var luminance = (.2126 * color.R + .7152 * color.G + .0722 * color.B) / 255;
+        return luminance > .62 ? "#172033" : "#FFFFFF";
     }
     private static string LanguageLabel(string code) => LanguageChoices.FirstOrDefault(choice => choice.Code.Equals(code, StringComparison.OrdinalIgnoreCase)).Label is { Length: > 0 } label ? label : code;
 

@@ -107,8 +107,10 @@ A UI deve:
 
 - funcionar em tema claro e escuro e aproximadamente a partir de 300×240;
 - redimensionar sem cortar conteúdo e usar rolagem quando necessário;
-- usar `context.AccentColor` em ações ou indicadores principais, com contraste legível;
+- tratar `context.AccentColor` como o tema da instância: aplicar em botões primários/ativos, indicadores e resultados relevantes; controles neutros podem manter a cor de superfície;
+- garantir contraste para qualquer cor personalizada e não manter pincéis de destaque estáticos entre reconstruções da view;
 - não criar seletor de cor dentro do plugin; o host mostra a paleta somente quando o objeto é selecionado pelo cabeçalho para mover/redimensionar;
+- não usar `AccentColor` para bordas ou alças de seleção: o host desenha esse outline com a cor de presença do colaborador e transmite o arraste em tempo real;
 - respeitar `context.Scale`, teclado, foco e alvos de toque confortáveis;
 - cancelar operações pendentes em `Unloaded`;
 - apresentar erros curtos e recuperáveis, sem detalhes técnicos na tela.
@@ -191,6 +193,8 @@ Na futura promoção DEV → Main, a loja deve ir funcional: plugins padrão apa
 - [ ] Estado é pequeno, versionado, normalizado e retrocompatível.
 - [ ] Comandos validam argumentos e retornam status apropriado.
 - [ ] UI usa o host para efeitos externos e a cor de destaque do contexto.
+- [ ] Trocar a cor atualiza cabeçalho, ações primárias e indicadores imediatamente, sem reabrir o plugin.
+- [ ] O plugin não desenha nem persiste outline de seleção ou cor de colaborador.
 - [ ] Manifesto anuncia somente recursos realmente implementados.
 - [ ] Build e empacotamento terminam sem erro.
 - [ ] Nenhum feed, SDK, aplicativo ou branch foi modificado.

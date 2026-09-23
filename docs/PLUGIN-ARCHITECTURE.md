@@ -24,7 +24,8 @@ O sistema v2 separa comportamento, apresentação e serviços de plataforma. O o
 - O projeto Windows ao lado é apenas um renderizador. Ele traduz eventos WPF em comandos do módulo por `WindowsPluginViewContext.ExecuteAsync`.
 - O host controla moldura, persistência, desfazer, sincronização, permissões e recursos do sistema. O plugin não recebe um objeto interno do aplicativo.
 - O manifesto v2 declara uma entrada portável e zero ou mais renderizadores. Um pacote só é compatível com uma plataforma quando contém um renderizador para ela.
-- Aparência por instância, como a cor de destaque, fica em `BoardObject.Style`; o renderizador recebe a cor resolvida do host. A paleta é uma ferramenta do modo de seleção/movimentação do host, não parte do plugin nem do menu de contexto. O estado do plugin continua reservado para dados funcionais.
+- Aparência por instância, como a cor de destaque, fica em `BoardObject.Style`; o renderizador recebe a cor resolvida do host e a aplica a ações primárias, estados ativos, indicadores e resultados relevantes. O host aplica o mesmo valor ao cabeçalho e invalida a view quando ele muda. A paleta é uma ferramenta do modo de seleção/movimentação do host, não parte do plugin nem do menu de contexto. O estado do plugin continua reservado para dados funcionais.
+- Outline e alças de seleção pertencem à presença colaborativa, não à aparência do plugin. A cor é derivada da identidade do usuário; movimentos ativos trafegam no payload efêmero `PresenceMessage.Drags`, são interpolados nos demais clientes e desaparecem ao encerrar o arraste ou expirar a presença. Hosts WPF e MAUI devem preservar essa separação.
 
 ## Manifesto v2
 

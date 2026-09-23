@@ -331,6 +331,7 @@ public partial class MainWindow
     {
         if (obj.Kind == BoardObjectKind.Connector) UpdateConnectorGeometry(obj);
         var view = new BoardObjectView(obj) { IsDarkMode = _isDarkMode, IsInteractive = obj.Kind != BoardObjectKind.Connector && _activeCreativeTool == CreativeTool.Select };
+        view.SetSelectionColor(LocalPresenceColor());
         if (_availableCurrencyChoices.Count > 0) view.SetCurrencyChoices(_availableCurrencyChoices);
         PositionBoardObjectView(view); Panel.SetZIndex(view, obj.Kind == BoardObjectKind.Connector ? -2 : obj.ZIndex);
         view.Selected += (_, _) => SelectBoardObject(view);
@@ -374,6 +375,7 @@ public partial class MainWindow
         ClearSelection();
         _selectedBoardObjectView = view;
         _selectedBoardObjectViews.Add(view);
+        view.SetSelectionColor(LocalPresenceColor());
         view.SetSelected(true);
         ShowCreativeFormatMenu(view.Object, view);
     }
@@ -689,7 +691,12 @@ public partial class MainWindow
     private void UpdateConnectorSelectionVisuals()
     {
         foreach (var card in WorkspaceCanvas.Children.OfType<ItemCard>()) card.SetSelected(_connectorCardIds.Contains(CardNodeId(card.Item.Id)));
-        foreach (var view in WorkspaceCanvas.Children.OfType<BoardObjectView>().Where(v => v.Object.Kind != BoardObjectKind.Connector)) view.SetSelected(_connectorCardIds.Contains(ObjectNodeId(view.Object.Id)));
+        foreach (var view in WorkspaceCanvas.Children.OfType<BoardObjectView>().Where(v => v.Object.Kind != BoardObjectKind.Connector))
+        {
+            var selected = _connectorCardIds.Contains(ObjectNodeId(view.Object.Id));
+            if (selected) view.SetSelectionColor(LocalPresenceColor());
+            view.SetSelected(selected);
+        }
     }
 
     private void ResetConnectorSession() { _connectorCardIds.Clear(); _activeConnectorObject = null; UpdateConnectorSelectionVisuals(); }

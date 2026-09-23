@@ -677,6 +677,7 @@ public partial class MainWindow
         var palette=new[]{"#22D3EE","#FB7185","#A78BFA","#34D399","#FBBF24","#60A5FA"};
         var hash=SHA256.HashData(Encoding.UTF8.GetBytes(id)); return new SolidColorBrush((Color)ColorConverter.ConvertFromString(palette[hash[0]%palette.Length]));
     }
+    private SolidColorBrush LocalPresenceColor() => PresenceColor(_cloud?.User?.Id ?? _storageService.Profile);
     private async Task UpdateMembersAsync()
     {
         if(_cloud?.Connected!=true) return;
