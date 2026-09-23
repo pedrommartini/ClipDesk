@@ -46,8 +46,10 @@ public sealed class PluginCatalogService
         var catalog = bundled.Select(item =>
         {
             var installed = GetInstalledPackage(item.Manifest.Id);
+            var available = ResolveAvailablePackage(item.Manifest.Id)
+                            ?? new InstalledPluginPackage(item.Manifest, item.Directory);
             return installed is null
-                ? new PluginCatalogEntry(item.Manifest, false, null, item.Directory)
+                ? new PluginCatalogEntry(available.Manifest, false, null, available.Directory)
                 : new PluginCatalogEntry(installed.Manifest, true, installed.Manifest.Version, installed.Directory);
         }).ToList();
 
@@ -55,8 +57,11 @@ public sealed class PluginCatalogService
                      .Distinct(StringComparer.OrdinalIgnoreCase))
         {
             if (catalog.Any(item => item.Manifest.Id.Equals(id, StringComparison.OrdinalIgnoreCase))) continue;
-            if (GetInstalledPackage(id) is { } installed)
-                catalog.Add(new PluginCatalogEntry(installed.Manifest, true, installed.Manifest.Version, installed.Directory));
+            var installed = GetInstalledPackage(id);
+            var available = installed ?? ResolveAvailablePackage(id);
+            if (available is not null)
+                catalog.Add(new PluginCatalogEntry(available.Manifest, installed is not null,
+                    installed?.Manifest.Version, available.Directory));
         }
         return catalog.OrderBy(item => item.Manifest.SortOrder).ThenBy(item => item.Manifest.Name).ToArray();
     }
@@ -64,16 +69,46 @@ public sealed class PluginCatalogService
     public InstalledPluginPackage? GetInstalledPackage(string pluginId)
     {
         if (!SafeId.IsMatch(pluginId)) return null;
+        if (IsDisabled(pluginId)) return null;
         var bundled = ReadBundledPackage(pluginId);
         var optional = ReadStoredPackage(_optionalRoot, pluginId);
         var privateUpdate = ReadStoredPackage(_bundledUpdateRoot, pluginId);
         if (bundled is null || !bundled.Manifest.InstallByDefault) return optional ?? privateUpdate;
+        return SelectNewest(pluginId, bundled, (_bundledUpdateRoot, privateUpdate), (_optionalRoot, optional));
+    }
 
+    private InstalledPluginPackage? ResolveAvailablePackage(string pluginId)
+    {
+        var bundled = ReadBundledPackage(pluginId);
+        var optional = ReadStoredPackage(_optionalRoot, pluginId);
+        var privateUpdate = ReadStoredPackage(_bundledUpdateRoot, pluginId);
+        if (bundled is null) return optional ?? privateUpdate;
+        if (!bundled.Manifest.InstallByDefault) return optional ?? privateUpdate ?? bundled;
+        return SelectNewest(pluginId, bundled, (_bundledUpdateRoot, privateUpdate), (_optionalRoot, optional));
+    }
+
+    private InstalledPluginPackage SelectNewest(string pluginId, InstalledPluginPackage bundled,
+        params (string Root, InstalledPluginPackage? Package)[] candidates)
+    {
         var selected = bundled;
-        foreach (var candidate in new[] { privateUpdate, optional })
-            if (candidate is not null && Version.Parse(candidate.Manifest.Version) > Version.Parse(selected.Manifest.Version))
+        foreach (var (root, candidate) in candidates)
+            if (candidate is not null
+                && (Version.Parse(candidate.Manifest.Version) > Version.Parse(selected.Manifest.Version)
+                    || Version.Parse(candidate.Manifest.Version) == Version.Parse(selected.Manifest.Version)
+                    && IsExplicitPackageActive(root, pluginId, candidate.Directory)))
                 selected = candidate;
         return selected;
+    }
+
+    private static bool IsExplicitPackageActive(string root, string pluginId, string directory)
+    {
+        try
+        {
+            var pointer = Path.Combine(root, pluginId, "current-package.txt");
+            return File.Exists(pointer) && Path.GetFileName(directory)
+                .Equals(File.ReadAllText(pointer).Trim(), StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return false; }
     }
 
     private InstalledPluginPackage? ReadBundledPackage(string pluginId)
@@ -91,26 +126,23 @@ public sealed class PluginCatalogService
         var pluginRoot = SafeChild(root, pluginId);
         if (!Directory.Exists(pluginRoot)) return null;
 
-        var pointer = Path.Combine(pluginRoot, "current-version.txt");
+        var packagePointer = Path.Combine(pluginRoot, "current-package.txt");
+        var versionPointer = Path.Combine(pluginRoot, "current-version.txt");
         var candidates = new List<string>();
         try
         {
-            if (File.Exists(pointer)) candidates.Add(File.ReadAllText(pointer).Trim());
-            candidates.AddRange(Directory.EnumerateDirectories(pluginRoot).Select(Path.GetFileName).OfType<string>());
+            if (File.Exists(packagePointer)) candidates.Add(File.ReadAllText(packagePointer).Trim());
+            if (File.Exists(versionPointer)) candidates.Add(File.ReadAllText(versionPointer).Trim());
+            candidates.AddRange(Directory.EnumerateDirectories(pluginRoot).Select(Path.GetFileName).OfType<string>()
+                .Where(version => Version.TryParse(version, out _)).OrderByDescending(Version.Parse));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
 
-        var preferred = candidates.FirstOrDefault();
-        var ordered = candidates.Distinct(StringComparer.OrdinalIgnoreCase)
-            .Where(version => Version.TryParse(version, out _))
-            .OrderByDescending(Version.Parse)
-            .ToList();
-        if (preferred is not null && ordered.Remove(preferred)) ordered.Insert(0, preferred);
-        foreach (var version in ordered)
+        foreach (var slot in candidates.Where(IsSafeSlot).Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            var directory = SafeChild(pluginRoot, version);
+            var directory = SafeChild(pluginRoot, slot);
             var manifest = TryReadManifest(Path.Combine(directory, "manifest.json"));
-            if (manifest is null || manifest.Id != pluginId || manifest.Version != version
+            if (manifest is null || manifest.Id != pluginId || !Version.TryParse(manifest.Version, out _)
                 || !PluginCompatibility.Supports(manifest, _hostVersion, PluginCompatibility.WindowsApiVersion, "windows")
                 || !EntryExists(manifest, directory)) continue;
             return new InstalledPluginPackage(manifest, directory);
@@ -138,6 +170,39 @@ public sealed class PluginCatalogService
     }
 
     public PluginCatalogEntry Install(PluginManifest manifest, string packageDirectory)
+        => InstallCore(manifest, packageDirectory, NormalizeVersion(manifest.Version), reuseExisting: true);
+
+    public PluginCatalogEntry Repair(PluginManifest manifest, string packageDirectory)
+        => InstallCore(manifest, packageDirectory,
+            $"{NormalizeVersion(manifest.Version)}-repair-{Guid.NewGuid():N}", reuseExisting: false);
+
+    public PluginCatalogEntry Enable(string pluginId)
+    {
+        if (!SafeId.IsMatch(pluginId) || ResolveAvailablePackage(pluginId) is not { } available)
+            throw new InvalidDataException("O plugin não possui um pacote disponível para ativação.");
+        var bundled = ReadBundledPackage(pluginId);
+        if (bundled is not null && !bundled.Manifest.InstallByDefault
+            && ReadStoredPackage(_optionalRoot, pluginId) is null
+            && ReadStoredPackage(_bundledUpdateRoot, pluginId) is null)
+            return Install(available.Manifest, available.Directory);
+        var marker = DisabledMarker(pluginId);
+        if (File.Exists(marker)) File.Delete(marker);
+        return new PluginCatalogEntry(available.Manifest, true, available.Manifest.Version, available.Directory);
+    }
+
+    public bool Uninstall(string pluginId)
+    {
+        if (!SafeId.IsMatch(pluginId) || ResolveAvailablePackage(pluginId) is null) return false;
+        var marker = DisabledMarker(pluginId);
+        Directory.CreateDirectory(Path.GetDirectoryName(marker)!);
+        var temporary = marker + $".{Guid.NewGuid():N}.tmp";
+        File.WriteAllText(temporary, DateTimeOffset.UtcNow.ToString("O"));
+        File.Move(temporary, marker, overwrite: true);
+        return true;
+    }
+
+    private PluginCatalogEntry InstallCore(PluginManifest manifest, string packageDirectory, string slot,
+        bool reuseExisting)
     {
         Validate(manifest);
         if (!PluginCompatibility.Supports(manifest, _hostVersion, PluginCompatibility.WindowsApiVersion, "windows"))
@@ -148,8 +213,8 @@ public sealed class PluginCatalogService
             ? _bundledUpdateRoot : _optionalRoot;
         var pluginRoot = SafeChild(destinationRoot, manifest.Id);
         Directory.CreateDirectory(pluginRoot);
-        var destination = SafeChild(pluginRoot, version);
-        if (Directory.Exists(destination))
+        var destination = SafeChild(pluginRoot, slot);
+        if (reuseExisting && Directory.Exists(destination))
         {
             var existing = TryReadManifest(Path.Combine(destination, "manifest.json"));
             if (existing is null || existing.Id != manifest.Id || existing.Version != manifest.Version
@@ -172,12 +237,32 @@ public sealed class PluginCatalogService
             finally { if (Directory.Exists(staging)) Directory.Delete(staging, recursive: true); }
         }
 
-        var pointer = Path.Combine(pluginRoot, "current-version.txt");
-        var temporaryPointer = Path.Combine(pluginRoot, $".current-{Guid.NewGuid():N}.tmp");
-        File.WriteAllText(temporaryPointer, version);
-        File.Move(temporaryPointer, pointer, overwrite: true);
+        WritePointer(pluginRoot, "current-package.txt", slot);
+        WritePointer(pluginRoot, "current-version.txt", version);
+        var disabled = Path.Combine(pluginRoot, "disabled.txt");
+        if (File.Exists(disabled)) File.Delete(disabled);
         return new PluginCatalogEntry(manifest, true, version, destination);
     }
+
+    private string DisabledMarker(string pluginId)
+    {
+        var root = ReadBundledPackage(pluginId)?.Manifest.InstallByDefault == true
+            ? _bundledUpdateRoot : _optionalRoot;
+        return Path.Combine(SafeChild(root, pluginId), "disabled.txt");
+    }
+
+    private bool IsDisabled(string pluginId) => File.Exists(DisabledMarker(pluginId));
+
+    private static void WritePointer(string pluginRoot, string fileName, string value)
+    {
+        var pointer = Path.Combine(pluginRoot, fileName);
+        var temporary = Path.Combine(pluginRoot, $".{fileName}-{Guid.NewGuid():N}.tmp");
+        File.WriteAllText(temporary, value);
+        File.Move(temporary, pointer, overwrite: true);
+    }
+
+    private static bool IsSafeSlot(string slot) => !string.IsNullOrWhiteSpace(slot)
+        && slot == Path.GetFileName(slot) && slot is not "." and not "..";
 
     private IEnumerable<(PluginManifest Manifest, string Directory)> ReadManifests(string root)
     {

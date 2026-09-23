@@ -1,6 +1,6 @@
 # ClipDesk New — plano e status da migração
 
-Última atualização: 22 de setembro de 2026.
+Última atualização: 23 de setembro de 2026.
 
 ## Propósito e regras da branch
 
@@ -76,6 +76,9 @@ Esse gate promove uma versão validada da loja; ele não conecta produção perm
 - Ajustada a paleta de destaque para aparecer exclusivamente na seleção de movimentação do plugin, separada da interação interna e do menu de contexto.
 - Corrigida a invalidação da interface para propagar imediatamente a cor escolhida ao cabeçalho, botões primários, estados ativos e resultados internos dos plugins.
 - Separada a cor temática do plugin da cor de presença: outline e alças agora identificam o colaborador que movimenta o objeto e continuam sincronizados pelo canal de presença em tempo real.
+- Adicionado botão dividido na loja: **Adicionar** permanece como ação principal, enquanto a seta oferece **Reparar** e **Desinstalar**.
+- Reparar passou a ativar uma cópia limpa e validada do pacote sem apagar o estado das instâncias; desinstalar é uma desativação local reversível que preserva objetos e dados das mesas.
+- Atualizações independentes dos plugins passaram a ser verificadas na inicialização, na abertura da loja e periodicamente a cada 30 minutos, sem reativar plugins desinstalados.
 
 ## Próximos passos recomendados
 

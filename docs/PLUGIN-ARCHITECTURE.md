@@ -102,6 +102,10 @@ Existem canais independentes. Produção consulta o feed de `main`; builds DEV e
 
 Plugins incluídos ficam em `Plugins/Bundled`. O build compila e copia os dois binários de cada plugin padrão para sua pasta. Plugins opcionais ficam em Documentos; atualizações dos incluídos ficam no cache privado, preservando a versão embarcada como fallback.
 
+A loja usa uma ação dividida: **Adicionar** executa a ação principal e a seta abre **Reparar** e **Desinstalar**. Reparar copia novamente um pacote validado para um diretório imutável novo e só troca o ponteiro ativo depois de a cópia estar completa; estados e objetos já presentes nas mesas não são apagados. Desinstalar grava uma desativação local e interrompe o uso do plugin, mas preserva o pacote recuperável e todos os estados das mesas. Por isso, ativá-lo novamente restaura as instâncias sem perda de conteúdo.
+
+Atualizações de plugins instalados são automáticas e independentes da atualização do aplicativo. O host consulta o feed ao iniciar, ao abrir a loja e a cada 30 minutos enquanto estiver aberto; há proteção contra verificações concorrentes e um intervalo mínimo de 15 minutos. Somente versões maiores, compatíveis e com ZIP íntegro são ativadas. Plugins desinstalados não são reativados por uma atualização automática.
+
 ## Estratégia MAUI e Android
 
 Os módulos Core já são reutilizáveis. A próxima fase deve criar um contrato de renderização MAUI e renderizadores por plugin, sem mudar comandos ou estado. No Android, o registro dos módulos deve ser estático durante o build: carregamento arbitrário de DLL baixada é incompatível com AOT, distribuição nas lojas e um modelo de segurança aceitável. O mesmo formato de pacote pode continuar sendo usado no Windows; no Android, o manifesto funciona como catálogo de capacidades de módulos compilados no aplicativo.

@@ -224,7 +224,7 @@ Fluxo de deploy de desenvolvimento:
 2. Publique o ZIP como asset do pré-lançamento `plugins-<versão>`. O binário pode ser compartilhado pelos clientes Windows DEV e New enquanto ambos usarem o renderizador WPF. Quando o renderizador MAUI existir, o pacote deverá incluir também sua entrada.
 3. Copie a entrada produzida pelo empacotador para `PluginPackages/feed.json` na branch `codex/clipdesk-dev`, preservando as outras versões desejadas.
 4. Faça commit e push **somente da branch de desenvolvimento**. Confirme que o feed abre em `https://raw.githubusercontent.com/pedrommartini/ClipDesk/refs/heads/codex/clipdesk-dev/PluginPackages/feed.json` e que o SHA-256 corresponde ao asset.
-5. Reinicie o cliente ou abra **Mais plug-ins** após o intervalo de atualização. Um plugin novo aparece para instalação; uma versão maior de plugin instalado é atualizada automaticamente.
+5. Reinicie o cliente, abra **Mais plug-ins** ou aguarde a verificação periódica. Um plugin novo aparece para instalação; uma versão maior de plugin instalado é atualizada automaticamente. O cliente consulta o feed ao iniciar, ao abrir a loja e a cada 30 minutos, respeitando um intervalo mínimo de 15 minutos e sem executar verificações sobrepostas.
 6. Valide primeiro no DEV. Depois valide no ClipDesk New quando a loja MAUI estiver disponível. Não copie a entrada para `main` enquanto a promoção para produção não tiver aprovação explícita.
 
 Os quatro plugins padrão são incluídos no build e aparecem como instalados mesmo com o feed vazio. O feed é necessário para plugins opcionais e atualizações independentes.
@@ -259,7 +259,14 @@ Os limites são 25 MiB compactado, 80 MiB extraído e 256 arquivos. O hash evita
 - Incluídos: `Plugins/Bundled/<id>` ao lado do aplicativo.
 - Opcionais: `Documentos\Clipdesk\<id>\<versão>`; no DEV, `Documentos\Clipdesk\Dev`.
 - Atualização de incluído: cache privado `<DataRoot>/Plugins/<id>/<versão>`.
-- `current-version.txt` aponta a versão ativa; versões antigas não são apagadas automaticamente.
+- `current-version.txt` registra a versão lógica e `current-package.txt` identifica o diretório imutável ativo quando há reparo; versões antigas não são apagadas automaticamente.
+
+Na loja, **Adicionar** coloca uma nova instância na mesa. A seta ao lado abre:
+
+- **Reparar**: obtém novamente o pacote validado, instala uma cópia limpa em novo diretório e a ativa de forma atômica. Objetos, configurações e estado funcional das instâncias são preservados.
+- **Desinstalar**: desativa o plugin neste dispositivo sem remover os objetos ou seus dados das mesas. Enquanto estiver ausente, a mesa mostra a orientação de instalação; ao ativar o plugin novamente, o estado reaparece.
+
+Uma atualização automática nunca reativa um plugin que o usuário desinstalou. Para plugins baixados, reparar exige que a versão esteja publicada no feed com URL e SHA-256 válidos. Para plugins incluídos no aplicativo, o pacote embarcado continua sendo o fallback confiável.
 
 O estado da instância é sincronizado; o pacote não. Se o plugin faltar num dispositivo, o objeto e seus dados permanecem. Uma versão nova deve continuar lendo o estado produzido por versões anteriores durante a janela de atualização.
 

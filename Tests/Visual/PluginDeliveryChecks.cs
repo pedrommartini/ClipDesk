@@ -66,7 +66,8 @@ internal static class PluginDeliveryChecks
             var hash = Convert.ToHexString(SHA256.HashData(zipBytes));
             var package = new PluginFeedPackage
             {
-                Id = BuiltInPluginIds.Calculator, Version = "1.1.0", Runtime = "wpf-v1", PluginApiVersion = 1,
+                Id = BuiltInPluginIds.Calculator, Name = "Calculadora", Description = "Plugin de teste.",
+                Version = "1.1.0", Runtime = "wpf-v1", PluginApiVersion = 1,
                 EntryAssembly = newManifest.EntryAssembly, EntryType = newManifest.EntryType,
                 MinimumHostVersion = "0.3.3", Url = "https://example.test/calculator.zip", Sha256 = hash
             };
@@ -130,6 +131,15 @@ internal static class PluginDeliveryChecks
             if (!updated.Single().Directory.StartsWith(privateUpdates + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
                 || Directory.Exists(installed))
                 throw new Exception("A bundled plugin update was installed in the user-selected plugins folder.");
+            var storeEntry = PluginDeliveryService.AddRemoteEntries(feed, catalog.LoadCatalog(), new Version(0, 3, 3)).Single();
+            if (!storeEntry.IsInstalled || storeEntry.RemotePackage?.Version != "1.1.0")
+                throw new Exception($"The store did not retain the verified remote package needed to repair an installed plugin " +
+                                    $"(installed={storeEntry.IsInstalled}, remote={storeEntry.RemotePackage?.Version ?? "none"}).");
+            var repairedRemote = new PluginDeliveryService(catalog, http, feedUri)
+                .RepairRemoteAsync(storeEntry.RemotePackage).GetAwaiter().GetResult();
+            if (!repairedRemote.Directory.Contains("-repair-", StringComparison.Ordinal)
+                || catalog.GetInstalledPackage(package.Id)?.Directory != repairedRemote.Directory)
+                throw new Exception("Remote repair did not activate a clean, verified package slot.");
 
             var loader = new WindowsPluginLoader(catalog);
             var state = new Dictionary<string, string> { ["expression"] = "", ["display"] = "0" };
@@ -183,6 +193,7 @@ internal static class PluginDeliveryChecks
                     StringComparison.OrdinalIgnoreCase))
                 throw new Exception("A user-selected plugin was not installed under Documents.");
             VerifyLegacyOptionalMigration(root, newPluginSource, newPluginManifest);
+            VerifyPluginLifecycle(root);
             var boardView = new BoardObjectView(new BoardObject
             {
                 Kind = BoardObjectKind.Plugin, PluginId = newPluginManifest.Id,
@@ -216,6 +227,39 @@ internal static class PluginDeliveryChecks
         if (!migrated.IsInstalled || !migrated.PackageDirectory.StartsWith(documentsRoot + Path.DirectorySeparatorChar,
                 StringComparison.OrdinalIgnoreCase) || !Directory.Exists(oldPackage))
             throw new Exception("A legacy optional plugin was not copied safely to Documents.");
+    }
+
+    private static void VerifyPluginLifecycle(string root)
+    {
+        var lifecycleRoot = Path.Combine(root, "lifecycle");
+        var bundledRoot = Path.Combine(lifecycleRoot, "bundled");
+        var package = Path.Combine(bundledRoot, BuiltInPluginIds.Calculator);
+        var optionalRoot = Path.Combine(lifecycleRoot, "optional");
+        var updateRoot = Path.Combine(lifecycleRoot, "updates");
+        Directory.CreateDirectory(package);
+        var manifest = Manifest("1.0.0", "legacy-wpf", 0);
+        File.WriteAllText(Path.Combine(package, "manifest.json"), JsonSerializer.Serialize(manifest, Json));
+        var catalog = new PluginCatalogService(bundledRoot, optionalRoot, new Version(0, 3, 3), updateRoot);
+
+        if (!catalog.Uninstall(manifest.Id) || catalog.GetInstalledPackage(manifest.Id) is not null
+            || catalog.LoadCatalog().Single().IsInstalled)
+            throw new Exception("Uninstall did not deactivate the plugin while retaining its store entry.");
+        catalog.Enable(manifest.Id);
+        if (catalog.GetInstalledPackage(manifest.Id) is null)
+            throw new Exception("An uninstalled plugin could not be enabled again.");
+
+        var repaired = catalog.Repair(manifest, package);
+        if (!repaired.PackageDirectory.Contains("-repair-", StringComparison.Ordinal)
+            || catalog.GetInstalledPackage(manifest.Id)?.Directory != repaired.PackageDirectory
+            || !File.Exists(Path.Combine(updateRoot, manifest.Id, "current-package.txt")))
+            throw new Exception("Repair did not activate a clean package slot.");
+        catalog.Uninstall(manifest.Id);
+        var disabled = catalog.LoadCatalog().Single();
+        if (disabled.IsInstalled || disabled.PackageDirectory != repaired.PackageDirectory)
+            throw new Exception("Repair source was not retained for a later activation.");
+        catalog.Enable(manifest.Id);
+        if (catalog.GetInstalledPackage(manifest.Id)?.Directory != repaired.PackageDirectory)
+            throw new Exception("The repaired package could not be activated again after uninstalling.");
     }
 
     private static void VerifyIndependentModules(string root, PluginCatalogService catalog, WindowsPluginLoader loader)

@@ -45,32 +45,44 @@
             </Setter>
         </Style>
 
-        <Style x:Key="PluginCardButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Style x:Key="PluginCardSurfaceStyle" TargetType="Border">
             <Setter Property="Background" Value="{DynamicResource StoreCardBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource StoreCardBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="15" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource StoreCardHoverBrush}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource StoreAccentBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="PluginSplitActionButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource StoreActionTextBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Padding" Value="10,0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="CardSurface"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="15"
+                        <Border x:Name="ActionSurface" Background="{TemplateBinding Background}"
                                 Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="CardSurface" Property="Background" Value="{DynamicResource StoreCardHoverBrush}" />
-                                <Setter TargetName="CardSurface" Property="BorderBrush" Value="{DynamicResource StoreAccentBrush}" />
+                                <Setter TargetName="ActionSurface" Property="Background" Value="{DynamicResource StoreAccentWashBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="CardSurface" Property="Opacity" Value="0.82" />
+                                <Setter TargetName="ActionSurface" Property="Opacity" Value="0.68" />
                             </Trigger>
                             <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="CardSurface" Property="BorderBrush" Value="{DynamicResource StoreAccentBrush}" />
-                                <Setter TargetName="CardSurface" Property="BorderThickness" Value="2" />
+                                <Setter TargetName="ActionSurface" Property="Background" Value="{DynamicResource StoreAccentWashBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>

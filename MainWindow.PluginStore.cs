@@ -20,6 +20,8 @@ public partial class MainWindow
     private PluginFeed? _remotePluginFeed;
     private bool _pluginFeedCheckInProgress;
     private DateTimeOffset _lastPluginFeedCheck;
+    private readonly DispatcherTimer _pluginUpdateTimer = new() { Interval = TimeSpan.FromMinutes(30) };
+    private bool _pluginMaintenanceInProgress;
 
     private void InitializePluginStore()
     {
@@ -35,6 +37,11 @@ public partial class MainWindow
         PluginStore.Bind(_pluginCatalogEntries);
         PluginStore.CloseRequested += (_, _) => HidePluginStore();
         PluginStore.PluginActionRequested += PluginStoreActionRequested;
+        PluginStore.PluginRepairRequested += PluginStoreRepairRequested;
+        PluginStore.PluginUninstallRequested += PluginStoreUninstallRequested;
+        _pluginUpdateTimer.Tick += (_, _) => _ = CheckForPluginUpdatesAsync();
+        _pluginUpdateTimer.Start();
+        Closed += (_, _) => _pluginUpdateTimer.Stop();
     }
 
     private void ShowPluginStore(Point canvasPoint)
@@ -139,7 +146,7 @@ public partial class MainWindow
             {
                 if (entry.RemotePackage is { } remote)
                     await new PluginDeliveryService(_pluginCatalogService).InstallRemoteAsync(remote);
-                else _pluginCatalogService.Install(entry.Manifest, entry.PackageDirectory);
+                else _pluginCatalogService.Enable(entry.Manifest.Id);
                 Views.BoardObjectView.InvalidateExternalPlugin(entry.Manifest.Id);
                 ReloadPluginCatalog();
                 entry = _pluginCatalogEntries.Single(item => item.Manifest.Id == entry.Manifest.Id);
@@ -167,6 +174,72 @@ public partial class MainWindow
             return;
         }
         ShowToast($"{entry.Manifest.Name} adicionado à mesa");
+    }
+
+    private async void PluginStoreRepairRequested(PluginCatalogEntry entry)
+    {
+        if (_pluginMaintenanceInProgress || !entry.IsInstalled) return;
+        _pluginMaintenanceInProgress = true;
+        try
+        {
+            InstalledPluginPackage repaired;
+            if (entry.RemotePackage is { } remote)
+                repaired = await new PluginDeliveryService(_pluginCatalogService).RepairRemoteAsync(remote);
+            else
+            {
+                _pluginCatalogService.Repair(entry.Manifest, entry.PackageDirectory);
+                repaired = _pluginCatalogService.GetInstalledPackage(entry.Manifest.Id)
+                           ?? throw new InvalidDataException("O plugin não ficou disponível após o reparo.");
+            }
+            ApplyPluginPackageChange(repaired.Manifest.Id, repaired.Manifest.Version, synchronizeVersion: true);
+            ReloadPluginCatalog();
+            ShowToast($"{repaired.Manifest.Name} reparado");
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or HttpRequestException)
+        {
+            ShowToast($"Não foi possível reparar: {ex.Message}");
+        }
+        finally { _pluginMaintenanceInProgress = false; }
+    }
+
+    private void PluginStoreUninstallRequested(PluginCatalogEntry entry)
+    {
+        if (_pluginMaintenanceInProgress || !entry.IsInstalled) return;
+        _pluginMaintenanceInProgress = true;
+        try
+        {
+            if (!_pluginCatalogService.Uninstall(entry.Manifest.Id))
+                throw new InvalidDataException("O plugin não está instalado.");
+            ApplyPluginPackageChange(entry.Manifest.Id, version: null, synchronizeVersion: false);
+            ReloadPluginCatalog();
+            ShowToast($"{entry.Manifest.Name} desinstalado · dados da mesa preservados");
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            ShowToast($"Não foi possível desinstalar: {ex.Message}");
+        }
+        finally { _pluginMaintenanceInProgress = false; }
+    }
+
+    private void ApplyPluginPackageChange(string pluginId, string? version, bool synchronizeVersion)
+    {
+        Views.BoardObjectView.InvalidateExternalPlugin(pluginId);
+        if (synchronizeVersion && version is not null)
+        {
+            foreach (var board in _workspaces)
+            foreach (var obj in board.Objects.Where(obj => obj.PluginId == pluginId))
+            {
+                obj.PluginVersion = version;
+                obj.UpdatedAt = DateTimeOffset.UtcNow;
+            }
+        }
+        foreach (var view in WorkspaceCanvas.Children.OfType<Views.BoardObjectView>()
+                     .Where(view => view.Object.PluginId == pluginId))
+        {
+            view.RefreshFromObject();
+            if (synchronizeVersion) QueueBoardObjectRealtime(view.Object);
+        }
+        if (synchronizeVersion) Save();
     }
 
     private bool AddInstalledPluginToCanvas(PluginCatalogEntry entry)

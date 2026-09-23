@@ -123,6 +123,14 @@ public sealed class PluginDeliveryService
 
     public async Task<InstalledPluginPackage> InstallRemoteAsync(PluginFeedPackage package,
         CancellationToken cancellationToken = default)
+        => await InstallRemoteAsync(package, repair: false, cancellationToken);
+
+    public async Task<InstalledPluginPackage> RepairRemoteAsync(PluginFeedPackage package,
+        CancellationToken cancellationToken = default)
+        => await InstallRemoteAsync(package, repair: true, cancellationToken);
+
+    private async Task<InstalledPluginPackage> InstallRemoteAsync(PluginFeedPackage package, bool repair,
+        CancellationToken cancellationToken)
     {
         if (!PluginCompatibility.Supports(package.CompatibilityManifest(), Version.Parse(UpdateService.CurrentVersion),
                 PluginCompatibility.WindowsApiVersion, "windows") || package.Sha256 is null
@@ -137,7 +145,8 @@ public sealed class PluginDeliveryService
                 || !PluginCompatibility.Supports(manifest, Version.Parse(UpdateService.CurrentVersion),
                     PluginCompatibility.WindowsApiVersion, "windows"))
                 throw new InvalidDataException($"Pacote inválido para {package.Id}.");
-            _catalog.Install(manifest, packageDirectory);
+            if (repair) _catalog.Repair(manifest, packageDirectory);
+            else _catalog.Install(manifest, packageDirectory);
             return _catalog.GetInstalledPackage(package.Id)
                    ?? throw new InvalidDataException("O plugin não ficou disponível depois da instalação.");
         }
@@ -147,19 +156,27 @@ public sealed class PluginDeliveryService
     public static IReadOnlyList<PluginCatalogEntry> AddRemoteEntries(PluginFeed feed,
         IReadOnlyList<PluginCatalogEntry> local, Version hostVersion)
     {
-        var result = local.ToList();
-        var known = local.Select(entry => entry.Manifest.Id).ToHashSet(StringComparer.Ordinal);
-        foreach (var package in (feed.Packages ?? [])
+        var packages = (feed.Packages ?? [])
                      .Where(package => !string.IsNullOrWhiteSpace(package.Id)
                          && !string.IsNullOrWhiteSpace(package.Name)
                          && package.Sha256 is not null && Sha256Pattern.IsMatch(package.Sha256)
                          && PluginCompatibility.Supports(package.CompatibilityManifest(), hostVersion,
                              PluginCompatibility.WindowsApiVersion, "windows"))
                      .GroupBy(package => package.Id)
-                     .Select(group => group.MaxBy(package => Version.Parse(package.Version))!))
+                     .Select(group => group.MaxBy(package => Version.Parse(package.Version))!)
+                     .ToDictionary(package => package.Id, StringComparer.OrdinalIgnoreCase);
+        var result = local.Select(entry =>
         {
-            if (known.Add(package.Id)) result.Add(new PluginCatalogEntry(package.CompatibilityManifest(), false, null, "", package));
-        }
+            if (!packages.TryGetValue(entry.Manifest.Id, out var package)) return entry;
+            packages.Remove(entry.Manifest.Id);
+            var remoteIsNewer = Version.TryParse(package.Version, out var remoteVersion)
+                                && Version.TryParse(entry.Manifest.Version, out var localVersion)
+                                && remoteVersion > localVersion;
+            var manifest = !entry.IsInstalled && remoteIsNewer ? package.CompatibilityManifest() : entry.Manifest;
+            return entry with { Manifest = manifest, RemotePackage = package };
+        }).ToList();
+        result.AddRange(packages.Values.Select(package =>
+            new PluginCatalogEntry(package.CompatibilityManifest(), false, null, "", package)));
         return result.OrderBy(entry => entry.Manifest.SortOrder).ThenBy(entry => entry.Manifest.Name).ToArray();
     }
 

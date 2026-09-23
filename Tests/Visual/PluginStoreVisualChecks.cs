@@ -42,10 +42,27 @@ internal static class PluginStoreVisualChecks
             throw new Exception("Plugin search does not filter the installed-only list.");
 
         var actionRaised = false;
+        var repairRaised = false;
+        var uninstallRaised = false;
         view.PluginActionRequested += _ => actionRaised = true;
-        ((Button)installedCards.Children.Cast<UIElement>().Single(child => child.Visibility == Visibility.Visible))
+        view.PluginRepairRequested += _ => repairRaised = true;
+        view.PluginUninstallRequested += _ => uninstallRaised = true;
+        var visibleCard = installedCards.Children.Cast<FrameworkElement>().Single(child => child.Visibility == Visibility.Visible);
+        Descendants<Button>(visibleCard).Single(button => Equals(button.Tag, "plugin-primary-action"))
             .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         if (!actionRaised) throw new Exception("Clicking a plugin does not request adding it to the board.");
+        var menuButton = Descendants<Button>(visibleCard).Single(button => Equals(button.Tag, "plugin-action-menu"));
+        menuButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        var menu = menuButton.ContextMenu ?? throw new Exception("The installed plugin dropdown did not open.");
+        var menuItems = menu.Items.OfType<MenuItem>().ToArray();
+        if (menuItems.Length != 2
+            || !Descendants<TextBlock>(menuItems[0]).Any(text => text.Text == "Reparar")
+            || !Descendants<TextBlock>(menuItems[1]).Any(text => text.Text == "Desinstalar"))
+            throw new Exception("The plugin dropdown does not expose Repair and Uninstall.");
+        menuItems[0].RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        menuItems[1].RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        if (!repairRaised || !uninstallRaised)
+            throw new Exception("The plugin dropdown actions were not routed to the host.");
 
         ((TextBox)view.FindName("SearchBox")).Text = "";
         Layout(view, app, 420, 720);
@@ -102,5 +119,14 @@ internal static class PluginStoreVisualChecks
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
         encoder.Save(output);
+    }
+
+    private static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject
+    {
+        foreach (var child in LogicalTreeHelper.GetChildren(root).OfType<DependencyObject>())
+        {
+            if (child is T match) yield return match;
+            foreach (var descendant in Descendants<T>(child)) yield return descendant;
+        }
     }
 }

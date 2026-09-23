@@ -186,6 +186,8 @@ O modelo que cria o plugin **não deve publicar nem editar o feed** salvo ordem 
 
 Na futura promoção DEV → Main, a loja deve ir funcional: plugins padrão aparecem instalados, opcionais aprovados entram no feed de `main`, assets e SHA-256 são verificados e os testes de loja/entrega precisam passar.
 
+O host é responsável pelo ciclo de vida do pacote. A loja oferece **Adicionar**, **Reparar** e **Desinstalar**, e verifica automaticamente versões maiores no feed. Reparar troca somente os arquivos executáveis por uma cópia limpa; desinstalar não apaga o `PluginState` das instâncias. Portanto, toda versão publicada deve continuar normalizando estados antigos, e o plugin nunca deve implementar limpeza de pacote ou atualização por conta própria.
+
 ## Checklist final da entrega
 
 - [ ] ID, namespaces, tipos, montagens e versões coincidem.

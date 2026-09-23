@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
@@ -11,8 +12,8 @@ namespace ClipDesk.Views;
 public partial class PluginStoreView : UserControl
 {
     private IReadOnlyList<PluginCatalogEntry> _entries = [];
-    private readonly List<Button> _catalogCards = [];
-    private readonly List<Button> _installedCards = [];
+    private readonly List<FrameworkElement> _catalogCards = [];
+    private readonly List<FrameworkElement> _installedCards = [];
     private bool _showingInstalled;
 
     public PluginStoreView()
@@ -23,6 +24,8 @@ public partial class PluginStoreView : UserControl
 
     public event EventHandler? CloseRequested;
     public event Action<PluginCatalogEntry>? PluginActionRequested;
+    public event Action<PluginCatalogEntry>? PluginRepairRequested;
+    public event Action<PluginCatalogEntry>? PluginUninstallRequested;
 
     public void Bind(IReadOnlyList<PluginCatalogEntry> entries)
     {
@@ -72,18 +75,16 @@ public partial class PluginStoreView : UserControl
         ApplyFilter();
     }
 
-    private Button CreatePluginCard(PluginCatalogEntry entry)
+    private Border CreatePluginCard(PluginCatalogEntry entry)
     {
-        var button = new Button
+        var card = new Border
         {
-            Style = (Style)FindResource("PluginCardButtonStyle"),
-            BorderThickness = new Thickness(1),
+            Style = (Style)FindResource("PluginCardSurfaceStyle"),
             Padding = new Thickness(15, 14, 15, 13),
             Margin = new Thickness(0, 0, 12, 12),
             Height = 150,
             ToolTip = entry.IsInstalled ? $"Adicionar {entry.Manifest.Name} à mesa" : $"Instalar {entry.Manifest.Name}"
         };
-        button.Click += (_, _) => PluginActionRequested?.Invoke(entry);
 
         var layout = new Grid();
         layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -178,11 +179,22 @@ public partial class PluginStoreView : UserControl
             Tag = "plugin-action",
             MinWidth = 99,
             Height = 31,
-            Padding = new Thickness(10, 0, 10, 0),
             CornerRadius = new CornerRadius(9),
-            VerticalAlignment = VerticalAlignment.Center
+            VerticalAlignment = VerticalAlignment.Center,
+            ClipToBounds = true
         };
         action.SetResourceReference(Border.BackgroundProperty, "StoreActionBrush");
+        var actionLayout = new Grid();
+        actionLayout.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        actionLayout.ColumnDefinitions.Add(new ColumnDefinition { Width = entry.IsInstalled ? GridLength.Auto : new GridLength(0) });
+        var primaryAction = new Button
+        {
+            Tag = "plugin-primary-action",
+            Style = (Style)FindResource("PluginSplitActionButtonStyle"),
+            MinWidth = 99,
+            ToolTip = entry.IsInstalled ? $"Adicionar {entry.Manifest.Name} à mesa" : $"Instalar {entry.Manifest.Name}"
+        };
+        primaryAction.Click += (_, _) => PluginActionRequested?.Invoke(entry);
         var actionText = new TextBlock
         {
             Tag = "plugin-action-text",
@@ -193,15 +205,79 @@ public partial class PluginStoreView : UserControl
             VerticalAlignment = VerticalAlignment.Center
         };
         actionText.SetResourceReference(TextBlock.ForegroundProperty, "StoreActionTextBrush");
-        action.Child = actionText;
+        primaryAction.Content = actionText;
+        actionLayout.Children.Add(primaryAction);
+        if (entry.IsInstalled)
+        {
+            var separator = new Border { Width = 1, Margin = new Thickness(0, 6, 0, 6), Opacity = .28,
+                HorizontalAlignment = HorizontalAlignment.Left };
+            separator.SetResourceReference(Border.BackgroundProperty, "StoreActionTextBrush");
+            Grid.SetColumn(separator, 1);
+            actionLayout.Children.Add(separator);
+            var menuButton = new Button
+            {
+                Tag = "plugin-action-menu",
+                Style = (Style)FindResource("PluginSplitActionButtonStyle"),
+                Width = 30,
+                Padding = new Thickness(0),
+                Content = new TextBlock
+                {
+                    Text = "", FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 9,
+                    HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
+                },
+                ToolTip = $"Opções de {entry.Manifest.Name}"
+            };
+            menuButton.Click += (_, _) => ShowPluginMenu(entry, menuButton);
+            Grid.SetColumn(menuButton, 1);
+            actionLayout.Children.Add(menuButton);
+        }
+        action.Child = actionLayout;
         Grid.SetColumn(action, 1);
         footer.Children.Add(action);
         Grid.SetRow(footer, 2);
         layout.Children.Add(footer);
 
-        button.Content = layout;
-        button.DataContext = entry;
-        return button;
+        card.Child = layout;
+        card.DataContext = entry;
+        return card;
+    }
+
+    private void ShowPluginMenu(PluginCatalogEntry entry, Button anchor)
+    {
+        var menu = new ContextMenu
+        {
+            PlacementTarget = anchor,
+            Placement = PlacementMode.Bottom,
+            HorizontalOffset = -112,
+            MinWidth = 142,
+            Padding = new Thickness(4),
+            BorderThickness = new Thickness(1)
+        };
+        menu.SetResourceReference(ContextMenu.BackgroundProperty, "StoreCardBrush");
+        menu.SetResourceReference(ContextMenu.BorderBrushProperty, "StoreCardBorderBrush");
+        menu.Items.Add(CreateMenuItem("Reparar", "", () => PluginRepairRequested?.Invoke(entry)));
+        menu.Items.Add(new Separator());
+        menu.Items.Add(CreateMenuItem("Desinstalar", "", () => PluginUninstallRequested?.Invoke(entry)));
+        anchor.ContextMenu = menu;
+        menu.IsOpen = true;
+    }
+
+    private MenuItem CreateMenuItem(string text, string glyph, Action action)
+    {
+        var item = new MenuItem { Padding = new Thickness(10, 7, 13, 7) };
+        item.SetResourceReference(MenuItem.ForegroundProperty, "TextBrush");
+        item.Header = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Children =
+            {
+                new TextBlock { Text = glyph, FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 12,
+                    Width = 24, VerticalAlignment = VerticalAlignment.Center },
+                new TextBlock { Text = text, FontSize = 12, VerticalAlignment = VerticalAlignment.Center }
+            }
+        };
+        item.Click += (_, _) => action();
+        return item;
     }
 
     private void ApplyFilter()
