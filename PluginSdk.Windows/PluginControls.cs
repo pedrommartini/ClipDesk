@@ -21,7 +21,7 @@ public sealed class PluginSlider : Grid
         Minimum = minimum;
         Maximum = Math.Max(minimum, maximum);
         Step = Math.Max(0, step);
-        Height = Math.Clamp(32 * context.Scale, 28, 64);
+        Height = Math.Clamp(28 * context.Scale, 26, 56);
         MinWidth = 72;
         Background = Brushes.Transparent;
         Cursor = Cursors.Hand;
@@ -30,9 +30,9 @@ public sealed class PluginSlider : Grid
 
         var track = new Border
         {
-            Height = Math.Clamp(6 * context.Scale, 5, 12),
+            Height = Math.Clamp(4 * context.Scale, 3, 8),
             CornerRadius = new CornerRadius(99),
-            Background = PluginControlBrushes.From(context.IsDarkMode ? "#405069" : "#CCD5E2"),
+            Background = PluginControlBrushes.From(context.IsDarkMode ? "#2C3647" : "#E6EAF0"),
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(3, 0, 3, 0)
         };
@@ -47,15 +47,15 @@ public sealed class PluginSlider : Grid
         };
         _thumb = new Border
         {
-            Width = Math.Clamp(21 * context.Scale, 18, 38),
-            Height = Math.Clamp(21 * context.Scale, 18, 38),
+            Width = Math.Clamp(14 * context.Scale, 12, 25),
+            Height = Math.Clamp(14 * context.Scale, 12, 25),
             CornerRadius = new CornerRadius(99),
             Background = Brushes.White,
             BorderBrush = PluginControlBrushes.From(context.AccentColor, "#FF4B55"),
-            BorderThickness = new Thickness(Math.Clamp(3 * context.Scale, 2, 5)),
+            BorderThickness = new Thickness(Math.Clamp(2 * context.Scale, 1.5, 3)),
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Center,
-            Effect = new DropShadowEffect { BlurRadius = 5, ShadowDepth = 1, Opacity = .25, Color = Colors.Black }
+            Effect = new DropShadowEffect { BlurRadius = 3, ShadowDepth = 0, Opacity = .18, Color = Colors.Black }
         };
         Children.Add(track);
         Children.Add(_fill);
@@ -97,10 +97,10 @@ public sealed class PluginSlider : Grid
         };
         context.LayoutChanged += () =>
         {
-            Height = Math.Clamp(32 * context.Scale, 28, 64);
-            _thumb.Width = _thumb.Height = Math.Clamp(21 * context.Scale, 18, 38);
-            _thumb.BorderThickness = new Thickness(Math.Clamp(3 * context.Scale, 2, 5));
-            track.Height = _fill.Height = Math.Clamp(6 * context.Scale, 5, 12);
+            Height = Math.Clamp(28 * context.Scale, 26, 56);
+            _thumb.Width = _thumb.Height = Math.Clamp(14 * context.Scale, 12, 25);
+            _thumb.BorderThickness = new Thickness(Math.Clamp(2 * context.Scale, 1.5, 3));
+            track.Height = _fill.Height = Math.Clamp(4 * context.Scale, 3, 8);
             UpdateVisual();
         };
         _value = Coerce(value);
