@@ -19,6 +19,17 @@ internal static class PluginDeliveryChecks
 
     public static void Run(Application app)
     {
+        var officialFeed = JsonSerializer.Deserialize<PluginFeed>(
+            File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "production-feed.json")), Json)
+            ?? throw new Exception("Production plugin feed could not be read.");
+        var optional = PluginDeliveryService.AddRemoteEntries(officialFeed, [], Version.Parse(UpdateService.CurrentVersion));
+        if (officialFeed.Packages.Count < 9 || !officialFeed.Packages.All(package =>
+                optional.Any(entry => entry.Manifest.Id == package.Id && entry.RemotePackage is not null)))
+            throw new Exception("Production plugin feed hides an approved optional plugin.");
+        var bundledFeed = PluginDeliveryService.LoadBundledFeed();
+        if (bundledFeed is null || bundledFeed.Packages.Count != officialFeed.Packages.Count)
+            throw new Exception("Production package does not contain the approved plugin feed.");
+
         var root = Path.Combine(Path.GetTempPath(), "ClipDesk-Plugin-Delivery-Checks", Guid.NewGuid().ToString("N"));
         var bundled = Path.Combine(root, "bundled", BuiltInPluginIds.Calculator);
         var installed = Path.Combine(root, "Documents", "Clipdesk");

@@ -35,7 +35,7 @@ public sealed class PluginFeedPackage
     public string AccentColor { get; init; } = "#9B7DFF";
     public int SortOrder { get; init; }
     public PluginSize DefaultSize { get; init; } = new();
-    public PluginSize MinimumSize { get; init; } = new() { Width = 190, Height = 190 };
+    public PluginSize MinimumSize { get; init; } = new() { Width = 160, Height = 160 };
     public Dictionary<string, string> DefaultContent { get; init; } = [];
     public PluginEntryPoint? Module { get; init; }
     public IReadOnlyList<PluginRendererEntryPoint> Renderers { get; init; } = [];
@@ -48,7 +48,7 @@ public sealed class PluginFeedPackage
     {
         ManifestVersion = ManifestVersion, Id = Id, Name = Name, Description = Description, Publisher = Publisher, Version = Version, Runtime = Runtime,
         IconGlyph = IconGlyph, AccentColor = AccentColor, SortOrder = SortOrder,
-        DefaultSize = DefaultSize ?? new PluginSize(), MinimumSize = MinimumSize ?? new PluginSize { Width = 190, Height = 190 },
+        DefaultSize = DefaultSize ?? new PluginSize(), MinimumSize = MinimumSize ?? new PluginSize { Width = 160, Height = 160 },
         DefaultContent = DefaultContent ?? [],
         MinimumHostVersion = MinimumHostVersion,
         MaximumHostVersion = MaximumHostVersion, PluginApiVersion = PluginApiVersion,
@@ -89,6 +89,20 @@ public sealed class PluginDeliveryService
                 || AppEnvironment.IsDevelopment && configured.IsLoopback && configured.Scheme == Uri.UriSchemeHttp);
         _feedUri = feedUri ?? (hasConfiguredFeed ? configured! : new Uri(DefaultFeedUrl));
         _requireOfficialDownloads = feedUri is null && !hasConfiguredFeed;
+    }
+
+    public static PluginFeed? LoadBundledFeed()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Plugins", "feed.json");
+        if (!File.Exists(path)) return null;
+        try
+        {
+            var feed = JsonSerializer.Deserialize<PluginFeed>(File.ReadAllText(path), Json)
+                ?? throw new InvalidDataException("Catálogo de plugins incluído está vazio.");
+            if (feed.SchemaVersion != 1) throw new InvalidDataException("Versão do catálogo de plugins incluído não suportada.");
+            return feed;
+        }
+        catch (JsonException ex) { throw new InvalidDataException("Catálogo de plugins incluído está inválido.", ex); }
     }
 
     public async Task<PluginFeed?> FetchFeedAsync(CancellationToken cancellationToken = default)
@@ -217,6 +231,7 @@ public sealed class PluginDeliveryService
         var packages = (feed.Packages ?? [])
                      .Where(package => !string.IsNullOrWhiteSpace(package.Id)
                          && !string.IsNullOrWhiteSpace(package.Name)
+                         && Version.TryParse(package.Version, out _)
                          && package.Sha256 is not null && Sha256Pattern.IsMatch(package.Sha256)
                          && PluginCompatibility.Supports(package.CompatibilityManifest(), hostVersion,
                              PluginCompatibility.WindowsApiVersion, "windows"))

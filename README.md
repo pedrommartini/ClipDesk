@@ -4,7 +4,7 @@ ClipDesk é um aplicativo desktop Windows em C# e WPF para guardar itens tempor�
 
 ## Experimente a versão beta
 
-- [Baixar o instalador do ClipDesk para Windows](https://github.com/pedrommartini/ClipDesk/releases/download/v0.4.0/ClipDesk-Setup.exe)
+- [Baixar o instalador do ClipDesk para Windows](https://github.com/pedrommartini/ClipDesk/releases/download/v0.4.2/ClipDesk-Setup.exe)
 - [Conhecer o produto](https://clipdesk.pages.dev/)
 
 Depois de baixar, abra `ClipDesk-Setup.exe` e siga o instalador. Somente o pacote ZIP precisa ser descompactado.

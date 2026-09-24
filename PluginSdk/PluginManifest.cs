@@ -24,7 +24,7 @@ public sealed class PluginManifest
     public int SortOrder { get; init; }
     public PluginSize DefaultSize { get; init; } = new();
     /// <summary>Smallest usable compact layout, in board coordinates.</summary>
-    public PluginSize MinimumSize { get; init; } = new() { Width = 190, Height = 190 };
+    public PluginSize MinimumSize { get; init; } = new() { Width = 160, Height = 160 };
     public Dictionary<string, string> DefaultContent { get; init; } = [];
     public IReadOnlyList<string> Platforms { get; init; } = ["windows"];
     public IReadOnlyList<string> Permissions { get; init; } = [];

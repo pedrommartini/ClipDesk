@@ -16,6 +16,7 @@ internal static class Program
         if(args.Contains("--presence-protocol")) { PresenceProtocolChecks.Run(); return; }
         Environment.SetEnvironmentVariable("CLIPDESK_DEV_DATA_ROOT",Path.Combine(Path.GetTempPath(),"ClipDesk-Visual-Checks",Guid.NewGuid().ToString("N")));
         var app = new Application();
+        if(args.Contains("--collaborator-plugins")) { PluginCollaboratorChecks.Run(); return; }
         if(args.Contains("--plugin-store")) { PluginStoreVisualChecks.Run(app); return; }
         if(args.Contains("--plugin-delivery")) { PluginDeliveryChecks.Run(app); return; }
         if(args.Contains("--plugin-board-files")) { PluginBoardFileChecks.Run(); return; }

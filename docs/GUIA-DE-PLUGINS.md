@@ -265,6 +265,12 @@ Fluxo de deploy de desenvolvimento:
 
 Os quatro plugins padrão são incluídos no build e aparecem como instalados mesmo com o feed vazio. O feed é necessário para plugins opcionais e atualizações independentes.
 
+### Publicação de plugins de colaboradores no catálogo oficial
+
+O ClipDesk principal lê `main/PluginPackages/feed.json` sem uma lista fixa de IDs no aplicativo. Para que um plugin criado por um colaborador apareça para todos, publique seu ZIP como asset imutável de uma Release, acrescente a entrada completa ao feed oficial com a URL e o SHA-256 do arquivo, e envie o feed para `main`. Guarde o pacote aprovado em `PluginPackages/Collaborators` quando o projeto fonte não estiver no repositório. O plugin inicial do Dev Kit é um modelo e não deve ser anunciado como plugin pronto.
+
+Antes do deploy, confirme que o manifesto dentro do ZIP declara o mesmo ID e versão do feed, não inclui DLLs do SDK do host, e carrega no ClipDesk atual. Para plugins que usam controles Windows adicionados após uma versão anterior do aplicativo, aumente `minimumHostVersion` no feed para impedir que uma edição incompatível ofereça a instalação. Depois de publicar, confira a URL do asset e abra a loja no pacote Production. Os próximos plugins entram pelo mesmo feed; não é necessário alterar uma lista de nomes no código da loja.
+
 ### Gate de promoção do ClipDesk DEV para o principal
 
 O isolamento do feed não significa entregar o ClipDesk principal sem loja. Quando uma versão do DEV for promovida para `main`, a própria loja e o sistema v2 fazem parte da entrega. Antes da promoção:
