@@ -4,6 +4,8 @@ Este guia mostra como criar, testar e distribuir um plugin no padrão compartilh
 
 Para delegar a criação de um plugin a outro modelo de IA sem fornecer a codebase inteira, envie apenas [ClipDesk Plugin AI DevKit](PLUGIN-AI-DEVKIT.md) e `ClipDesk-Plugin-AI-DevKit.zip`. O kit contém uma especificação compacta, um template compilável e cópias dos SDKs usadas somente como dependências.
 
+O contrato visual do DevKit exige revisão da instância real em tamanhos, proporções, zoom e janela diferentes. A [auditoria da Mesa 3](PLUGIN-UX-AUDIT-2026-09-24.md) registra os problemas que motivaram essa exigência; `UX-REVIEW.md` acompanha o template para cada novo plugin documentar sua aprovação antes da entrega.
+
 ## Estrutura recomendada
 
 ```text

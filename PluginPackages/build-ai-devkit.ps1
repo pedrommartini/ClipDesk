@@ -17,6 +17,7 @@ try {
     New-Item -ItemType Directory -Path $modules -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Templates\Starter') -Destination $modules -Recurse
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'pack-plugin.ps1') -Destination (Join-Path $kitRoot 'PluginPackages')
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'pack-reviewed-plugin.ps1') -Destination (Join-Path $kitRoot 'PluginPackages')
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'create-feed-draft.ps1') -Destination (Join-Path $kitRoot 'PluginPackages')
 
     Get-ChildItem -LiteralPath $kitRoot -Directory -Recurse |

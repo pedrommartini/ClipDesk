@@ -11,7 +11,8 @@ Antes de entregar:
 1. substitua `Starter`, `starter`, nomes, descrição, ícone e cor pelo plugin solicitado;
 2. implemente regras no projeto `Core` e UI somente no renderizador WPF;
 3. compile, teste manualmente os comandos e execute o empacotador;
-4. entregue a pasta do plugin, o ZIP empacotado e um resumo dos comandos, estado, permissões e testes.
+4. preencha a revisão visual obrigatória descrita abaixo, usando a instância real na mesa;
+5. entregue a pasta do plugin, o ZIP empacotado, a revisão visual e um resumo dos comandos, estado, permissões e testes.
 
 Se um requisito não for coberto pelos contratos abaixo, não invente APIs do host. Registre a limitação no resumo.
 
@@ -24,6 +25,7 @@ PluginPackages/Modules/<NomePascal>/
 │   └── <NomePascal>Module.cs
 ├── ClipDesk.Plugin.<NomePascal>.csproj
 ├── <NomePascal>Plugin.cs
+├── UX-REVIEW.md
 └── manifest.json
 ```
 
@@ -123,6 +125,34 @@ A UI deve:
 - criar botões com `PluginButtons.Create(context, "Ação", primary: true/false)` do SDK Windows. Ele aplica cor de destaque, contraste, cantos, estados hover/pressed e escala consistente; mantenha rótulos curtos e deixe espaço para quebra ou reorganização dos botões no modo compacto;
 - cancelar operações pendentes em `Unloaded`;
 - apresentar erros curtos e recuperáveis, sem detalhes técnicos na tela.
+
+### Contrato visual obrigatório
+
+O plugin é um widget da mesa, não uma página ou formulário de desktop. **Não entregue um plugin que apenas reduza a mesma composição ao diminuir de tamanho.** O renderizador precisa trocar a disposição do conteúdo conforme largura **e** altura disponíveis. Trate o tamanho de `minimumSize` como um produto utilizável, e não como um limite técnico para o contorno.
+
+1. **Hierarquia e espaço.** O primeiro olhar deve encontrar o valor/resultado ou a tarefa principal e uma ação principal. No tamanho padrão, entrada, resultado e ação principal devem caber sem rolagem vertical. Elimine cabeçalhos internos iguais ou equivalentes ao título do host, subtítulos decorativos, estados repetidos, caixas vazias e instruções permanentes que o controle já explica. Estado vazio pode ter uma instrução curta. Recursos raros, presets extensos e opções avançadas vão para menu, expansão ou modo de edição; não comprimem a tarefa principal.
+2. **Tamanho compacto.** Em `minimumSize` quadrado, mantenha resultado/estado atual e ação principal visíveis e acionáveis sem rolar. Uma barra de rolagem vertical pode expor opções secundárias, histórico ou texto longo. Nunca esconda a ação principal fora da área visível, reduza todo o painel por `Viewbox`/`ScaleTransform`, trunque rótulo essencial, sobreponha controles ou exija rolagem horizontal. Se isso não couber, aumente `minimumSize` no manifesto ou simplifique o modo compacto.
+3. **Composição fluida.** Ações e campos devem quebrar ou empilhar quando a largura diminuir; painéis largos devem passar de colunas para uma coluna ou etapas. Em altura curta, preserve primeiro resultado e ação; torne o restante rolável. Use `Grid` com `Auto`/`*`, `WrapPanel`, `TextWrapping`, `MinWidth`/`MaxWidth` apropriados e um `ScrollViewer` para conteúdo secundário. Não fixe medidas que só funcionam no tamanho padrão. Reaja a `SizeChanged` e `context.LayoutChanged` sem perder foco, seleção ou texto digitado.
+4. **Tipografia.** Dê maior peso visual ao dado que o usuário veio buscar. Como ponto de partida em WPF, use pelo menos 18 DIP para resultado principal, 15 DIP para entrada/ação e 12 DIP para informação secundária, já considerados os limites de `context.Scale`; não compense falta de espaço diminuindo fontes abaixo desses pisos. No zoom distante, detalhes podem ceder lugar ao resultado, mas o dado principal e o estado da ação precisam permanecer distinguíveis. Verifique contraste nos temas claro/escuro e com cores de destaque claras e escuras.
+5. **Cópia do output.** Se o plugin produz texto, número, URL, código ou resumo útil, exiba um **ícone pequeno e persistente de copiar junto ao resultado**, inclusive no modo compacto. Ele copia o output atual, não a entrada, a legenda, um placeholder ou valor anterior. `GetClipboardText` do Core e o ícone devem concordar sobre o que é copiável. Use `context.RequestHostAction(new(PluginHostActionKind.CopyToClipboard, texto))`; desative o ícone sem resultado válido. Adicione `ToolTip`, nome acessível como “Copiar tradução”/“Copiar valor convertido”, foco de teclado e alvo clicável confortável. Não substitua a ação principal por um grande botão “Copiar” quando um ícone ao lado do valor resolver.
+6. **Funções com propósito.** Cada controle visível deve servir à tarefa central ou a uma necessidade frequente. Remova modos, botões, métricas e textos que apenas repetem o estado ou aparecem sem utilidade naquele contexto. Preserve recursos necessários em um local secundário em vez de apenas ocultá-los sem acesso. Se o output é um arquivo ou mídia sem representação textual útil, não invente texto para copiar; ofereça a ação adequada ao artefato.
+
+Exemplos: o Tradutor copia apenas a tradução concluída; o Conversor de Moeda copia o valor convertido com moeda; um QR Code copia o conteúdo codificado; o Cronômetro copia o tempo ou resumo atual. Um resultado em carregamento, vazio ou erro não é copiável. O cabeçalho do host já nomeia Tradutor, Relógio Mundial, Cronômetro e os demais plugins.
+
+### Revisão visual que bloqueia a entrega
+
+Crie `UX-REVIEW.md` na pasta do novo plugin e inclua-o na entrega da pasta (o ZIP executável continua contendo apenas o pacote). Registre uma linha por cenário com tamanho da instância, zoom, tamanho da janela, tema, resultado e correção feita. Faça a revisão no aplicativo com dados reais, resultado longo e estado vazio/erro; inspeção de código ou compilação **não** substitui essa etapa.
+
+| Cenário obrigatório | Critério de aprovação |
+| --- | --- |
+| `minimumSize` quadrado e tamanho padrão, ambos em 100% | Resultado/estado e ação principal aparecem sem corte; foco, clique e rolagem funcionam. |
+| Instância estreita/alta e larga/baixa, redimensionada sem reabrir | Controles reorganizam; não há sobreposição, corte, rolagem horizontal ou perda de entrada. |
+| Zoom da mesa em 40%, 60% e 100% | Resultado principal e ação primária são reconhecíveis à distância; ao aproximar, texto e controles continuam proporcionais. |
+| Janela do aplicativo em cerca de 1024×768 e em tela ampla | Widget conserva o comportamento interno ao entrar/sair da área visível; popup e rolagem continuam utilizáveis. |
+| Tema claro/escuro e destaque claro/escuro | Contraste, estados selecionados, hover, foco e ícone de copiar são perceptíveis. |
+| Output vazio, válido, longo e falha | O ícone copia somente o valor válido mais recente; fica desativado quando não há valor; texto longo rola/quebra sem esconder a ação principal. |
+
+Reprove e corrija qualquer cenário com botão principal fora da área, texto essencial truncado, fonte ilegível, título duplicado, espaço vazio dominante ou cópia de valor incorreto. Descreva na revisão se algum recurso secundário foi movido para menu/expansão e por quê. Não marque um cenário como aprovado sem vê-lo na instância real.
 
 ### Controles globais do SDK Windows
 
@@ -275,14 +305,14 @@ Não anuncie Android apenas porque o Core é portável. No Android, o módulo e 
 
 ## Compilar, validar e empacotar
 
-Na raiz extraída do DevKit:
+Na raiz extraída do DevKit, depois de preencher e aprovar todos os cenários de `UX-REVIEW.md`:
 
 ```powershell
 dotnet build .\PluginPackages\Modules\<NomePascal>\ClipDesk.Plugin.<NomePascal>.csproj
-.\PluginPackages\pack-plugin.ps1 -PluginDirectory .\PluginPackages\Modules\<NomePascal>
+.\PluginPackages\pack-reviewed-plugin.ps1 -PluginDirectory .\PluginPackages\Modules\<NomePascal>
 ```
 
-O segundo comando recompila em Release, valida as montagens declaradas e cria `PluginPackages/dist/<id>-<versão>.zip`, imprimindo SHA-256 e a entrada de feed. Corrija todos os erros antes de entregar.
+O segundo comando rejeita revisão ausente, incompleta ou com cenário reprovado; então recompila em Release, valida as montagens declaradas e cria `PluginPackages/dist/<id>-<versão>.zip`, imprimindo SHA-256 e a entrada de feed. A verificação da ficha não prova visualmente seu conteúdo: inspecione a instância real e registre os problemas com honestidade. Corrija todos os erros antes de entregar.
 
 Teste no mínimo:
 
@@ -292,6 +322,7 @@ Teste no mínimo:
 - abrir, editar, fechar e reabrir sem perder estado;
 - tema claro/escuro, cor de destaque, tamanhos diferentes, zoom e teclado;
 - tamanho mínimo quadrado, proporções largas/altas, e soltura de arquivos da mesa e do Windows quando aplicável;
+- todos os cenários de `UX-REVIEW.md`, incluindo cópia do output e janela estreita/ampla;
 - nenhuma referência de plataforma dentro de `Core`.
 
 ## Publicação controlada
@@ -316,6 +347,8 @@ O host é responsável pelo ciclo de vida do pacote. A loja oferece **Adicionar*
 - [ ] Comandos validam argumentos e retornam status apropriado.
 - [ ] UI usa o host para efeitos externos e a cor de destaque do contexto.
 - [ ] Modo compacto funciona no `minimumSize` quadrado; título não é duplicado; controles usam `PluginButtons`, `PluginSliders`, `PluginToggles` e `PluginDropdowns` quando aplicável.
+- [ ] Resultado e ação principal permanecem visíveis no mínimo; layout reorganiza em largura e altura; `UX-REVIEW.md` foi preenchido após inspeção real.
+- [ ] Output textual útil tem ícone pequeno de copiar junto ao valor, acessível e desativado quando vazio/erro; o texto copiado corresponde a `GetClipboardText`.
 - [ ] Arrastar arquivo só é anunciado quando o plugin trata `FilesDropped`.
 - [ ] Arquivos são enviados por `PluginHostAction.AddFiles`, com `board-files` e somente as permissões necessárias.
 - [ ] Se houver arquivos locais próprios, a pasta padrão é `Documents/ClipDesk/<pasta-do-plugin>`; outro destino só existe depois de escolha explícita do usuário.
