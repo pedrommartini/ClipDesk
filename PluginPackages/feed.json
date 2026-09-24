@@ -1,516 +1,544 @@
 {
-  "schemaVersion": 1,
-  "packages": [
-    {
-      "manifestVersion": 2,
-      "id": "clipdesk.qrcode",
-      "name": "Gerador de QR Code",
-      "description": "Gera e exibe códigos QR a partir de links ou textos diretamente no seu quadro.",
-      "version": "1.0.1",
-      "url": "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-1.0.1/clipdesk.qrcode-1.0.1.zip",
-      "sha256": "fb585029170c26a80cc3320e7d243ab8a204a2fbf5b142d17e6acc224407db68",
-      "runtime": "portable-v2",
-      "pluginApiVersion": 2,
-      "minimumHostVersion": "0.3.3",
-      "maximumHostVersion": null,
-      "entryAssembly": null,
-      "entryType": null,
-      "iconGlyph": "",
-      "accentColor": "#10B981",
-      "sortOrder": 110,
-      "defaultSize": {
-        "width": 300,
-        "height": 340
-      },
-      "defaultContent": {
-        "$schema": "1",
-        "text": "https://github.com/pedrommartini/ClipDesk",
-        "ecc": "M"
-      },
-      "platforms": [
-        "windows"
-      ],
-      "stateVersion": 1,
-      "module": {
-        "assembly": "ClipDesk.Plugin.QrCode.Core.dll",
-        "type": "ClipDesk.Plugin.QrCode.QrCodeModule"
-      },
-      "renderers": [
-        {
-          "platform": "windows",
-          "runtime": "wpf-v2",
-          "assembly": "ClipDesk.Plugin.QrCode.dll",
-          "type": "ClipDesk.Plugin.QrCode.QrCodePlugin"
-        }
-      ],
-      "permissions": [],
-      "capabilities": [
-        "board-widget"
-      ],
-      "networkHosts": []
-    },
-    {
-      "manifestVersion": 2,
-      "id": "clipdesk.audiorecorder",
-      "name": "Gravador de Áudio",
-      "description": "Grave áudio do microfone e do sistema com controle de volume independente e adicione diretamente à mesa.",
-      "version": "1.0.6",
-      "url": "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-1.0.6/clipdesk.audiorecorder-1.0.6.zip",
-      "sha256": "97b4e988c3b0ea7e1fc8578533433f62c35518e2cb68f3039efcd970fbcbf914",
-      "runtime": "portable-v2",
-      "pluginApiVersion": 2,
-      "minimumHostVersion": "0.3.3",
-      "maximumHostVersion": null,
-      "entryAssembly": null,
-      "entryType": null,
-      "iconGlyph": "",
-      "accentColor": "#EF4444",
-      "sortOrder": 120,
-      "defaultSize": {
-        "width": 540,
-        "height": 180
-      },
-      "defaultContent": {
-        "$schema": "1",
-        "micChannelMode": "mono",
-        "sysChannelMode": "stereo",
-        "micEnabled": "true",
-        "micVolume": "100",
-        "systemEnabled": "true",
-        "systemVolume": "100",
-        "status": "idle",
-        "duration": "0",
-        "lastFile": ""
-      },
-      "platforms": [
-        "windows"
-      ],
-      "stateVersion": 1,
-      "module": {
-        "assembly": "ClipDesk.Plugin.AudioRecorder.Core.dll",
-        "type": "ClipDesk.Plugin.AudioRecorder.AudioRecorderModule"
-      },
-      "renderers": [
-        {
-          "platform": "windows",
-          "runtime": "wpf-v2",
-          "assembly": "ClipDesk.Plugin.AudioRecorder.dll",
-          "type": "ClipDesk.Plugin.AudioRecorder.AudioRecorderPlugin"
-        }
-      ],
-      "permissions": [
-        "file.read",
-        "file.write"
-      ],
-      "capabilities": [
-        "board-widget",
-        "board-files"
-      ],
-      "networkHosts": []
-    },
-    {
-      "manifestVersion": 2,
-      "id": "clipdesk.clock",
-      "name": "Relógio Mundial",
-      "description": "Relógio analógico minimalista em vetor, mostrador digital de alta legibilidade e relógios mundiais com indicador dia/noite.",
-      "version": "1.0.0",
-      "publisher": "ClipDesk",
-      "iconGlyph": "",
-      "accentColor": "#10B981",
-      "runtime": "portable-v2",
-      "pluginApiVersion": 2,
-      "stateVersion": 1,
-      "module": {
-        "assembly": "ClipDesk.Plugin.Clock.Core.dll",
-        "type": "ClipDesk.Plugin.Clock.ClockModule"
-      },
-      "renderers": [
-        {
-          "platform": "windows",
-          "runtime": "wpf-v2",
-          "assembly": "ClipDesk.Plugin.Clock.dll",
-          "type": "ClipDesk.Plugin.Clock.ClockPlugin"
-        }
-      ],
-      "minimumHostVersion": "0.3.3",
-      "sortOrder": 100,
-      "defaultSize": {
-        "width": 340,
-        "height": 300
-      },
-      "minimumSize": {
-        "width": 240,
-        "height": 240
-      },
-      "defaultContent": {
-        "$schema": "1",
-        "displayMode": "analog",
-        "is24Hour": "true",
-        "showSeconds": "true",
-        "primaryZone": "",
-        "worldClocks": "[{\"id\":\"sp\",\"city\":\"São Paulo\",\"zone\":\"America/Sao_Paulo\"},{\"id\":\"nyc\",\"city\":\"Nova York\",\"zone\":\"America/New_York\"},{\"id\":\"lon\",\"city\":\"Londres\",\"zone\":\"Europe/London\"},{\"id\":\"tyo\",\"city\":\"Tóquio\",\"zone\":\"Asia/Tokyo\"}]"
-      },
-      "platforms": [
-        "windows"
-      ],
-      "permissions": [],
-      "capabilities": [
-        "board-widget"
-      ],
-      "networkHosts": [],
-      "url": "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-collaborators-20260924/clipdesk.clock-1.0.0.zip",
-      "sha256": "0caaf70f62080117dead507ff41a0eb0cb0f3aa9fb82c270da7d8edd54acdb89"
-    },
-    {
-      "manifestVersion": 2,
-      "id": "clipdesk.fileconverter",
-      "name": "Conversor de Arquivos",
-      "description": "Converta arquivos locais entre formatos compatíveis (imagens, áudio, vídeo, dados e documentos) com matriz semântica de regras e adição direta à mesa.",
-      "version": "1.0.0",
-      "publisher": "ClipDesk",
-      "iconGlyph": "",
-      "accentColor": "#6366F1",
-      "runtime": "portable-v2",
-      "pluginApiVersion": 2,
-      "stateVersion": 1,
-      "module": {
-        "assembly": "ClipDesk.Plugin.FileConverter.Core.dll",
-        "type": "ClipDesk.Plugin.FileConverter.FileConverterModule"
-      },
-      "renderers": [
-        {
-          "platform": "windows",
-          "runtime": "wpf-v2",
-          "assembly": "ClipDesk.Plugin.FileConverter.dll",
-          "type": "ClipDesk.Plugin.FileConverter.FileConverterPlugin"
-        }
-      ],
-      "minimumHostVersion": "0.4.2",
-      "sortOrder": 130,
-      "defaultSize": {
-        "width": 680,
-        "height": 360
-      },
-      "minimumSize": {
-        "width": 240,
-        "height": 240
-      },
-      "defaultContent": {
-        "$schema": "1",
-        "sourcePath": "",
-        "sourceFileName": "",
-        "sourceExtension": "",
-        "sourceCategory": "",
-        "sourceSize": "0",
-        "targetFormat": "",
-        "quality": "85",
-        "icoSize": "32",
-        "prettyPrint": "true",
-        "status": "idle",
-        "lastConvertedFile": "",
-        "lastMessage": "Aguardando arquivo..."
-      },
-      "platforms": [
-        "windows"
-      ],
-      "permissions": [
-        "file.read",
-        "file.write"
-      ],
-      "capabilities": [
-        "board-widget",
-        "board-files",
-        "file-drop"
-      ],
-      "networkHosts": [],
-      "url": "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-collaborators-20260924/clipdesk.fileconverter-1.0.0.zip",
-      "sha256": "5a548265b7f2603cda83023d53dcfa0ab66b75c7431d90019b142ab1a350cd7d"
-    },
-    {
-      "manifestVersion": 2,
-      "id": "clipdesk.imagecompressor",
-      "name": "Compressor de Imagens",
-      "description": "Comprima, otimize e redimensione imagens em lote com presets rápidos, WIC nativo e adição direta à mesa.",
-      "version": "1.0.0",
-      "publisher": "ClipDesk",
-      "iconGlyph": "",
-      "accentColor": "#0EA5E9",
-      "runtime": "portable-v2",
-      "pluginApiVersion": 2,
-      "stateVersion": 1,
-      "module": {
-        "assembly": "ClipDesk.Plugin.ImageCompressor.Core.dll",
-        "type": "ClipDesk.Plugin.ImageCompressor.ImageCompressorModule"
-      },
-      "renderers": [
-        {
-          "platform": "windows",
-          "runtime": "wpf-v2",
-          "assembly": "ClipDesk.Plugin.ImageCompressor.dll",
-          "type": "ClipDesk.Plugin.ImageCompressor.ImageCompressorPlugin"
-        }
-      ],
-      "minimumHostVersion": "0.4.2",
-      "sortOrder": 140,
-      "defaultSize": {
-        "width": 680,
-        "height": 360
-      },
-      "minimumSize": {
-        "width": 240,
-        "height": 240
-      },
-      "defaultContent": {
-        "$schema": "1",
-        "quality": "75",
-        "preset": "balanced",
-        "outputFormat": "original",
-        "maxDimension": "original",
-        "stripMetadata": "true",
-        "totalFilesCompressed": "0",
-        "totalBytesSaved": "0",
-        "lastMessage": "Pronto para comprimir"
-      },
-      "platforms": [
-        "windows"
-      ],
-      "permissions": [
-        "file.read",
-        "file.write"
-      ],
-      "capabilities": [
-        "board-widget",
-        "board-files",
-        "file-drop"
-      ],
-      "networkHosts": [],
-      "url": "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-collaborators-20260924/clipdesk.imagecompressor-1.0.0.zip",
-      "sha256": "9ffd0130f4137020f67d7a612b509c87a6b7c7a0e670f862e66b738a8819fb88"
-    },
-    {
-      "manifestVersion": 2,
-      "id": "clipdesk.imageupscaler",
-      "name": "Upscale de Imagem",
-      "description": "Amplie e restaure imagens até 8x com super-resolução inteligente, remoção de ruído, comparativo antes/depois deslizante e envio direto à mesa.",
-      "version": "1.0.0",
-      "publisher": "ClipDesk",
-      "iconGlyph": "",
-      "accentColor": "#8B5CF6",
-      "runtime": "portable-v2",
-      "pluginApiVersion": 2,
-      "stateVersion": 1,
-      "module": {
-        "assembly": "ClipDesk.Plugin.ImageUpscaler.Core.dll",
-        "type": "ClipDesk.Plugin.ImageUpscaler.ImageUpscalerModule"
-      },
-      "renderers": [
-        {
-          "platform": "windows",
-          "runtime": "wpf-v2",
-          "assembly": "ClipDesk.Plugin.ImageUpscaler.dll",
-          "type": "ClipDesk.Plugin.ImageUpscaler.ImageUpscalerPlugin"
-        }
-      ],
-      "minimumHostVersion": "0.4.2",
-      "sortOrder": 145,
-      "defaultSize": {
-        "width": 560,
-        "height": 340
-      },
-      "minimumSize": {
-        "width": 240,
-        "height": 240
-      },
-      "defaultContent": {
-        "$schema": "1",
-        "scaleFactor": "4x",
-        "model": "balanced",
-        "engine": "local",
-        "sharpness": "65",
-        "denoise": "low",
-        "outputFormat": "original",
-        "faceEnhance": "false",
-        "cloudEndpoint": "",
-        "totalImagesUpscaled": "0",
-        "totalPixelsGenerated": "0",
-        "lastMessage": "Pronto para ampliar"
-      },
-      "platforms": [
-        "windows"
-      ],
-      "permissions": [
-        "file.read",
-        "file.write",
-        "network"
-      ],
-      "capabilities": [
-        "board-widget",
-        "board-files",
-        "file-drop"
-      ],
-      "networkHosts": [],
-      "url": "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-collaborators-20260924/clipdesk.imageupscaler-1.0.0.zip",
-      "sha256": "fec3c45b632613c921a514a068f53604513ca39b3e5bdba26428603cf6f7ee5f"
-    },
-    {
-      "manifestVersion": 2,
-      "id": "clipdesk.stopwatch",
-      "name": "Cronômetro",
-      "description": "Cronômetro progressivo com precisão de centésimos, registro de voltas, detecção de melhor e pior tempo e exportação.",
-      "version": "1.0.0",
-      "publisher": "ClipDesk",
-      "iconGlyph": "",
-      "accentColor": "#3B82F6",
-      "runtime": "portable-v2",
-      "pluginApiVersion": 2,
-      "stateVersion": 1,
-      "module": {
-        "assembly": "ClipDesk.Plugin.Stopwatch.Core.dll",
-        "type": "ClipDesk.Plugin.Stopwatch.StopwatchModule"
-      },
-      "renderers": [
-        {
-          "platform": "windows",
-          "runtime": "wpf-v2",
-          "assembly": "ClipDesk.Plugin.Stopwatch.dll",
-          "type": "ClipDesk.Plugin.Stopwatch.StopwatchPlugin"
-        }
-      ],
-      "minimumHostVersion": "0.3.3",
-      "sortOrder": 110,
-      "defaultSize": {
-        "width": 320,
-        "height": 280
-      },
-      "minimumSize": {
-        "width": 240,
-        "height": 240
-      },
-      "defaultContent": {
-        "$schema": "1",
-        "status": "idle",
-        "accumulatedMs": "0",
-        "startUtc": "",
-        "lastLapTotalMs": "0",
-        "laps": "[]"
-      },
-      "platforms": [
-        "windows"
-      ],
-      "permissions": [],
-      "capabilities": [
-        "board-widget"
-      ],
-      "networkHosts": [],
-      "url": "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-collaborators-20260924/clipdesk.stopwatch-1.0.0.zip",
-      "sha256": "f3c07cf5d387d0066b6446441477dbf8704c04009da4ec97103df7d7e5254795"
-    },
-    {
-      "manifestVersion": 2,
-      "id": "clipdesk.timer",
-      "name": "Temporizador",
-      "description": "Temporizador regressivo com contagem baseada em UTC, presets rápidos, mostrador digital e anel dinâmico de progresso.",
-      "version": "1.0.0",
-      "publisher": "ClipDesk",
-      "iconGlyph": "",
-      "accentColor": "#F59E0B",
-      "runtime": "portable-v2",
-      "pluginApiVersion": 2,
-      "stateVersion": 1,
-      "module": {
-        "assembly": "ClipDesk.Plugin.Timer.Core.dll",
-        "type": "ClipDesk.Plugin.Timer.TimerModule"
-      },
-      "renderers": [
-        {
-          "platform": "windows",
-          "runtime": "wpf-v2",
-          "assembly": "ClipDesk.Plugin.Timer.dll",
-          "type": "ClipDesk.Plugin.Timer.TimerPlugin"
-        }
-      ],
-      "minimumHostVersion": "0.3.3",
-      "sortOrder": 130,
-      "defaultSize": {
-        "width": 320,
-        "height": 280
-      },
-      "minimumSize": {
-        "width": 240,
-        "height": 240
-      },
-      "defaultContent": {
-        "$schema": "1",
-        "status": "idle",
-        "durationSeconds": "1500",
-        "remainingSeconds": "1500",
-        "targetUtc": "",
-        "selectedPreset": "25m",
-        "label": "Pomodoro"
-      },
-      "platforms": [
-        "windows"
-      ],
-      "permissions": [],
-      "capabilities": [
-        "board-widget"
-      ],
-      "networkHosts": [],
-      "url": "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-collaborators-20260924/clipdesk.timer-1.0.0.zip",
-      "sha256": "eb6af50637a2914c090eaf795a1524297d26cb19b3d1acb000e878c746158a66"
-    },
-    {
-      "manifestVersion": 2,
-      "id": "clipdesk.timezone",
-      "name": "Conversor de Fuso Horário",
-      "description": "Conversor multidirecional de fusos horários e planejador inteligente de reuniões globais.",
-      "version": "1.0.0",
-      "publisher": "ClipDesk",
-      "iconGlyph": "",
-      "accentColor": "#8B5CF6",
-      "runtime": "portable-v2",
-      "pluginApiVersion": 2,
-      "stateVersion": 1,
-      "module": {
-        "assembly": "ClipDesk.Plugin.Timezone.Core.dll",
-        "type": "ClipDesk.Plugin.Timezone.TimezoneModule"
-      },
-      "renderers": [
-        {
-          "platform": "windows",
-          "runtime": "wpf-v2",
-          "assembly": "ClipDesk.Plugin.Timezone.dll",
-          "type": "ClipDesk.Plugin.Timezone.TimezonePlugin"
-        }
-      ],
-      "minimumHostVersion": "0.3.3",
-      "sortOrder": 130,
-      "defaultSize": {
-        "width": 360,
-        "height": 320
-      },
-      "minimumSize": {
-        "width": 240,
-        "height": 240
-      },
-      "defaultContent": {
-        "$schema": "1",
-        "referenceZone": "America/Sao_Paulo",
-        "referenceCity": "São Paulo",
-        "selectedMinuteOfDay": "840",
-        "isLive": "false",
-        "zones": "[{\"id\":\"sp\",\"city\":\"São Paulo\",\"zone\":\"America/Sao_Paulo\"},{\"id\":\"nyc\",\"city\":\"Nova York\",\"zone\":\"America/New_York\"},{\"id\":\"lon\",\"city\":\"Londres\",\"zone\":\"Europe/London\"},{\"id\":\"tyo\",\"city\":\"Tóquio\",\"zone\":\"Asia/Tokyo\"}]"
-      },
-      "platforms": [
-        "windows"
-      ],
-      "permissions": [],
-      "capabilities": [
-        "board-widget"
-      ],
-      "networkHosts": [],
-      "url": "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-collaborators-20260924/clipdesk.timezone-1.0.0.zip",
-      "sha256": "aec5d224f265ef1d81fe7ce3d228c6170f3766335540156b9d2213ad300f0710"
-    }
-  ]
+    "schemaVersion":  1,
+    "packages":  [
+                     {
+                         "manifestVersion":  2,
+                         "id":  "clipdesk.qrcode",
+                         "name":  "Gerador de QR Code",
+                         "description":  "Gera e exibe códigos QR a partir de links ou textos diretamente no seu quadro.",
+                         "version":  "1.0.1",
+                         "url":  "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-1.0.1/clipdesk.qrcode-1.0.1.zip",
+                         "sha256":  "a95c7c0c55c02865a43b205beed3c94a4a6e6949ee91a66a6d2d5a5a73eb46e8",
+                         "runtime":  "portable-v2",
+                         "pluginApiVersion":  2,
+                         "minimumHostVersion":  "0.3.3",
+                         "maximumHostVersion":  null,
+                         "entryAssembly":  null,
+                         "entryType":  null,
+                         "iconGlyph":  "",
+                         "accentColor":  "#10B981",
+                         "sortOrder":  110,
+                         "defaultSize":  {
+                                             "width":  300,
+                                             "height":  340
+                                         },
+                         "defaultContent":  {
+                                                "$schema":  "1",
+                                                "text":  "https://github.com/pedrommartini/ClipDesk",
+                                                "ecc":  "M"
+                                            },
+                         "platforms":  [
+                                           "windows"
+                                       ],
+                         "stateVersion":  1,
+                         "module":  {
+                                        "assembly":  "ClipDesk.Plugin.QrCode.Core.dll",
+                                        "type":  "ClipDesk.Plugin.QrCode.QrCodeModule"
+                                    },
+                         "renderers":  [
+                                           {
+                                               "platform":  "windows",
+                                               "runtime":  "wpf-v2",
+                                               "assembly":  "ClipDesk.Plugin.QrCode.dll",
+                                               "type":  "ClipDesk.Plugin.QrCode.QrCodePlugin"
+                                           }
+                                       ],
+                         "permissions":  [
+
+                                         ],
+                         "capabilities":  [
+                                              "board-widget"
+                                          ],
+                         "networkHosts":  [
+
+                                          ]
+                     },
+                     {
+                         "manifestVersion":  2,
+                         "id":  "clipdesk.audiorecorder",
+                         "name":  "Gravador de Áudio",
+                         "description":  "Grave áudio do microfone e do sistema com controle de volume independente e adicione diretamente à mesa.",
+                         "version":  "1.0.6",
+                         "url":  "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-1.0.6/clipdesk.audiorecorder-1.0.6.zip",
+                         "sha256":  "623d4b5e441123c94e67f65e30e1f4704770231a805d0223c93d17c1e3ef4b2f",
+                         "runtime":  "portable-v2",
+                         "pluginApiVersion":  2,
+                         "minimumHostVersion":  "0.3.3",
+                         "maximumHostVersion":  null,
+                         "entryAssembly":  null,
+                         "entryType":  null,
+                         "iconGlyph":  "",
+                         "accentColor":  "#EF4444",
+                         "sortOrder":  120,
+                         "defaultSize":  {
+                                             "width":  540,
+                                             "height":  180
+                                         },
+                         "defaultContent":  {
+                                                "$schema":  "1",
+                                                "micChannelMode":  "mono",
+                                                "sysChannelMode":  "stereo",
+                                                "micEnabled":  "true",
+                                                "micVolume":  "100",
+                                                "systemEnabled":  "true",
+                                                "systemVolume":  "100",
+                                                "status":  "idle",
+                                                "duration":  "0",
+                                                "lastFile":  ""
+                                            },
+                         "platforms":  [
+                                           "windows"
+                                       ],
+                         "stateVersion":  1,
+                         "module":  {
+                                        "assembly":  "ClipDesk.Plugin.AudioRecorder.Core.dll",
+                                        "type":  "ClipDesk.Plugin.AudioRecorder.AudioRecorderModule"
+                                    },
+                         "renderers":  [
+                                           {
+                                               "platform":  "windows",
+                                               "runtime":  "wpf-v2",
+                                               "assembly":  "ClipDesk.Plugin.AudioRecorder.dll",
+                                               "type":  "ClipDesk.Plugin.AudioRecorder.AudioRecorderPlugin"
+                                           }
+                                       ],
+                         "permissions":  [
+                                             "file.read",
+                                             "file.write"
+                                         ],
+                         "capabilities":  [
+                                              "board-widget",
+                                              "board-files"
+                                          ],
+                         "networkHosts":  [
+
+                                          ]
+                     },
+                     {
+                         "manifestVersion":  2,
+                         "id":  "clipdesk.clock",
+                         "name":  "Relógio Mundial",
+                         "description":  "Relógio analógico minimalista em vetor, mostrador digital de alta legibilidade e relógios mundiais com indicador dia/noite.",
+                         "version":  "1.0.0",
+                         "publisher":  "ClipDesk",
+                         "iconGlyph":  "",
+                         "accentColor":  "#10B981",
+                         "runtime":  "portable-v2",
+                         "pluginApiVersion":  2,
+                         "stateVersion":  1,
+                         "module":  {
+                                        "assembly":  "ClipDesk.Plugin.Clock.Core.dll",
+                                        "type":  "ClipDesk.Plugin.Clock.ClockModule"
+                                    },
+                         "renderers":  [
+                                           {
+                                               "platform":  "windows",
+                                               "runtime":  "wpf-v2",
+                                               "assembly":  "ClipDesk.Plugin.Clock.dll",
+                                               "type":  "ClipDesk.Plugin.Clock.ClockPlugin"
+                                           }
+                                       ],
+                         "minimumHostVersion":  "0.3.3",
+                         "sortOrder":  100,
+                         "defaultSize":  {
+                                             "width":  340,
+                                             "height":  300
+                                         },
+                         "minimumSize":  {
+                                             "width":  240,
+                                             "height":  240
+                                         },
+                         "defaultContent":  {
+                                                "$schema":  "1",
+                                                "displayMode":  "analog",
+                                                "is24Hour":  "true",
+                                                "showSeconds":  "true",
+                                                "primaryZone":  "",
+                                                "worldClocks":  "[{\"id\":\"sp\",\"city\":\"São Paulo\",\"zone\":\"America/Sao_Paulo\"},{\"id\":\"nyc\",\"city\":\"Nova York\",\"zone\":\"America/New_York\"},{\"id\":\"lon\",\"city\":\"Londres\",\"zone\":\"Europe/London\"},{\"id\":\"tyo\",\"city\":\"Tóquio\",\"zone\":\"Asia/Tokyo\"}]"
+                                            },
+                         "platforms":  [
+                                           "windows"
+                                       ],
+                         "permissions":  [
+
+                                         ],
+                         "capabilities":  [
+                                              "board-widget"
+                                          ],
+                         "networkHosts":  [
+
+                                          ],
+                         "url":  "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-collaborators-20260924/clipdesk.clock-1.0.0.zip",
+                         "sha256":  "76d45baf865cb2b8fdb6c9de7d3a659b98293f21d9401e1971a9751e5aee6dc9"
+                     },
+                     {
+                         "manifestVersion":  2,
+                         "id":  "clipdesk.fileconverter",
+                         "name":  "Conversor de Arquivos",
+                         "description":  "Converta arquivos locais entre formatos compatíveis (imagens, áudio, vídeo, dados e documentos) com matriz semântica de regras e adição direta à mesa.",
+                         "version":  "1.0.0",
+                         "publisher":  "ClipDesk",
+                         "iconGlyph":  "",
+                         "accentColor":  "#6366F1",
+                         "runtime":  "portable-v2",
+                         "pluginApiVersion":  2,
+                         "stateVersion":  1,
+                         "module":  {
+                                        "assembly":  "ClipDesk.Plugin.FileConverter.Core.dll",
+                                        "type":  "ClipDesk.Plugin.FileConverter.FileConverterModule"
+                                    },
+                         "renderers":  [
+                                           {
+                                               "platform":  "windows",
+                                               "runtime":  "wpf-v2",
+                                               "assembly":  "ClipDesk.Plugin.FileConverter.dll",
+                                               "type":  "ClipDesk.Plugin.FileConverter.FileConverterPlugin"
+                                           }
+                                       ],
+                         "minimumHostVersion":  "0.4.2",
+                         "sortOrder":  130,
+                         "defaultSize":  {
+                                             "width":  680,
+                                             "height":  360
+                                         },
+                         "minimumSize":  {
+                                             "width":  240,
+                                             "height":  240
+                                         },
+                         "defaultContent":  {
+                                                "$schema":  "1",
+                                                "sourcePath":  "",
+                                                "sourceFileName":  "",
+                                                "sourceExtension":  "",
+                                                "sourceCategory":  "",
+                                                "sourceSize":  "0",
+                                                "targetFormat":  "",
+                                                "quality":  "85",
+                                                "icoSize":  "32",
+                                                "prettyPrint":  "true",
+                                                "status":  "idle",
+                                                "lastConvertedFile":  "",
+                                                "lastMessage":  "Aguardando arquivo..."
+                                            },
+                         "platforms":  [
+                                           "windows"
+                                       ],
+                         "permissions":  [
+                                             "file.read",
+                                             "file.write"
+                                         ],
+                         "capabilities":  [
+                                              "board-widget",
+                                              "board-files",
+                                              "file-drop"
+                                          ],
+                         "networkHosts":  [
+
+                                          ],
+                         "url":  "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-collaborators-20260924/clipdesk.fileconverter-1.0.0.zip",
+                         "sha256":  "58e9009e7865c0db1e19cd533e3d5b3290d6d3fb63fd954f9f6f0aaeec18edee"
+                     },
+                     {
+                         "manifestVersion":  2,
+                         "id":  "clipdesk.imagecompressor",
+                         "name":  "Compressor de Imagens",
+                         "description":  "Comprima, otimize e redimensione imagens em lote com presets rápidos, WIC nativo e adição direta à mesa.",
+                         "version":  "1.0.0",
+                         "publisher":  "ClipDesk",
+                         "iconGlyph":  "",
+                         "accentColor":  "#0EA5E9",
+                         "runtime":  "portable-v2",
+                         "pluginApiVersion":  2,
+                         "stateVersion":  1,
+                         "module":  {
+                                        "assembly":  "ClipDesk.Plugin.ImageCompressor.Core.dll",
+                                        "type":  "ClipDesk.Plugin.ImageCompressor.ImageCompressorModule"
+                                    },
+                         "renderers":  [
+                                           {
+                                               "platform":  "windows",
+                                               "runtime":  "wpf-v2",
+                                               "assembly":  "ClipDesk.Plugin.ImageCompressor.dll",
+                                               "type":  "ClipDesk.Plugin.ImageCompressor.ImageCompressorPlugin"
+                                           }
+                                       ],
+                         "minimumHostVersion":  "0.4.2",
+                         "sortOrder":  140,
+                         "defaultSize":  {
+                                             "width":  680,
+                                             "height":  360
+                                         },
+                         "minimumSize":  {
+                                             "width":  240,
+                                             "height":  240
+                                         },
+                         "defaultContent":  {
+                                                "$schema":  "1",
+                                                "quality":  "75",
+                                                "preset":  "balanced",
+                                                "outputFormat":  "original",
+                                                "maxDimension":  "original",
+                                                "stripMetadata":  "true",
+                                                "totalFilesCompressed":  "0",
+                                                "totalBytesSaved":  "0",
+                                                "lastMessage":  "Pronto para comprimir"
+                                            },
+                         "platforms":  [
+                                           "windows"
+                                       ],
+                         "permissions":  [
+                                             "file.read",
+                                             "file.write"
+                                         ],
+                         "capabilities":  [
+                                              "board-widget",
+                                              "board-files",
+                                              "file-drop"
+                                          ],
+                         "networkHosts":  [
+
+                                          ],
+                         "url":  "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-collaborators-20260924/clipdesk.imagecompressor-1.0.0.zip",
+                         "sha256":  "2569f9268e91a8a66b79b8c83dc73fafef96b1cef859e7192b571e37a5578617"
+                     },
+                     {
+                         "manifestVersion":  2,
+                         "id":  "clipdesk.imageupscaler",
+                         "name":  "Upscale de Imagem",
+                         "description":  "Amplie e restaure imagens até 8x com super-resolução inteligente, remoção de ruído, comparativo antes/depois deslizante e envio direto à mesa.",
+                         "version":  "1.0.0",
+                         "publisher":  "ClipDesk",
+                         "iconGlyph":  "",
+                         "accentColor":  "#8B5CF6",
+                         "runtime":  "portable-v2",
+                         "pluginApiVersion":  2,
+                         "stateVersion":  1,
+                         "module":  {
+                                        "assembly":  "ClipDesk.Plugin.ImageUpscaler.Core.dll",
+                                        "type":  "ClipDesk.Plugin.ImageUpscaler.ImageUpscalerModule"
+                                    },
+                         "renderers":  [
+                                           {
+                                               "platform":  "windows",
+                                               "runtime":  "wpf-v2",
+                                               "assembly":  "ClipDesk.Plugin.ImageUpscaler.dll",
+                                               "type":  "ClipDesk.Plugin.ImageUpscaler.ImageUpscalerPlugin"
+                                           }
+                                       ],
+                         "minimumHostVersion":  "0.4.2",
+                         "sortOrder":  145,
+                         "defaultSize":  {
+                                             "width":  560,
+                                             "height":  340
+                                         },
+                         "minimumSize":  {
+                                             "width":  240,
+                                             "height":  240
+                                         },
+                         "defaultContent":  {
+                                                "$schema":  "1",
+                                                "scaleFactor":  "4x",
+                                                "model":  "balanced",
+                                                "engine":  "local",
+                                                "sharpness":  "65",
+                                                "denoise":  "low",
+                                                "outputFormat":  "original",
+                                                "faceEnhance":  "false",
+                                                "cloudEndpoint":  "",
+                                                "totalImagesUpscaled":  "0",
+                                                "totalPixelsGenerated":  "0",
+                                                "lastMessage":  "Pronto para ampliar"
+                                            },
+                         "platforms":  [
+                                           "windows"
+                                       ],
+                         "permissions":  [
+                                             "file.read",
+                                             "file.write",
+                                             "network"
+                                         ],
+                         "capabilities":  [
+                                              "board-widget",
+                                              "board-files",
+                                              "file-drop"
+                                          ],
+                         "networkHosts":  [
+
+                                          ],
+                         "url":  "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-collaborators-20260924/clipdesk.imageupscaler-1.0.0.zip",
+                         "sha256":  "d93c9823d5de476aea59f4cb989d965b38c625a87d418442a23eeec06582a9a0"
+                     },
+                     {
+                         "manifestVersion":  2,
+                         "id":  "clipdesk.stopwatch",
+                         "name":  "Cronômetro",
+                         "description":  "Cronômetro progressivo com precisão de centésimos, registro de voltas, detecção de melhor e pior tempo e exportação.",
+                         "version":  "1.0.0",
+                         "publisher":  "ClipDesk",
+                         "iconGlyph":  "",
+                         "accentColor":  "#3B82F6",
+                         "runtime":  "portable-v2",
+                         "pluginApiVersion":  2,
+                         "stateVersion":  1,
+                         "module":  {
+                                        "assembly":  "ClipDesk.Plugin.Stopwatch.Core.dll",
+                                        "type":  "ClipDesk.Plugin.Stopwatch.StopwatchModule"
+                                    },
+                         "renderers":  [
+                                           {
+                                               "platform":  "windows",
+                                               "runtime":  "wpf-v2",
+                                               "assembly":  "ClipDesk.Plugin.Stopwatch.dll",
+                                               "type":  "ClipDesk.Plugin.Stopwatch.StopwatchPlugin"
+                                           }
+                                       ],
+                         "minimumHostVersion":  "0.3.3",
+                         "sortOrder":  110,
+                         "defaultSize":  {
+                                             "width":  320,
+                                             "height":  280
+                                         },
+                         "minimumSize":  {
+                                             "width":  240,
+                                             "height":  240
+                                         },
+                         "defaultContent":  {
+                                                "$schema":  "1",
+                                                "status":  "idle",
+                                                "accumulatedMs":  "0",
+                                                "startUtc":  "",
+                                                "lastLapTotalMs":  "0",
+                                                "laps":  "[]"
+                                            },
+                         "platforms":  [
+                                           "windows"
+                                       ],
+                         "permissions":  [
+
+                                         ],
+                         "capabilities":  [
+                                              "board-widget"
+                                          ],
+                         "networkHosts":  [
+
+                                          ],
+                         "url":  "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-collaborators-20260924/clipdesk.stopwatch-1.0.0.zip",
+                         "sha256":  "154733282d11c9a24de7baf4f979c2bb262edf42b9811f2e7d4e679a1b04e891"
+                     },
+                     {
+                         "manifestVersion":  2,
+                         "id":  "clipdesk.timer",
+                         "name":  "Temporizador",
+                         "description":  "Temporizador regressivo com contagem baseada em UTC, presets rápidos, mostrador digital e anel dinâmico de progresso.",
+                         "version":  "1.0.0",
+                         "publisher":  "ClipDesk",
+                         "iconGlyph":  "",
+                         "accentColor":  "#F59E0B",
+                         "runtime":  "portable-v2",
+                         "pluginApiVersion":  2,
+                         "stateVersion":  1,
+                         "module":  {
+                                        "assembly":  "ClipDesk.Plugin.Timer.Core.dll",
+                                        "type":  "ClipDesk.Plugin.Timer.TimerModule"
+                                    },
+                         "renderers":  [
+                                           {
+                                               "platform":  "windows",
+                                               "runtime":  "wpf-v2",
+                                               "assembly":  "ClipDesk.Plugin.Timer.dll",
+                                               "type":  "ClipDesk.Plugin.Timer.TimerPlugin"
+                                           }
+                                       ],
+                         "minimumHostVersion":  "0.3.3",
+                         "sortOrder":  130,
+                         "defaultSize":  {
+                                             "width":  320,
+                                             "height":  280
+                                         },
+                         "minimumSize":  {
+                                             "width":  240,
+                                             "height":  240
+                                         },
+                         "defaultContent":  {
+                                                "$schema":  "1",
+                                                "status":  "idle",
+                                                "durationSeconds":  "1500",
+                                                "remainingSeconds":  "1500",
+                                                "targetUtc":  "",
+                                                "selectedPreset":  "25m",
+                                                "label":  "Pomodoro"
+                                            },
+                         "platforms":  [
+                                           "windows"
+                                       ],
+                         "permissions":  [
+
+                                         ],
+                         "capabilities":  [
+                                              "board-widget"
+                                          ],
+                         "networkHosts":  [
+
+                                          ],
+                         "url":  "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-collaborators-20260924/clipdesk.timer-1.0.0.zip",
+                         "sha256":  "7cd9f68a315b1c06f1364eaa2730db59d5d525d3fa9943b0eedc5c385c4050b5"
+                     },
+                     {
+                         "manifestVersion":  2,
+                         "id":  "clipdesk.timezone",
+                         "name":  "Conversor de Fuso Horário",
+                         "description":  "Conversor multidirecional de fusos horários e planejador inteligente de reuniões globais.",
+                         "version":  "1.0.0",
+                         "publisher":  "ClipDesk",
+                         "iconGlyph":  "",
+                         "accentColor":  "#8B5CF6",
+                         "runtime":  "portable-v2",
+                         "pluginApiVersion":  2,
+                         "stateVersion":  1,
+                         "module":  {
+                                        "assembly":  "ClipDesk.Plugin.Timezone.Core.dll",
+                                        "type":  "ClipDesk.Plugin.Timezone.TimezoneModule"
+                                    },
+                         "renderers":  [
+                                           {
+                                               "platform":  "windows",
+                                               "runtime":  "wpf-v2",
+                                               "assembly":  "ClipDesk.Plugin.Timezone.dll",
+                                               "type":  "ClipDesk.Plugin.Timezone.TimezonePlugin"
+                                           }
+                                       ],
+                         "minimumHostVersion":  "0.3.3",
+                         "sortOrder":  130,
+                         "defaultSize":  {
+                                             "width":  360,
+                                             "height":  320
+                                         },
+                         "minimumSize":  {
+                                             "width":  240,
+                                             "height":  240
+                                         },
+                         "defaultContent":  {
+                                                "$schema":  "1",
+                                                "referenceZone":  "America/Sao_Paulo",
+                                                "referenceCity":  "São Paulo",
+                                                "selectedMinuteOfDay":  "840",
+                                                "isLive":  "false",
+                                                "zones":  "[{\"id\":\"sp\",\"city\":\"São Paulo\",\"zone\":\"America/Sao_Paulo\"},{\"id\":\"nyc\",\"city\":\"Nova York\",\"zone\":\"America/New_York\"},{\"id\":\"lon\",\"city\":\"Londres\",\"zone\":\"Europe/London\"},{\"id\":\"tyo\",\"city\":\"Tóquio\",\"zone\":\"Asia/Tokyo\"}]"
+                                            },
+                         "platforms":  [
+                                           "windows"
+                                       ],
+                         "permissions":  [
+
+                                         ],
+                         "capabilities":  [
+                                              "board-widget"
+                                          ],
+                         "networkHosts":  [
+
+                                          ],
+                         "url":  "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-collaborators-20260924/clipdesk.timezone-1.0.0.zip",
+                         "sha256":  "09392835abe9bdd580597cdc619411f3b9c9369d868e600b9e58a6be3f7c49ef"
+                     }
+                 ]
 }
