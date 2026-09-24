@@ -704,15 +704,19 @@ public partial class MainWindow
         var palette=new[]{"#22D3EE","#FB7185","#A78BFA","#34D399","#FBBF24","#60A5FA"};
         var hash=SHA256.HashData(Encoding.UTF8.GetBytes(id)); return new SolidColorBrush((Color)ColorConverter.ConvertFromString(palette[hash[0]%palette.Length]));
     }
-    private SolidColorBrush LocalPresenceColor() => PresenceColor(_cloud?.User?.Id ?? _storageService.Profile);
+    private static readonly SolidColorBrush NeutralSelectionColor = new((Color)ColorConverter.ConvertFromString("#94A3B8"));
+    private SolidColorBrush LocalPresenceColor() => NeutralSelectionColor;
+    private SolidColorBrush VisiblePresenceColor(string userId) =>
+        string.Equals(userId, _cloud?.User?.Id, StringComparison.OrdinalIgnoreCase)
+            ? NeutralSelectionColor : PresenceColor(userId);
     private async Task UpdateMembersAsync()
     {
         if(_cloud?.Connected!=true) return;
         var id=_activeWorkspace.Id; var members=await _cloud.MembersAsync(_activeWorkspace); if(id!=_activeWorkspace.Id) return;
         CollaboratorAvatars.Children.Clear();
-        foreach(var member in members.Where(m=>m.UserId!=_cloud.User!.Id).Take(3))
+        foreach(var member in members.Where(m=>!string.Equals(m.UserId,_cloud.User!.Id,StringComparison.OrdinalIgnoreCase)).Take(3))
         {
-            var color=PresenceColor(member.UserId); var avatar=new Grid {Width=26,Height=26};
+            var color=VisiblePresenceColor(member.UserId); var avatar=new Grid {Width=26,Height=26};
             avatar.Children.Add(new System.Windows.Shapes.Ellipse {Stroke=color,StrokeThickness=1.5,Fill=new SolidColorBrush(Color.FromArgb(24,color.Color.R,color.Color.G,color.Color.B))});
             var label=Label(member.Username.FirstOrDefault().ToString(),11,true); label.HorizontalAlignment=HorizontalAlignment.Center; label.VerticalAlignment=VerticalAlignment.Center; label.Margin=new Thickness(0); avatar.Children.Add(label);
             if(Uri.TryCreate(member.Picture,UriKind.Absolute,out var picture) && picture.Scheme=="https")
@@ -772,7 +776,7 @@ public partial class MainWindow
     }
     private void ShowFollowCameraBanner(string userId,string username)
     {
-        var color=PresenceColor(userId);var translucent=new SolidColorBrush(Color.FromArgb(34,color.Color.R,color.Color.G,color.Color.B));
+        var color=VisiblePresenceColor(userId);var translucent=new SolidColorBrush(Color.FromArgb(34,color.Color.R,color.Color.G,color.Color.B));
         FollowCameraAccent.Background=color;FollowCameraAvatarRing.Stroke=color;FollowCameraAvatarRing.Fill=translucent;
         FollowCameraAvatarInitial.Text=username.FirstOrDefault().ToString().ToUpperInvariant();
         FollowCameraTitle.Text=$"Acompanhando @{username}";
@@ -906,7 +910,7 @@ public partial class MainWindow
             return;
         }
         if(_remoteCursors.Remove(presence.UserId,out var previous)) WorkspaceCanvas.Children.Remove(previous.Visual);
-        var color=PresenceColor(presence.UserId); var cursor=new Canvas {Width=120,Height=35,IsHitTestVisible=false,Tag=signature,RenderTransform=new TranslateTransform(presence.X-7,presence.Y-7)};
+        var color=VisiblePresenceColor(presence.UserId); var cursor=new Canvas {Width=120,Height=35,IsHitTestVisible=false,Tag=signature,RenderTransform=new TranslateTransform(presence.X-7,presence.Y-7)};
         var marker=new Canvas {Width=120,Height=35,Tag="presence-marker",RenderTransformOrigin=new Point(0,0)};
         var ring=new Ellipse {Width=14,Height=14,Stroke=color,StrokeThickness=1.4,Fill=new SolidColorBrush(Color.FromArgb(28,color.Color.R,color.Color.G,color.Color.B)),Effect=new System.Windows.Media.Effects.DropShadowEffect {BlurRadius=4,ShadowDepth=1,Opacity=.25}};
         var dot=new Ellipse {Width=3,Height=3,Fill=color}; Canvas.SetLeft(dot,5.5);Canvas.SetTop(dot,5.5);marker.Children.Add(ring);marker.Children.Add(dot);
@@ -929,12 +933,12 @@ public partial class MainWindow
         foreach(var card in WorkspaceCanvas.Children.OfType<ItemCard>())
         {
             var selected=_remoteSelections.FirstOrDefault(p=>p.Value==card.Item.Id && _remoteCursors.ContainsKey(p.Key));
-            card.SetCollaboratorSelection(selected.Key is null?null:PresenceColor(selected.Key));
+            card.SetCollaboratorSelection(selected.Key is null?null:VisiblePresenceColor(selected.Key));
         }
         foreach(var view in WorkspaceCanvas.Children.OfType<BoardObjectView>())
         {
             var selected=_remoteSelections.FirstOrDefault(p=>p.Value==view.Object.Id && _remoteCursors.ContainsKey(p.Key));
-            view.SetCollaboratorSelection(selected.Key is null?null:PresenceColor(selected.Key));
+            view.SetCollaboratorSelection(selected.Key is null?null:VisiblePresenceColor(selected.Key));
         }
     }
     private void ExpireCursors()

@@ -19,33 +19,6 @@
     <Window.FontFamily>Segoe UI Variable Text</Window.FontFamily>
     <Window.Resources>
         <FontFamily x:Key="MaterialSymbols">/ClipDesk;component/Resources/Fonts/#Material Symbols Rounded</FontFamily>
-        <DrawingBrush x:Key="GridBrush"
-                      TileMode="Tile"
-                      Viewport="0,0,32,32"
-                      ViewportUnits="Absolute"
-                      Stretch="None">
-            <DrawingBrush.Drawing>
-                <DrawingGroup>
-                    <GeometryDrawing Brush="#F4F4F2">
-                        <GeometryDrawing.Geometry>
-                            <RectangleGeometry Rect="0,0,32,32" />
-                        </GeometryDrawing.Geometry>
-                    </GeometryDrawing>
-                    <GeometryDrawing>
-                        <GeometryDrawing.Pen>
-                            <Pen Brush="#E3E5E8" Thickness="1" />
-                        </GeometryDrawing.Pen>
-                        <GeometryDrawing.Geometry>
-                            <GeometryGroup>
-                                <LineGeometry StartPoint="32,0" EndPoint="32,32" />
-                                <LineGeometry StartPoint="0,32" EndPoint="32,32" />
-                            </GeometryGroup>
-                        </GeometryDrawing.Geometry>
-                    </GeometryDrawing>
-                </DrawingGroup>
-            </DrawingBrush.Drawing>
-        </DrawingBrush>
-
         <Style TargetType="Button">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
@@ -108,6 +81,22 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="CustomizationOptionStyle" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="#EEF2FF" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Margin" Value="0,0,10,0" />
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RadioButton">
+                <Border x:Name="Surface" Padding="12" MinHeight="72" Background="#A5101A2A" BorderBrush="#46536A86" BorderThickness="1" CornerRadius="13"><ContentPresenter /></Border>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="#C21B2942" /><Setter TargetName="Surface" Property="BorderBrush" Value="#7D9270D6" /></Trigger>
+                    <Trigger Property="IsChecked" Value="True"><Setter TargetName="Surface" Property="Background" Value="#2A7056D9" /><Setter TargetName="Surface" Property="BorderBrush" Value="#C4B5FD" /><Setter TargetName="Surface" Property="BorderThickness" Value="1.5" /></Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate></Setter.Value></Setter>
+        </Style>
+        <Style x:Key="CustomizationCloseStyle" TargetType="Button">
+            <Setter Property="Width" Value="36" /><Setter Property="Height" Value="36" /><Setter Property="Padding" Value="0" /><Setter Property="Background" Value="#211B2940" /><Setter Property="BorderBrush" Value="#465875" /><Setter Property="BorderThickness" Value="1" /><Setter Property="Foreground" Value="#D5DDF0" />
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="11"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" /></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="#3A293B5A" /><Setter TargetName="Surface" Property="BorderBrush" Value="#9DADE0" /></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+        </Style>
     </Window.Resources>
 
     <Grid x:Name="SplitLayout" Background="{DynamicResource SurfaceBrush}">
@@ -139,7 +128,7 @@
                         VerticalAlignment="Top"
                         RenderTransformOrigin="0,0"
                         AllowDrop="True"
-                        Background="{StaticResource GridBrush}"
+                        Background="#F8FAFD"
                         ClipToBounds="True"
                         PreviewDragOver="Window_DragOver"
                         PreviewDrop="Window_Drop"
@@ -153,14 +142,16 @@
             </Grid>
         </ScrollViewer>
 
-        <Border x:Name="SelectionMarquee"
+        <Rectangle x:Name="SelectionMarquee"
                 Visibility="Collapsed"
                 HorizontalAlignment="Left"
                 VerticalAlignment="Top"
-                Background="#167C5CFC"
-                BorderBrush="#BFA78BFA"
-                BorderThickness="1.5"
-                CornerRadius="7"
+                Fill="#0C94A3B8"
+                Stroke="#94A3B8"
+                StrokeThickness="1.5"
+                StrokeDashArray="6 4"
+                RadiusX="7"
+                RadiusY="7"
                 IsHitTestVisible="False"
                 Panel.ZIndex="140" />
 
@@ -276,7 +267,8 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition x:Name="ZoomColumn" Width="250" />
             </Grid.ColumnDefinitions>
-            <Grid Grid.Column="0" IsHitTestVisible="False">
+            <Grid Grid.Column="0">
+                <Button Background="Transparent" Padding="0" Click="BrandButton_Click" ToolTip="Personalizar ClipDesk" HorizontalContentAlignment="Left">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Image x:Name="BrandMark" Width="34" Height="34" Stretch="Uniform" />
                     <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
@@ -284,6 +276,7 @@
                         <TextBlock x:Name="InstalledVersionText" Margin="1,3,0,0" Foreground="#AAB8D8" FontSize="10" FontWeight="SemiBold" />
                     </StackPanel>
                 </StackPanel>
+                </Button>
             </Grid>
 
         <Border x:Name="TopToolbar" Grid.Column="1"
@@ -747,6 +740,36 @@
                         <Button x:Name="WorkspaceNameConfirmButton" Width="112" Height="40" Background="#8B5CF6" Foreground="White" Click="WorkspaceNameConfirm_Click">Criar mesa</Button>
                     </StackPanel>
                 </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="CustomizationOverlay" Visibility="Collapsed" Background="#C70A0E18" Panel.ZIndex="135" MouseDown="CustomizationOverlay_MouseDown">
+            <Border Width="700" Padding="30" HorizontalAlignment="Center" VerticalAlignment="Center" Background="#F2152030" BorderBrush="#7B6D7FA8" BorderThickness="1" CornerRadius="27" MouseDown="CustomizationDialog_MouseDown">
+                <Border.Effect><DropShadowEffect BlurRadius="50" ShadowDepth="18" Opacity="0.5" Color="#01030A" /></Border.Effect>
+                <Grid>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <Border Width="52" Height="52" CornerRadius="17" Background="#745C43BE"><TextBlock Text="&#xE771;" FontFamily="{StaticResource MaterialSymbols}" FontSize="25" Foreground="#F1EDFF" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                        <StackPanel Grid.Column="1" Margin="15,1,0,0"><TextBlock Text="Personalizar" FontSize="25" FontWeight="SemiBold" Foreground="#F4F6FF" /><TextBlock Text="Sua interface, do seu jeito." Margin="0,4,0,0" FontSize="13" Foreground="#AEBBD1" /></StackPanel>
+                        <Button Grid.Column="2" Style="{StaticResource CustomizationCloseStyle}" Click="CloseCustomization_Click" ToolTip="Fechar"><TextBlock Text="&#xE5CD;" FontFamily="{StaticResource MaterialSymbols}" FontSize="18" /></Button>
+                    </Grid>
+                    <Grid Grid.Row="1" Margin="0,27,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                        <Border Padding="18" Background="#8C101A2A" BorderBrush="#42546C8E" BorderThickness="1" CornerRadius="18">
+                            <StackPanel><TextBlock Text="MESA" FontSize="10" FontWeight="Bold" Foreground="#9BACE0" /><TextBlock Text="Fundo" Margin="0,7,0,0" FontSize="17" FontWeight="SemiBold" Foreground="#EDF1FF" /><TextBlock Text="A textura atrás dos seus cartões." Margin="0,4,0,15" FontSize="11" Foreground="#9FACC3" />
+                                <StackPanel Orientation="Horizontal"><RadioButton x:Name="BoardBackgroundNewOption" GroupName="boardBackground" Style="{StaticResource CustomizationOptionStyle}" Tag="board:new" Checked="CustomizationOption_Checked"><StackPanel><Border Height="21" Margin="0,0,0,8" Background="#152038" CornerRadius="5"><Canvas><Ellipse Width="3" Height="3" Fill="#7D8FB4" Canvas.Left="18" Canvas.Top="6" /><Ellipse Width="3" Height="3" Fill="#7D8FB4" Canvas.Left="66" Canvas.Top="13" /><Line X1="0" X2="120" Y1="11" Y2="11" Stroke="#33496D" /></Canvas></Border><TextBlock Text="Novo" FontSize="12" FontWeight="SemiBold" /><TextBlock Text="Grade e pontos" Margin="0,2,0,0" FontSize="10" Foreground="#AAB7CF" /></StackPanel></RadioButton><RadioButton x:Name="BoardBackgroundClassicOption" GroupName="boardBackground" Style="{StaticResource CustomizationOptionStyle}" Margin="0" Tag="board:classic" Checked="CustomizationOption_Checked"><StackPanel><Border Height="21" Margin="0,0,0,8" Background="#182337" CornerRadius="5"><Canvas><Line X1="0" X2="120" Y1="11" Y2="11" Stroke="#536782" /><Line X1="40" X2="40" Y1="0" Y2="21" Stroke="#536782" /><Line X1="80" X2="80" Y1="0" Y2="21" Stroke="#536782" /></Canvas></Border><TextBlock Text="Clássico" FontSize="12" FontWeight="SemiBold" /><TextBlock Text="Grade simples" Margin="0,2,0,0" FontSize="10" Foreground="#AAB7CF" /></StackPanel></RadioButton></StackPanel>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="2" Padding="18" Background="#8C101A2A" BorderBrush="#42546C8E" BorderThickness="1" CornerRadius="18">
+                            <StackPanel><TextBlock Text="TIPOGRAFIA" FontSize="10" FontWeight="Bold" Foreground="#9BACE0" /><TextBlock Text="Fonte" Margin="0,7,0,0" FontSize="17" FontWeight="SemiBold" Foreground="#EDF1FF" /><TextBlock Text="Uma fonte para a interface e outra para a mesa." Margin="0,4,0,15" FontSize="11" Foreground="#9FACC3" />
+                                <TextBlock Text="INTERFACE" FontSize="10" FontWeight="Bold" Foreground="#8091B2" Margin="0,0,0,7" /><StackPanel Orientation="Horizontal"><RadioButton x:Name="InterfaceDefaultOption" GroupName="interfaceFont" Style="{StaticResource CustomizationOptionStyle}" Tag="interface:default" Checked="CustomizationOption_Checked"><StackPanel><TextBlock Text="Aa" FontSize="20" FontFamily="Segoe UI Variable Text" /><TextBlock Text="Padrão" FontSize="11" FontWeight="SemiBold" /></StackPanel></RadioButton><RadioButton x:Name="InterfaceMontserratOption" GroupName="interfaceFont" Style="{StaticResource CustomizationOptionStyle}" Margin="0" Tag="interface:montserrat" Checked="CustomizationOption_Checked"><StackPanel><TextBlock Text="Aa" FontSize="20" FontFamily="/ClipDesk;component/Resources/Fonts/#Montserrat" /><TextBlock Text="Montserrat" FontSize="11" FontWeight="SemiBold" /></StackPanel></RadioButton></StackPanel>
+                                <TextBlock Text="MESA" FontSize="10" FontWeight="Bold" Foreground="#8091B2" Margin="0,15,0,7" /><StackPanel Orientation="Horizontal"><RadioButton x:Name="BoardDefaultOption" GroupName="boardFont" Style="{StaticResource CustomizationOptionStyle}" Tag="canvas:default" Checked="CustomizationOption_Checked"><StackPanel><TextBlock Text="Aa" FontSize="20" FontFamily="Segoe UI Variable Text" /><TextBlock Text="Padrão" FontSize="11" FontWeight="SemiBold" /></StackPanel></RadioButton><RadioButton x:Name="BoardMontserratOption" GroupName="boardFont" Style="{StaticResource CustomizationOptionStyle}" Margin="0" Tag="canvas:montserrat" Checked="CustomizationOption_Checked"><StackPanel><TextBlock Text="Aa" FontSize="20" FontFamily="/ClipDesk;component/Resources/Fonts/#Montserrat" /><TextBlock Text="Montserrat" FontSize="11" FontWeight="SemiBold" /></StackPanel></RadioButton></StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                    <Border Grid.Row="2" Margin="0,22,0,0" Padding="12,9" Background="#291F314D" BorderBrush="#3A5C6F95" BorderThickness="1" CornerRadius="12"><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE86C;" FontFamily="{StaticResource MaterialSymbols}" FontSize="17" Foreground="#B9A2FF" Margin="0,0,8,0" /><TextBlock Text="As escolhas são aplicadas e salvas na hora." VerticalAlignment="Center" FontSize="11" Foreground="#B9C5DB" /></StackPanel></Border>
+                </Grid>
             </Border>
         </Grid>
 

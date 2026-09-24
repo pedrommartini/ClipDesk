@@ -96,6 +96,8 @@ context.IsDarkMode
 context.IsEditing
 context.Width / Height / Scale
 context.AccentColor           // cor resolvida por instância
+context.FilesDropped += files => { ... }; // entrega de arquivos soltos nesta instância
+context.LayoutChanged += () => { ... }; // atualiza layout quando largura, altura ou escala mudam
 
 await context.ExecuteAsync(command, rebuild, cancellationToken, recordUndo)
 context.Commit(state, rebuild)
@@ -107,15 +109,78 @@ Use `ExecuteAsync` para alterar estado. `rebuild: false` preserva foco durante d
 
 A UI deve:
 
-- funcionar em tema claro e escuro e aproximadamente a partir de 300×240;
+- funcionar em tema claro e escuro desde o `minimumSize` declarado;
 - redimensionar sem cortar conteúdo e usar rolagem quando necessário;
 - tratar `context.AccentColor` como o tema da instância: aplicar em botões primários/ativos, indicadores e resultados relevantes; controles neutros podem manter a cor de superfície;
 - garantir contraste para qualquer cor personalizada e não manter pincéis de destaque estáticos entre reconstruções da view;
 - não criar seletor de cor dentro do plugin; o host mostra a paleta somente quando o objeto é selecionado pelo cabeçalho para mover/redimensionar;
 - não usar `AccentColor` para bordas ou alças de seleção: o host desenha esse outline com a cor de presença do colaborador e transmite o arraste em tempo real;
 - respeitar `context.Scale`, teclado, foco e alvos de toque confortáveis;
+- adaptar-se a **ambas** as dimensões, não apenas multiplicar fontes: use `Grid` com colunas proporcionais, quebre linhas, reduza margens em largura curta e ponha conteúdo extenso em `ScrollViewer`; nunca dependa de largura/altura fixas para o conteúdo;
+- em `minimumSize`, renderizar o modo compacto completo em um **quadrado**: `width` e `height` devem ser iguais, com ações essenciais visíveis, texto legível e rolagem para o restante; o host impede redimensionar abaixo desse limite, portanto teste exatamente nele e em proporções largas, altas e intermediárias;
+- tratar `context.Width`, `context.Height` e `context.Scale` como valores atuais da instância. O host pode redimensionar sem reconstruir o corpo: prefira layout WPF fluido e use `SizeChanged` ou `context.LayoutChanged` para alternar modos quando necessário; evite medidas calculadas uma única vez em `CreateBody`;
+- não repetir o nome do plugin no corpo: o cabeçalho da instância já exibe `manifest.name` ou título. Use o espaço interno para conteúdo e ações, como no exemplo de Relógio Mundial;
+- criar botões com `PluginButtons.Create(context, "Ação", primary: true/false)` do SDK Windows. Ele aplica cor de destaque, contraste, cantos, estados hover/pressed e escala consistente; mantenha rótulos curtos e deixe espaço para quebra ou reorganização dos botões no modo compacto;
 - cancelar operações pendentes em `Unloaded`;
 - apresentar erros curtos e recuperáveis, sem detalhes técnicos na tela.
+
+### Controles globais do SDK Windows
+
+Use os controles do SDK em vez de criar estilos isolados em cada plugin. Todos recebem `context`, acompanham tema, cor de destaque e escala, marcam a área inteira como interativa e mantêm o mesmo comportamento visual entre plugins.
+
+#### Slider
+
+`PluginSliders.Create` cria um slider moderno com trilho preenchido, marcador circular, teclado e clique em qualquer ponto do trilho. O usuário pode clicar ou arrastar sem precisar acertar o marcador.
+
+```csharp
+var volume = PluginSliders.Create(
+    context, minimum: 0, maximum: 100,
+    value: context.State.GetInt32("volume", 70),
+    changed: value =>
+    {
+        var state = context.State.With("volume",
+            ((int)value).ToString(CultureInfo.InvariantCulture));
+        context.Commit(state, rebuild: false);
+    },
+    step: 1);
+
+volume.InteractionStarted += context.NotifyBeforeChange;
+```
+
+Use `InteractionStarted` para registrar um único ponto de desfazer antes de uma alteração contínua. `ValueChanged` é emitido durante clique, arraste e uso das setas; `Home` e `End` selecionam os extremos.
+
+#### Toggle modular
+
+`PluginToggles.Create` aceita duas ou mais opções. Cada segmento ocupa toda a região clicável. A aparência pode usar uma letra, uma palavra ou um glifo de ícone por opção.
+
+```csharp
+var tamanho = PluginToggles.Create(context,
+[
+    new("medium", "M", ToolTip: "Médio"),
+    new("small", "S", ToolTip: "Pequeno"),
+    new("mute", "Silenciar", IconGlyph: "\uE74F",
+        IconFontFamily: "Segoe MDL2 Assets")
+],
+context.State.GetString("size") ?? "medium",
+value => context.Commit(context.State.With("size", value)));
+```
+
+O clique pode ocorrer em qualquer parte do segmento. Se o usuário clicar no pequeno espaço interno entre segmentos, o controle avança para a próxima opção. Use `Label` para letra ou palavra; quando `IconGlyph` é informado, o ícone substitui o texto visível e `Label` continua servindo como descrição acessível.
+
+#### Dropdown pesquisável
+
+`PluginDropdowns.Create` cria o botão e abre uma lista moderna com busca, opção selecionada, rolagem, teclado e fechamento ao clicar fora. Para abrir a lista a partir de um botão já existente, use `PluginDropdowns.Show`.
+
+```csharp
+var idioma = PluginDropdowns.Create(context,
+    idiomas.Select(item => new PluginDropdownOption(
+        item.Value, item.Label, SearchText: item.Value)),
+    context.State.GetString("language") ?? "pt",
+    value => context.Commit(context.State.With("language", value)),
+    searchPlaceholder: "Pesquisar idioma…");
+```
+
+A busca considera `Label`, `Value` e `SearchText`. Use `SearchText` para incluir sinônimos, código, descrição ou termos que não precisam aparecer na linha. O dropdown global já é usado pelos seletores de idioma e moeda incluídos no ClipDesk.
 
 Ações externas permitidas no renderizador:
 
@@ -126,6 +191,25 @@ context.RequestHostAction(new(PluginHostActionKind.ShowMessage, mensagem));
 ```
 
 Não chame clipboard, `Process.Start`, shell ou APIs globais diretamente.
+
+### Receber arquivos arrastados do Windows ou da mesa
+
+Declare `"file-drop"` em `capabilities` e `"file.read"` em `permissions`. No renderizador, registre o recebimento em `CreateBody`:
+
+```csharp
+context.FilesDropped += async files =>
+{
+    foreach (var file in files)
+    {
+        // file.Path, file.FileName e file.Length descrevem um arquivo local existente.
+        // Valide extensão e tamanho antes de ler. Não persista file.Path no estado.
+        var bytes = await File.ReadAllBytesAsync(file.Path);
+        // Converta o conteúdo em comando/estado portátil, se necessário.
+    }
+};
+```
+
+O host entrega arquivos soltos diretamente sobre a instância, vindos do Explorer, desktop ou de cartões de arquivo da mesa. O cartão retorna à posição anterior após a entrega. Arquivos soltos fora do plugin seguem o fluxo normal de criação de cartão. Somente plugins que registram `FilesDropped` **e** declaram capacidade e permissão recebem arquivos. A entrega contém até 16 arquivos por vez, sem pastas. O caminho é temporário e pode deixar de existir; trate erros de leitura. O template Starter demonstra a importação de `.txt` de até 1 MiB.
 
 Para criar cartões de arquivo ao lado do plugin, declare `"board-files"` em `capabilities` e `"file.write"` em `permissions`. Envie o conteúdo ao host:
 
@@ -139,6 +223,21 @@ context.RequestHostAction(PluginHostAction.AddFiles(
 ```
 
 Se o plugin já recebeu legitimamente um arquivo local, use `PluginBoardFile.FromPath(caminhoAbsoluto, nome)` e declare também `"file.read"`. Não leia diretórios nem descubra caminhos por conta própria. O host valida a solicitação, cria o cartão ao lado da instância, registra desfazer e executa persistência/sincronização. Limites: 16 arquivos, 25 MiB por conteúdo e 64 MiB por solicitação. `Content` e `Source` são mutuamente exclusivos.
+
+### Pasta local do plugin
+
+Se o plugin precisar criar arquivos ou subpastas locais, use exclusivamente `Documents/ClipDesk/<pasta-do-plugin>`. Cada plugin escolhe um nome simples e estável para sua pasta, por exemplo `Documents/ClipDesk/clipdesk.pomodoro`. Não crie arquivos em Desktop, Downloads, AppData, na raiz do disco, nem em outra pasta de Documentos.
+
+Use o helper do SDK para montar o caminho padrão e crie a pasta somente quando ela for necessária:
+
+```csharp
+var pastaDoPlugin = PluginStoragePaths.GetDefaultDirectory("clipdesk.pomodoro");
+Directory.CreateDirectory(pastaDoPlugin);
+var caminho = Path.Combine(pastaDoPlugin, "historico.json");
+await File.WriteAllTextAsync(caminho, conteudo);
+```
+
+O único caso em que o plugin pode gravar fora dessa pasta é quando oferecer uma opção explícita de **Pasta de saída** e o usuário escolher o local. Guarde essa escolha no estado/configuração do plugin, mostre o caminho selecionado e mantenha `Documents/ClipDesk/<pasta-do-plugin>` como padrão. Nunca escolha outro destino automaticamente.
 
 ## Rede e permissões
 
@@ -164,6 +263,8 @@ Edite o `manifest.json` do template. Preserve:
 - renderizador Windows com `platform: "windows"` e `runtime: "wpf-v2"`;
 - `platforms: ["windows"]` enquanto não existir renderizador MAUI compilado;
 - `capabilities: ["board-widget"]` para widgets da mesa;
+- defina `minimumSize` para o modo compacto como um quadrado (`width` igual a `height`), com lado mínimo de 120 e nunca maior que `defaultSize`; o padrão de compatibilidade é 190×190 e o empacotador rejeita valores inválidos ou retangulares;
+- acrescente `"file-drop"` e `"file.read"` somente se aceitar arrastar arquivos;
 - acrescente `"board-files"` somente se o renderizador realmente solicitar arquivos na mesa;
 - `defaultContent` coerente com `CreateDefaultState`;
 - `installByDefault: false` para plugins opcionais.
@@ -188,6 +289,7 @@ Teste no mínimo:
 - cancelamento e falha offline, quando aplicável;
 - abrir, editar, fechar e reabrir sem perder estado;
 - tema claro/escuro, cor de destaque, tamanhos diferentes, zoom e teclado;
+- tamanho mínimo quadrado, proporções largas/altas, e soltura de arquivos da mesa e do Windows quando aplicável;
 - nenhuma referência de plataforma dentro de `Core`.
 
 ## Publicação controlada
@@ -211,7 +313,10 @@ O host é responsável pelo ciclo de vida do pacote. A loja oferece **Adicionar*
 - [ ] Estado é pequeno, versionado, normalizado e retrocompatível.
 - [ ] Comandos validam argumentos e retornam status apropriado.
 - [ ] UI usa o host para efeitos externos e a cor de destaque do contexto.
+- [ ] Modo compacto funciona no `minimumSize` quadrado; título não é duplicado; controles usam `PluginButtons`, `PluginSliders`, `PluginToggles` e `PluginDropdowns` quando aplicável.
+- [ ] Arrastar arquivo só é anunciado quando o plugin trata `FilesDropped`.
 - [ ] Arquivos são enviados por `PluginHostAction.AddFiles`, com `board-files` e somente as permissões necessárias.
+- [ ] Se houver arquivos locais próprios, a pasta padrão é `Documents/ClipDesk/<pasta-do-plugin>`; outro destino só existe depois de escolha explícita do usuário.
 - [ ] Trocar a cor atualiza cabeçalho, ações primárias e indicadores imediatamente, sem reabrir o plugin.
 - [ ] O plugin não desenha nem persiste outline de seleção ou cor de colaborador.
 - [ ] Manifesto anuncia somente recursos realmente implementados.

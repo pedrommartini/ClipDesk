@@ -47,6 +47,7 @@ public sealed partial class BoardObjectView
     ];
 
     private Border? _pluginSurface;
+    private WindowsPluginViewContext? _fileDropContext;
     private string? _pluginSignature;
     private bool _pluginEditing;
     private bool _buildingPlugin;
@@ -116,6 +117,7 @@ public sealed partial class BoardObjectView
         {
             if (_pluginSurface is not null) Children.Remove(_pluginSurface);
             _pluginSurface = null;
+            _fileDropContext = null;
             _pluginSignature = null;
             _pluginEditButton = null;
             return;
@@ -142,6 +144,7 @@ public sealed partial class BoardObjectView
         _pluginLayoutSize = size;
 
         var scale = PluginScale();
+        _fileDropContext?.UpdateLayout(Object.Width, Object.Height, scale);
         _pluginHeaderHeight = Math.Clamp(48 * scale, 38, Math.Max(38, Object.Height * .27));
         if (_pluginHeaderRow is not null) _pluginHeaderRow.Height = new GridLength(_pluginHeaderHeight);
         if (_pluginEditButton is not null)
@@ -183,6 +186,7 @@ public sealed partial class BoardObjectView
             var pluginManifest = pluginId is null ? null : ExternalPlugins.Manifest(pluginId);
             var pluginAvailable = pluginManifest is not null;
             root.Children.Add(BuildPluginHeader(pluginAvailable));
+            _fileDropContext = null;
             var externalBody = !pluginAvailable || pluginId is null ? null : ExternalPlugins.CreateBody(pluginId,
                 new PluginState(Object.Content), IsDarkMode, _pluginEditing, Object.Width, Object.Height, scale, PluginAccentColor(),
                 () => WidgetActionRequested?.Invoke(this, "plugin:before-change"),
@@ -192,7 +196,7 @@ public sealed partial class BoardObjectView
                     Object.Content = state.ToDictionary();
                     MarkPluginChanged();
                     if (rebuild) { _pluginSignature = null; RefreshPluginSurface(); }
-                }, HandlePluginHostAction);
+                }, HandlePluginHostAction, context => _fileDropContext = context);
             externalBody ??= !pluginAvailable || pluginId is null ? null : ExternalPlugins.CreateBody(pluginId,
                 new PluginViewContext(Object.Content, IsDarkMode, _pluginEditing, Object.Width, Object.Height, scale,
                     rebuild =>
@@ -575,7 +579,7 @@ public sealed partial class BoardObjectView
         var (baseWidth, baseHeight) = Object.Kind switch
         {
             BoardObjectKind.Checklist => (320d, 260d), BoardObjectKind.Calculator => (300d, 390d),
-            BoardObjectKind.Translator => (370d, 270d), BoardObjectKind.CurrencyConverter => (350d, 245d),
+            BoardObjectKind.Translator => (370d, 270d), BoardObjectKind.CurrencyConverter => (350d, 260d),
             _ => (ExternalPlugins.Manifest(Object.PluginId ?? "")?.DefaultSize.Width ?? 320d,
                 ExternalPlugins.Manifest(Object.PluginId ?? "")?.DefaultSize.Height ?? 240d)
         };
@@ -585,6 +589,28 @@ public sealed partial class BoardObjectView
         // internal typography grow with the object so it remains readable on screen.
         return Math.Clamp(organic * .72 + Math.Min(widthScale, heightScale) * .28, .70, 10);
     }
+
+    private (double Width, double Height) PluginMinimumSize()
+    {
+        var minimum = ExternalPlugins.Manifest(Object.PluginId ?? "")?.MinimumSize;
+        var side = Math.Clamp(Math.Max(minimum?.Width ?? 190, minimum?.Height ?? 190), 120, 1200);
+        return (side, side);
+    }
+
+    public bool CanReceiveFileDrops
+    {
+        get
+        {
+            var manifest = ExternalPlugins.Manifest(Object.PluginId ?? BoardPluginIdentity.FromKind(Object.Kind) ?? "");
+            return _fileDropContext?.AcceptsFileDrops == true
+                && manifest is not null
+                && (manifest.Capabilities ?? []).Contains(PluginCapabilities.ReceiveFileDrops, StringComparer.OrdinalIgnoreCase)
+                && (manifest.Permissions ?? []).Contains(PluginPermissions.FileRead, StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    public Task DeliverDroppedFilesAsync(IReadOnlyList<PluginDroppedFile> files) =>
+        _fileDropContext?.DeliverFilesAsync(files) ?? Task.CompletedTask;
 
     private double Responsive(double value) => Math.Clamp(value * PluginScale(), 9, 220);
     private static SolidColorBrush ColorBrush(string value) => new((Color)ColorConverter.ConvertFromString(value));

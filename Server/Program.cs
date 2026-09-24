@@ -13,6 +13,7 @@ var builder=WebApplication.CreateBuilder(args);
 if(builder.Environment.IsDevelopment()) builder.Configuration.AddJsonFile("appsettings.Development.local.json",optional:true,reloadOnChange:false);
 builder.Services.AddSingleton<CloudStore>();
 builder.Services.AddSingleton<LiveConnections>();
+builder.Services.AddSingleton<PluginMarketplace>();
 builder.Services.AddSignalR(o=>o.MaximumReceiveMessageSize=16_384);
 builder.Services.AddHttpClient();
 builder.Services.AddRateLimiter(options =>
@@ -37,7 +38,7 @@ app.Use(async (context,next)=>
     {
         if(!app.Environment.IsDevelopment() && !context.Request.IsHttps) { context.Response.StatusCode=400; return; }
         var path=context.Request.Path;
-        if(path.StartsWithSegments("/api") || path.StartsWithSegments("/live"))
+        if((path.StartsWithSegments("/api") && !path.StartsWithSegments("/api/plugin-store/deploy")) || path.StartsWithSegments("/live"))
         {
             var bearer=context.Request.Headers.Authorization.ToString();
             var token=bearer.StartsWith("Bearer ",StringComparison.Ordinal) ? bearer[7..] : "";
@@ -97,6 +98,15 @@ app.MapPost("/auth/google",async (GoogleLogin login)=>
     return Results.Ok(store.Login(payload.Subject,payload.Email,payload.Name ?? "Usuário",payload.Picture));
 });
 app.MapGet("/api/me",(HttpContext c)=>User(c));
+app.MapGet("/plugin-store/feed.json", (HttpContext c, PluginMarketplace marketplace) =>
+    Results.Json(marketplace.Feed(new Uri($"{c.Request.Scheme}://{c.Request.Host}/"))));
+app.MapGet("/plugin-store/packages/{fileName}", (PluginMarketplace marketplace, string fileName) =>
+{
+    var path = marketplace.PackagePath(fileName);
+    return Results.File(path, "application/zip", fileName);
+});
+app.MapPost("/api/plugin-store/deploy", (PluginMarketplace marketplace, IFormFile package, string publisher, string deployPassword) =>
+    Results.Ok(marketplace.Publish(package, publisher.Trim().TrimStart('@'), deployPassword)));
 app.MapPost("/api/username",(HttpContext c,UsernameRequest request)=>store.SetUsername(User(c).Id,request.Username));
 app.MapPost("/api/logout",(HttpContext c)=> {var token=c.Request.Headers.Authorization.ToString()[7..];store.Logout(token);app.Services.GetRequiredService<LiveConnections>().Revoke(CloudStore.Hash(token));return Results.NoContent();});
 app.MapGet("/api/entities",(HttpContext c)=>store.GetEntities(User(c).Id));

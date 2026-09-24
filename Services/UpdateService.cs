@@ -10,8 +10,8 @@ public sealed record AvailableUpdate(Version Version, string TagName, string Dow
 
 public static class UpdateService
 {
-    public const string CurrentVersion = "0.3.3";
-    private const string LatestReleaseUrl = "https://api.github.com/repos/pedrommartini/ClipDesk/releases/latest";
+    public const string CurrentVersion = "0.4.0";
+    private const string ReleasesUrl = "https://api.github.com/repos/pedrommartini/ClipDesk/releases";
     private const string PackageName = "ClipDesk-Windows-x64.zip";
 
     private static readonly HttpClient Http = CreateHttpClient();
@@ -19,29 +19,33 @@ public static class UpdateService
     public static async Task<AvailableUpdate?> CheckForUpdateAsync(CancellationToken cancellationToken = default)
     {
         if (AppEnvironment.IsTestClient) return null;
-        using var response = await Http.GetAsync(LatestReleaseUrl, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
-        var root = document.RootElement;
-        var tagName = root.GetProperty("tag_name").GetString() ?? string.Empty;
-        if (!TryParseVersion(tagName, out var version) || version <= new Version(CurrentVersion)) return null;
-
-        var assets = root.GetProperty("assets");
-        foreach (var asset in assets.EnumerateArray())
+        AvailableUpdate? newest = null;
+        for (var page = 1; page <= 10; page++)
         {
-            if (!string.Equals(asset.GetProperty("name").GetString(), PackageName, StringComparison.OrdinalIgnoreCase)) continue;
-            var url = asset.GetProperty("browser_download_url").GetString();
-            if (Uri.TryCreate(url, UriKind.Absolute, out var downloadUri)
-                && downloadUri.Scheme == Uri.UriSchemeHttps
-                && string.Equals(downloadUri.Host, "github.com", StringComparison.OrdinalIgnoreCase))
+            using var response = await Http.GetAsync($"{ReleasesUrl}?per_page=100&page={page}", cancellationToken);
+            response.EnsureSuccessStatusCode();
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+            var releases = document.RootElement;
+            foreach (var release in releases.EnumerateArray())
             {
-                return new AvailableUpdate(version, tagName, downloadUri.AbsoluteUri);
+                if (release.GetProperty("draft").GetBoolean() || release.GetProperty("prerelease").GetBoolean()) continue;
+                var tagName = release.GetProperty("tag_name").GetString() ?? string.Empty;
+                if (!tagName.StartsWith('v') || !TryParseVersion(tagName, out var version)
+                    || version <= new Version(CurrentVersion) || (newest is not null && version <= newest.Version)) continue;
+                foreach (var asset in release.GetProperty("assets").EnumerateArray())
+                {
+                    if (!string.Equals(asset.GetProperty("name").GetString(), PackageName, StringComparison.OrdinalIgnoreCase)) continue;
+                    var url = asset.GetProperty("browser_download_url").GetString();
+                    if (Uri.TryCreate(url, UriKind.Absolute, out var downloadUri)
+                        && downloadUri.Scheme == Uri.UriSchemeHttps
+                        && string.Equals(downloadUri.Host, "github.com", StringComparison.OrdinalIgnoreCase))
+                        newest = new AvailableUpdate(version, tagName, downloadUri.AbsoluteUri);
+                }
             }
+            if (releases.GetArrayLength() < 100) break;
         }
-
-        return null;
+        return newest;
     }
 
     public static async Task DownloadAndStartAsync(AvailableUpdate update, CancellationToken cancellationToken = default)
@@ -71,13 +75,17 @@ public static class UpdateService
             "--target", QuoteArgument(applicationDirectory),
             "--exe", QuoteArgument(executablePath));
 
+        var programFiles = Path.GetFullPath(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        var needsElevation = (Path.GetFullPath(applicationDirectory).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar)
+            .StartsWith(programFiles, StringComparison.OrdinalIgnoreCase);
         var updaterProcess = Process.Start(new ProcessStartInfo
         {
             FileName = updaterCopy,
             Arguments = arguments,
             WorkingDirectory = applicationDirectory,
-            UseShellExecute = false,
-            CreateNoWindow = true,
+            UseShellExecute = needsElevation,
+            Verb = needsElevation ? "runas" : string.Empty,
+            CreateNoWindow = !needsElevation,
             WindowStyle = ProcessWindowStyle.Hidden
         });
         if (updaterProcess is null)
@@ -118,7 +126,7 @@ public static class UpdateService
     private static HttpClient CreateHttpClient()
     {
         var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("ClipDesk-Updater/0.3.3");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("ClipDesk-Updater/0.4.0");
         client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
         return client;
     }

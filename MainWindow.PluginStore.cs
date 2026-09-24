@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Windows;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
+using Microsoft.Win32;
 using ClipDesk.Core;
 using ClipDesk.PluginSdk;
 using ClipDesk.Services;
@@ -39,6 +40,9 @@ public partial class MainWindow
         PluginStore.PluginActionRequested += PluginStoreActionRequested;
         PluginStore.PluginRepairRequested += PluginStoreRepairRequested;
         PluginStore.PluginUninstallRequested += PluginStoreUninstallRequested;
+        PluginStore.LocalPluginLoadRequested += (_, _) => LoadLocalPluginFromStore();
+        PluginStore.PluginDeployRequested += (_, _) => DeployPluginFromStore();
+        PluginStore.RefreshRequested += (_, _) => RefreshPluginStoreFromStore();
         _pluginUpdateTimer.Tick += (_, _) => _ = CheckForPluginUpdatesAsync();
         _pluginUpdateTimer.Start();
         Closed += (_, _) => _pluginUpdateTimer.Stop();
@@ -77,7 +81,11 @@ public partial class MainWindow
         try
         {
             var delivery = new PluginDeliveryService(_pluginCatalogService);
-            var feed = await delivery.FetchFeedAsync();
+            var officialFeed = await delivery.FetchFeedAsync();
+            PluginFeed? marketplaceFeed = null;
+            try { marketplaceFeed = await delivery.FetchMarketplaceFeedAsync(); }
+            catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException) { Trace.WriteLine($"Loja de plugins indisponível: {ex.Message}"); }
+            var feed = PluginDeliveryService.MergeFeeds(officialFeed, marketplaceFeed);
             if (feed is null || !IsLoaded) return;
             var updated = await delivery.UpdateInstalledAsync(feed);
             _remotePluginFeed = feed;
@@ -132,6 +140,75 @@ public partial class MainWindow
             PluginStoreOverlay.Visibility = Visibility.Collapsed;
         };
         PluginStoreOverlay.BeginAnimation(OpacityProperty, fade);
+    }
+
+    private async void LoadLocalPluginFromStore()
+    {
+        var picker = new OpenFileDialog
+        {
+            Title = "Carregar plugin local",
+            Filter = "Pacote de plugin ClipDesk (*.zip)|*.zip",
+            CheckFileExists = true,
+            Multiselect = false
+        };
+        if (picker.ShowDialog(this) != true) return;
+        try
+        {
+            var installed = await new PluginDeliveryService(_pluginCatalogService).InstallLocalArchiveAsync(picker.FileName);
+            Views.BoardObjectView.InvalidateExternalPlugin(installed.Manifest.Id);
+            ReloadPluginCatalog();
+            ShowToast($"{installed.Manifest.Name} carregado");
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            ShowToast($"Não foi possível carregar: {ex.Message}");
+        }
+    }
+
+    private async void DeployPluginFromStore()
+    {
+        var username = _cloud?.User?.Username;
+        if (_cloud?.Connected != true || string.IsNullOrWhiteSpace(username))
+        {
+            ShowToast("Entre com Google e defina seu username antes de fazer deploy.");
+            CloudAccount_Click(CloudStatusButton, new RoutedEventArgs());
+            return;
+        }
+        var picker = new OpenFileDialog
+        {
+            Title = "Selecionar pacote para deploy",
+            Filter = "Pacote de plugin ClipDesk (*.zip)|*.zip",
+            CheckFileExists = true,
+            Multiselect = false
+        };
+        if (picker.ShowDialog(this) != true) return;
+        var dialog = new Views.PluginDeploymentDialog(Path.GetFileName(picker.FileName), username) { Owner = this };
+        if (dialog.ShowDialog() != true) return;
+        try
+        {
+            var published = await new PluginPublishingService().PublishAsync(picker.FileName, username, dialog.DeployPassword);
+            _lastPluginFeedCheck = DateTimeOffset.MinValue;
+            await CheckForPluginUpdatesAsync();
+            ShowToast($"{published.Name} publicado por @{published.Publisher}");
+        }
+        catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            ShowToast($"Não foi possível publicar: {ex.Message}");
+        }
+    }
+
+    private async void RefreshPluginStoreFromStore()
+    {
+        if (_pluginFeedCheckInProgress) return;
+        PluginStore.SetRefreshInProgress(true);
+        try
+        {
+            _lastPluginFeedCheck = DateTimeOffset.MinValue;
+            await CheckForPluginUpdatesAsync();
+            ReloadPluginCatalog();
+            ShowToast("Loja de plugins atualizada");
+        }
+        finally { PluginStore.SetRefreshInProgress(false); }
     }
 
     private async void PluginStoreActionRequested(PluginCatalogEntry entry)

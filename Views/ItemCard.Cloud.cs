@@ -77,7 +77,7 @@ public sealed partial class ItemCard
 
     public void SetCollaboratorSelection(Brush? color)
     {
-        CollaboratorSelection.BorderBrush=color;
+        CollaboratorSelection.Stroke=color;
         CollaboratorSelection.Visibility=color is null?Visibility.Collapsed:Visibility.Visible;
     }
     private void CloudFileAction_Click(object sender,RoutedEventArgs e) { e.Handled=true; CloudFileActionRequested?.Invoke(this,EventArgs.Empty); }

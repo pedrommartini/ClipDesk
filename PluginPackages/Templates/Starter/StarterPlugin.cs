@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -10,6 +11,25 @@ public sealed class StarterPlugin : IWindowsPluginRenderer
 {
     public FrameworkElement CreateBody(WindowsPluginViewContext context)
     {
+        context.FilesDropped += async files =>
+        {
+            var file = files.FirstOrDefault();
+            if (file is null) return;
+            if (!file.FileName.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) || file.Length > 1024 * 1024)
+            {
+                context.RequestHostAction(new(PluginHostActionKind.ShowMessage, "Solte um arquivo .txt de até 1 MiB."));
+                return;
+            }
+            try
+            {
+                var text = await File.ReadAllTextAsync(file.Path);
+                await context.ExecuteAsync(new PluginCommand("set-text", new Dictionary<string, string> { ["value"] = text }));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                context.RequestHostAction(new(PluginHostActionKind.ShowMessage, "Não foi possível ler o arquivo."));
+            }
+        };
         var foreground = GetBrush(context.IsDarkMode ? "#F3F6FA" : "#182230");
         var muted = GetBrush(context.IsDarkMode ? "#A9B4C3" : "#66758A");
         var surface = GetBrush(context.IsDarkMode ? "#202936" : "#F5F7FA");
@@ -23,7 +43,7 @@ public sealed class StarterPlugin : IWindowsPluginRenderer
 
         body.Children.Add(new TextBlock
         {
-            Text = "Conteúdo",
+            Text = "Conteúdo · solte um arquivo .txt aqui",
             Foreground = muted,
             FontSize = Math.Clamp(12 * context.Scale, 11, 24),
             Margin = new Thickness(0, 0, 0, 7)
@@ -72,8 +92,8 @@ public sealed class StarterPlugin : IWindowsPluginRenderer
             HorizontalAlignment = HorizontalAlignment.Right,
             Margin = new Thickness(0, 9, 0, 0)
         };
-        var clear = CreateButton("Limpar", surface, foreground);
-        var save = CreateButton("Salvar", accent, accentForeground);
+        var clear = PluginButtons.Create(context, "Limpar");
+        var save = PluginButtons.Create(context, "Salvar", true);
         save.Margin = new Thickness(7, 0, 0, 0);
 
         clear.Click += async (_, e) =>
@@ -119,7 +139,7 @@ public sealed class StarterPlugin : IWindowsPluginRenderer
         Grid.SetRow(scroll, 1);
         body.Children.Add(scroll);
 
-        var copy = CreateButton("Copiar", accent, accentForeground);
+        var copy = PluginButtons.Create(context, "Copiar", true);
         copy.HorizontalAlignment = HorizontalAlignment.Right;
         copy.Margin = new Thickness(0, 9, 0, 0);
         copy.Click += (_, e) =>
@@ -130,18 +150,6 @@ public sealed class StarterPlugin : IWindowsPluginRenderer
         Grid.SetRow(copy, 2);
         body.Children.Add(copy);
     }
-
-    private static Button CreateButton(string label, Brush background, Brush foreground) => new()
-    {
-        Content = label,
-        Background = background,
-        Foreground = foreground,
-        BorderThickness = new Thickness(0),
-        Padding = new Thickness(13, 7, 13, 7),
-        MinHeight = 34,
-        Tag = "plugin-interactive",
-        Cursor = System.Windows.Input.Cursors.Hand
-    };
 
     private static Brush GetBrush(string color, string fallback = "#000000")
     {

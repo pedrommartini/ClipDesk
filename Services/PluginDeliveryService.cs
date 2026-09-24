@@ -20,6 +20,7 @@ public sealed class PluginFeedPackage
     public string Id { get; init; } = "";
     public string Name { get; init; } = "";
     public string Description { get; init; } = "";
+    public string Publisher { get; init; } = "ClipDesk";
     public string Version { get; init; } = "";
     public string Url { get; init; } = "";
     public string Sha256 { get; init; } = "";
@@ -34,6 +35,7 @@ public sealed class PluginFeedPackage
     public string AccentColor { get; init; } = "#9B7DFF";
     public int SortOrder { get; init; }
     public PluginSize DefaultSize { get; init; } = new();
+    public PluginSize MinimumSize { get; init; } = new() { Width = 190, Height = 190 };
     public Dictionary<string, string> DefaultContent { get; init; } = [];
     public PluginEntryPoint? Module { get; init; }
     public IReadOnlyList<PluginRendererEntryPoint> Renderers { get; init; } = [];
@@ -44,9 +46,10 @@ public sealed class PluginFeedPackage
 
     public PluginManifest CompatibilityManifest() => new()
     {
-        ManifestVersion = ManifestVersion, Id = Id, Name = Name, Description = Description, Version = Version, Runtime = Runtime,
+        ManifestVersion = ManifestVersion, Id = Id, Name = Name, Description = Description, Publisher = Publisher, Version = Version, Runtime = Runtime,
         IconGlyph = IconGlyph, AccentColor = AccentColor, SortOrder = SortOrder,
-        DefaultSize = DefaultSize ?? new PluginSize(), DefaultContent = DefaultContent ?? [],
+        DefaultSize = DefaultSize ?? new PluginSize(), MinimumSize = MinimumSize ?? new PluginSize { Width = 190, Height = 190 },
+        DefaultContent = DefaultContent ?? [],
         MinimumHostVersion = MinimumHostVersion,
         MaximumHostVersion = MaximumHostVersion, PluginApiVersion = PluginApiVersion,
         EntryAssembly = EntryAssembly, EntryType = EntryType, Platforms = Platforms,
@@ -101,6 +104,29 @@ public sealed class PluginDeliveryService
         return feed;
     }
 
+    /// <summary>Reads packages published to the ClipDesk marketplace server when it is configured.</summary>
+    public async Task<PluginFeed?> FetchMarketplaceFeedAsync(CancellationToken cancellationToken = default)
+    {
+        var store = PluginPublishingService.ResolveStoreUri();
+        if (store is null || AppEnvironment.IsTestClient) return null;
+        using var response = await _http.GetAsync(new Uri(store, "plugin-store/feed.json"), HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
+        response.EnsureSuccessStatusCode();
+        await using var body = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var feed = await JsonSerializer.DeserializeAsync<PluginFeed>(body, Json, cancellationToken)
+                   ?? throw new InvalidDataException("Catálogo da loja vazio.");
+        if (feed.SchemaVersion != 1) throw new InvalidDataException("Versão do catálogo da loja não suportada.");
+        return feed;
+    }
+
+    public static PluginFeed MergeFeeds(params PluginFeed?[] feeds) => new()
+    {
+        SchemaVersion = 1,
+        Packages = feeds.Where(feed => feed is not null).SelectMany(feed => feed!.Packages ?? [])
+            .GroupBy(package => $"{package.Id}\u001f{package.Version}", StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First()).ToArray()
+    };
+
     public async Task<IReadOnlyList<InstalledPluginPackage>> UpdateInstalledAsync(CancellationToken cancellationToken = default)
     {
         var feed = await FetchFeedAsync(cancellationToken);
@@ -128,6 +154,38 @@ public sealed class PluginDeliveryService
     public async Task<InstalledPluginPackage> RepairRemoteAsync(PluginFeedPackage package,
         CancellationToken cancellationToken = default)
         => await InstallRemoteAsync(package, repair: true, cancellationToken);
+
+    /// <summary>Installs a package the user explicitly selected on this computer.</summary>
+    public async Task<InstalledPluginPackage> InstallLocalArchiveAsync(string archivePath,
+        CancellationToken cancellationToken = default)
+    {
+        if (!Path.IsPathFullyQualified(archivePath) || !File.Exists(archivePath)
+            || !archivePath.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Selecione um pacote de plugin .zip válido.");
+        if (new FileInfo(archivePath).Length > MaximumZipBytes)
+            throw new InvalidDataException("Pacote de plugin muito grande.");
+
+        var workDirectory = Path.Combine(Path.GetTempPath(), "ClipDesk", "PluginImports", Guid.NewGuid().ToString("N"));
+        var extractDirectory = Path.Combine(workDirectory, "contents");
+        try
+        {
+            Directory.CreateDirectory(extractDirectory);
+            await using (var input = File.OpenRead(archivePath))
+            await using (var output = File.Create(Path.Combine(workDirectory, "plugin.zip")))
+                await input.CopyToAsync(output, cancellationToken);
+            ExtractSafely(Path.Combine(workDirectory, "plugin.zip"), extractDirectory);
+            var manifest = PluginCatalogService.TryReadManifest(Path.Combine(extractDirectory, "manifest.json"));
+            if (manifest is null)
+                throw new InvalidDataException("O pacote não contém um manifesto de plugin válido.");
+            _catalog.Install(manifest, extractDirectory);
+            return _catalog.GetInstalledPackage(manifest.Id)
+                ?? throw new InvalidDataException("O plugin não ficou disponível depois da instalação.");
+        }
+        finally
+        {
+            if (Directory.Exists(workDirectory)) Directory.Delete(workDirectory, recursive: true);
+        }
+    }
 
     private async Task<InstalledPluginPackage> InstallRemoteAsync(PluginFeedPackage package, bool repair,
         CancellationToken cancellationToken)
@@ -199,8 +257,12 @@ public sealed class PluginDeliveryService
 
     private async Task<string> DownloadAndExtractAsync(PluginFeedPackage package, CancellationToken cancellationToken)
     {
-        if (!Uri.TryCreate(package.Url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps
-            || _requireOfficialDownloads && (uri.Host != "github.com"
+        var marketplace = PluginPublishingService.ResolveStoreUri();
+        var marketplacePackage = marketplace is not null
+            && UriMatchesStore(package.Url, marketplace);
+        if (!Uri.TryCreate(package.Url, UriKind.Absolute, out var uri)
+            || (uri.Scheme != Uri.UriSchemeHttps && !(AppEnvironment.IsDevelopment && marketplacePackage && uri.Scheme == Uri.UriSchemeHttp))
+            || _requireOfficialDownloads && !marketplacePackage && (uri.Host != "github.com"
                 || !uri.AbsolutePath.StartsWith("/pedrommartini/ClipDesk/releases/download/", StringComparison.OrdinalIgnoreCase)))
             throw new InvalidDataException("Endereço do pacote de plugin não autorizado.");
 
@@ -241,6 +303,12 @@ public sealed class PluginDeliveryService
             throw;
         }
     }
+
+    private static bool UriMatchesStore(string value, Uri store) => Uri.TryCreate(value, UriKind.Absolute, out var uri)
+        && uri.Scheme.Equals(store.Scheme, StringComparison.OrdinalIgnoreCase)
+        && uri.Host.Equals(store.Host, StringComparison.OrdinalIgnoreCase)
+        && uri.Port == store.Port
+        && uri.AbsolutePath.StartsWith("/plugin-store/packages/", StringComparison.OrdinalIgnoreCase);
 
     private static void ExtractSafely(string zipPath, string destination)
     {

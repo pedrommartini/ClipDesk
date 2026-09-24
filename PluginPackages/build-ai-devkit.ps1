@@ -22,15 +22,32 @@ try {
     Get-ChildItem -LiteralPath $kitRoot -Directory -Recurse |
         Where-Object { $_.Name -in @('bin', 'obj') } |
         Sort-Object FullName -Descending |
-        Remove-Item -Recurse -Force
+        ForEach-Object {
+            if (-not [IO.Path]::GetFullPath($_.FullName).StartsWith([IO.Path]::GetFullPath($kitRoot) + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+                throw "Diretório fora do kit: $($_.FullName)"
+            }
+            Remove-Item -LiteralPath $_.FullName -Recurse -Force
+        }
 
     $resolvedOutput = [IO.Path]::GetFullPath($OutputPath)
     $outputDirectory = Split-Path $resolvedOutput -Parent
     New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
     if (Test-Path -LiteralPath $resolvedOutput) { Remove-Item -LiteralPath $resolvedOutput -Force }
     [IO.Compression.ZipFile]::CreateFromDirectory($kitRoot, $resolvedOutput)
+    $landingDownloadDirectory = Join-Path $repositoryRoot 'landing\downloads'
+    New-Item -ItemType Directory -Path $landingDownloadDirectory -Force | Out-Null
+    $landingDownload = Join-Path $landingDownloadDirectory 'ClipDesk-Plugin-AI-DevKit.zip'
+    if (-not [string]::Equals($resolvedOutput, [IO.Path]::GetFullPath($landingDownload), [StringComparison]::OrdinalIgnoreCase)) {
+        Copy-Item -LiteralPath $resolvedOutput -Destination $landingDownload -Force
+    }
     Get-Item -LiteralPath $resolvedOutput | Select-Object FullName, Length, LastWriteTime
 }
 finally {
-    if (Test-Path -LiteralPath $stagingRoot) { Remove-Item -LiteralPath $stagingRoot -Recurse -Force }
+    if (Test-Path -LiteralPath $stagingRoot) {
+        $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
+        if (-not [IO.Path]::GetFullPath($stagingRoot).StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Diretório temporário fora do destino esperado: $stagingRoot"
+        }
+        Remove-Item -LiteralPath $stagingRoot -Recurse -Force
+    }
 }

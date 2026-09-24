@@ -63,10 +63,11 @@ public partial class MainWindow
         if(_groupDragLead is not null)
             foreach(var card in _groupDragPositions.Keys.Concat(_linkedCardDragOrigins.Keys).Append(_groupDragLead))
                 drags[card.Item.Id]=new(card.Item.Id,Canvas.GetLeft(card),Canvas.GetTop(card));
-        if(_selectedBoardObjectView is { IsMouseCaptured:true,IsMovingTransform:true } view)
+        if(_groupDragObjectLead is { IsMouseCaptured:true,IsMovingTransform:true } view)
             drags[view.Object.Id]=new(view.Object.Id,view.Object.X,view.Object.Y);
         if(drags.Count==0)return null;
         foreach(var obj in _linkedObjectDragOrigins.Keys)drags[obj.Id]=new(obj.Id,obj.X,obj.Y);
+        foreach(var selected in _groupDragObjectPositions.Keys)drags[selected.Object.Id]=new(selected.Object.Id,selected.Object.X,selected.Object.Y);
         foreach(var card in _linkedCardDragOrigins.Keys)drags[card.Item.Id]=new(card.Item.Id,Canvas.GetLeft(card),Canvas.GetTop(card));
         return drags.Values.Take(64).ToArray();
     }

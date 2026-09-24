@@ -22,6 +22,12 @@ foreach ($zip in Get-ChildItem -LiteralPath $packageRoot -Filter 'clipdesk.*.zip
         if (-not $isV1 -and -not $isV2) {
             throw "Pacote Windows inválido: $($zip.Name)"
         }
+        if ($isV2 -and ($null -eq $manifest.defaultSize -or $null -eq $manifest.minimumSize -or [double]$manifest.minimumSize.width -lt 120 -or
+            [Math]::Abs([double]$manifest.minimumSize.width - [double]$manifest.minimumSize.height) -gt 0.01 -or
+            [double]$manifest.minimumSize.width -gt [double]$manifest.defaultSize.width -or
+            [double]$manifest.minimumSize.height -gt [double]$manifest.defaultSize.height)) {
+            throw "minimumSize precisa ser quadrado: $($zip.Name)"
+        }
         if ($zip.Name -ne "$($manifest.id)-$($manifest.version).zip") {
             throw "Nome do ZIP não corresponde ao manifesto: $($zip.Name)"
         }
@@ -30,6 +36,7 @@ foreach ($zip in Get-ChildItem -LiteralPath $packageRoot -Filter 'clipdesk.*.zip
             id = $manifest.id
             name = $manifest.name
             description = $manifest.description
+            publisher = $manifest.publisher
             version = $manifest.version
             url = "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-$($manifest.version)/$($zip.Name)"
             sha256 = (Get-FileHash -LiteralPath $zip.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -43,6 +50,7 @@ foreach ($zip in Get-ChildItem -LiteralPath $packageRoot -Filter 'clipdesk.*.zip
             accentColor = $manifest.accentColor
             sortOrder = $manifest.sortOrder
             defaultSize = $manifest.defaultSize
+            minimumSize = $manifest.minimumSize
             defaultContent = $manifest.defaultContent
             platforms = $manifest.platforms
             stateVersion = $manifest.stateVersion

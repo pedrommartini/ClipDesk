@@ -132,6 +132,21 @@
       .feature-card h3 { margin-bottom: 10px; font-size: 21px; }
       .feature-card p { margin-bottom: 0; color: var(--ink-soft); line-height: 1.6; }
 
+      .plugin-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 28px; }
+      .plugin-step { padding: 30px; border: 1px solid var(--line); border-radius: 24px; background: #fff; }
+      .plugin-step .step-number { display: inline-grid; width: 40px; height: 40px; margin-bottom: 28px; place-items: center; border-radius: 12px; color: var(--violet-dark); background: var(--lavender); font-weight: 850; }
+      .plugin-step h3 { margin-bottom: 10px; font-size: 22px; }
+      .plugin-step p { margin-bottom: 0; color: var(--ink-soft); line-height: 1.6; }
+      .plugin-action { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 22px; }
+      .plugin-action span { color: var(--ink-soft); font-size: 14px; }
+      .newsletter-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(290px, .65fr); gap: 42px; align-items: center; padding: 46px; border: 1px solid var(--line); border-radius: 28px; background: #fff; }
+      .newsletter-panel h2 { font-size: clamp(34px, 4.2vw, 52px); }
+      .newsletter-panel p { margin: 20px 0 0; color: var(--ink-soft); font-size: 17px; line-height: 1.6; }
+      .newsletter-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+      .newsletter-list li { padding: 15px 17px; border-radius: 14px; color: var(--ink-soft); background: var(--surface-soft); line-height: 1.5; }
+      .newsletter-action { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin-top: 26px; }
+      .newsletter-action span { color: var(--ink-soft); font-size: 13px; }
+
       .privacy { display: grid; grid-template-columns: minmax(0, 0.75fr) minmax(380px, 1.25fr); align-items: center; gap: 74px; }
       .privacy h2 { margin-bottom: 22px; }
       .privacy p { color: rgba(255, 255, 255, 0.66); font-size: 18px; line-height: 1.65; }
@@ -159,8 +174,9 @@
         .hero { grid-template-columns: 1fr; min-height: auto; }
         .hero-copy { max-width: 720px; }
         .product-stage { max-width: 760px; margin: 28px auto 0; }
-        .section-heading, .privacy, .download-panel { grid-template-columns: 1fr; }
+        .section-heading, .privacy, .download-panel, .newsletter-panel { grid-template-columns: 1fr; }
         .purpose-grid { grid-template-columns: 1fr; }
+        .plugin-steps { grid-template-columns: 1fr; }
         .purpose-card { min-height: 220px; }
         .purpose-number { margin-bottom: 30px; }
         .feature-card, .feature-card.wide { grid-column: span 6; }
@@ -186,6 +202,7 @@
         .privacy { gap: 36px; }
         .download-panel { padding: 34px 25px; border-radius: 24px; }
         .download-panel .button { width: 100%; }
+        .newsletter-panel { padding: 30px 24px; }
         .requirements { align-items: flex-start; flex-direction: column; margin-left: 10px; }
         .footer-inner, .footer-links { align-items: flex-start; flex-direction: column; }
       }
@@ -204,9 +221,11 @@
           <a href="#para-que-serve">Para que serve</a>
           <a href="#casos-de-uso">Casos de uso</a>
           <a href="#recursos">Recursos</a>
+          <a href="#plugins">Plugins</a>
+          <a href="#newsletter">Newsletter</a>
           <a href="#privacidade">Privacidade</a>
         </nav>
-        <a class="button button-primary" href="https://github.com/pedrommartini/ClipDesk/releases/latest/download/ClipDesk-Setup.exe">Baixar beta</a>
+        <a class="button button-primary" href="https://github.com/pedrommartini/ClipDesk/releases/download/v0.4.0/ClipDesk-Setup.exe">Baixar beta</a>
       </div>
     </header>
 
@@ -218,7 +237,7 @@
             <h1 id="hero-title">Você copiou. <span class="accent-text">O ClipDesk não esquece.</span></h1>
             <p class="hero-copy">Já copiou um link, texto ou arquivo e depois perdeu no meio das abas? O ClipDesk salva tudo em uma mesa visual para você organizar melhor suas informações e recuperar quando precisar.</p>
             <div class="hero-actions">
-              <a class="button button-primary" href="https://github.com/pedrommartini/ClipDesk/releases/latest/download/ClipDesk-Setup.exe">
+              <a class="button button-primary" href="https://github.com/pedrommartini/ClipDesk/releases/download/v0.4.0/ClipDesk-Setup.exe">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
                 Baixar para Windows
               </a>
@@ -283,13 +302,50 @@
         </div>
       </section>
 
+      <section class="section section-soft" id="plugins" aria-labelledby="plugins-title">
+        <div class="shell">
+          <div class="section-heading">
+            <div><span class="kicker">Crie para a sua mesa</span><h2 id="plugins-title">Seu próximo plugin pode começar com uma ideia.</h2></div>
+            <p>Estenda o ClipDesk com um plugin próprio. O Dev Kit reúne o modelo inicial, os SDKs e as instruções que você pode entregar a uma IA para desenvolver com você.</p>
+          </div>
+          <div class="plugin-steps">
+            <article class="plugin-step"><span class="step-number">01</span><h3>Descreva a ideia</h3><p>Defina o que o plugin deve fazer, quais dados usa e como deve aparecer na mesa. Conte isso ao seu assistente de IA.</p></article>
+            <article class="plugin-step"><span class="step-number">02</span><h3>Crie com o Dev Kit</h3><p>Baixe e extraia o kit. Envie o arquivo README-AI.md à IA e peça que adapte o modelo Starter para a sua ideia.</p></article>
+            <article class="plugin-step"><span class="step-number">03</span><h3>Teste e empacote</h3><p>Compile, teste o plugin no ClipDesk DEV e gere o pacote ZIP com o script incluído no kit. Revise as permissões antes de compartilhar.</p></article>
+          </div>
+          <div class="plugin-action">
+            <a class="button button-primary" href="downloads/ClipDesk-Plugin-AI-DevKit.zip" download>Baixar Dev Kit de plugins</a>
+            <span>Kit atualizado junto com o código desta versão.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="newsletter" aria-labelledby="newsletter-title">
+        <div class="shell newsletter-panel">
+          <div>
+            <span class="kicker">Newsletter de novidades</span>
+            <h2 id="newsletter-title">Acompanhe cada nova versão do ClipDesk.</h2>
+            <p>Em cada lançamento, publicamos o que mudou no aplicativo, nos plugins e na experiência de uso. Nesta edição:</p>
+            <div class="newsletter-action">
+              <a class="button button-secondary" href="https://github.com/pedrommartini/ClipDesk/releases.atom" target="_blank" rel="noreferrer">Assinar novidades</a>
+              <span>Feed de lançamentos para seu leitor de notícias.</span>
+            </div>
+          </div>
+          <ul class="newsletter-list" aria-label="Novidades da versão 0.4.0">
+            <li>Plugins com Dev Kit para criar extensões com assistência de IA.</li>
+            <li>Melhorias na mesa compartilhada, na nuvem pessoal e no trabalho com arquivos.</li>
+            <li>Mais opções para personalizar a aparência da mesa.</li>
+          </ul>
+        </div>
+      </section>
+
       <section class="section section-dark" id="privacidade" aria-labelledby="privacy-title">
         <div class="shell privacy">
-          <div><span class="kicker">Privacidade local</span><h2 id="privacy-title">Seu fluxo continua sendo seu.</h2><p>O ClipDesk foi construído como um aplicativo desktop. O conteúdo da sua mesa, os arquivos e as preferências ficam salvos no Windows.</p></div>
+          <div><span class="kicker">Você escolhe como salvar</span><h2 id="privacy-title">Seu fluxo continua sendo seu.</h2><p>Use mesas locais sem conta, salve uma mesa na sua nuvem pessoal ou compartilhe uma mesa com colaboradores quando quiser.</p></div>
           <div class="privacy-list" aria-label="Características de privacidade">
-            <div class="privacy-item"><span class="check">✓</span> Dados e posições armazenados localmente</div>
+            <div class="privacy-item"><span class="check">✓</span> Mesas locais disponíveis sem conta</div>
             <div class="privacy-item"><span class="check">✓</span> Reconhecimento de imagens executado no computador</div>
-            <div class="privacy-item"><span class="check">✓</span> Sem conta obrigatória para usar o aplicativo</div>
+            <div class="privacy-item"><span class="check">✓</span> Nuvem pessoal e colaboração opcionais</div>
           </div>
         </div>
       </section>
@@ -297,13 +353,13 @@
       <section class="section" id="download" aria-labelledby="download-title">
         <div class="shell">
           <div class="download-panel">
-            <div><span class="kicker" style="color: rgba(255,255,255,.74)">Experimente a versão beta</span><h2 id="download-title">Abra espaço para trabalhar com mais clareza.</h2><p>Baixe o instalador do ClipDesk e comece a usar o aplicativo no seu computador Windows.<br /><span style="font-size: 13px; color: rgba(255,255,255,.68)">Versão atual: v0.3.3</span></p></div>
-            <a class="button" href="https://github.com/pedrommartini/ClipDesk/releases/latest/download/ClipDesk-Setup.exe">
+            <div><span class="kicker" style="color: rgba(255,255,255,.74)">Experimente a versão beta</span><h2 id="download-title">Abra espaço para trabalhar com mais clareza.</h2><p>Baixe o instalador do ClipDesk e comece a usar o aplicativo no seu computador Windows.<br /><span style="font-size: 13px; color: rgba(255,255,255,.68)">Versão atual: v0.4.0</span></p></div>
+            <a class="button" href="https://github.com/pedrommartini/ClipDesk/releases/download/v0.4.0/ClipDesk-Setup.exe">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
               Baixar para Windows
             </a>
           </div>
-          <div class="requirements" aria-label="Requisitos do sistema"><span>Windows 10 ou superior</span><span>Processador x64</span><span>.NET 8 Desktop Runtime</span><span>Versão beta</span></div>
+          <div class="requirements" aria-label="Requisitos do sistema"><span>Windows 10 ou superior</span><span>Processador x64</span><span>Instalador completo</span><span>Versão beta</span></div>
         </div>
       </section>
     </main>

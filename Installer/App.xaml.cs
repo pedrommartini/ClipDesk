@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.ComponentModel;
 using System.IO;
+using System.Security.Principal;
 using System.Text.Json;
 using System.Windows;
 
@@ -20,6 +22,7 @@ public partial class App : Application
                     success = true,
                     result.InstallPath,
                     result.FileCount,
+                    defaultInstallPath = InstallerEngine.DefaultInstallPath,
                     executable = result.ExecutablePath,
                     executableExists = File.Exists(result.ExecutablePath)
                 }, new JsonSerializerOptions { WriteIndented = true });
@@ -29,6 +32,27 @@ public partial class App : Application
             catch (Exception ex)
             {
                 try { await File.WriteAllTextAsync(testPath + ".error.txt", ex.ToString()); } catch { }
+                Shutdown(1);
+            }
+            return;
+        }
+
+        if (!InstallerBrand.IsDevelopment && !new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator))
+        {
+            try
+            {
+                var elevated = new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = true, Verb = "runas" };
+                foreach (var argument in e.Args) elevated.ArgumentList.Add(argument);
+                Process.Start(elevated);
+                Shutdown(0);
+            }
+            catch (Win32Exception ex) when (ex.NativeErrorCode == 1223)
+            {
+                Shutdown(1);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Não foi possível abrir o instalador como administrador: {ex.Message}", InstallerBrand.AppName);
                 Shutdown(1);
             }
             return;

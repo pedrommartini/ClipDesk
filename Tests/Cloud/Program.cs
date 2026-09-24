@@ -139,7 +139,7 @@ var deviceBoard=new WorkspaceBoard
 var boards1=new List<WorkspaceBoard> {new() {Name="Só local"},deviceBoard};
 var history1=new List<ClipboardHistoryEntry> {new() {Type=ClipboardItemType.Text,Text="histórico pessoal",Title="Clipboard"}};
 await first.SynchronizeAsync(boards1,history1);
-Check(first.Status=="Sincronizado","Real desktop sync service completes an initial personal sync");
+Check(first.Status=="Sincronizado",$"Real desktop sync service completes an initial personal sync (status: {first.Status}, pending: {firstStorage.Database.Pending().Count})");
 await second.SynchronizeAsync([],[]);
 var secondView=second.Materialize();second.ObservePresentation(secondView.Boards,secondView.History);
 Check(secondView.Boards.Count==1 && secondView.Boards[0].Items[0].Text=="primeiro" && secondView.History.Count==1,"Second desktop receives board and personal history, excluding the local board");

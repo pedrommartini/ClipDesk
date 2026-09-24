@@ -110,6 +110,34 @@ public sealed record PluginBoardFileRequest(IReadOnlyList<PluginBoardFile> Files
     public const int MaximumRequestBytes = 64 * 1024 * 1024;
 }
 
+/// <summary>
+/// Defines the local directory reserved for a plugin's own files.
+/// Plugins must use Documents\ClipDesk\{pluginFolderName} by default. A different
+/// output directory is allowed only after the user explicitly chooses it in the plugin UI.
+/// </summary>
+public static class PluginStoragePaths
+{
+    public static string GetDefaultDirectory(string pluginFolderName)
+    {
+        if (string.IsNullOrWhiteSpace(pluginFolderName))
+            throw new ArgumentException("A pasta do plugin é obrigatória.", nameof(pluginFolderName));
+
+        var invalidCharacters = Path.GetInvalidFileNameChars();
+        if (pluginFolderName.IndexOfAny(invalidCharacters) >= 0 ||
+            pluginFolderName is "." or ".." ||
+            pluginFolderName.Contains(Path.DirectorySeparatorChar) ||
+            pluginFolderName.Contains(Path.AltDirectorySeparatorChar))
+        {
+            throw new ArgumentException("Use somente o nome simples da pasta do plugin.", nameof(pluginFolderName));
+        }
+
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            "ClipDesk",
+            pluginFolderName);
+    }
+}
+
 public interface IPluginNetworkClient
 {
     Task<string> GetStringAsync(Uri uri, CancellationToken cancellationToken = default);

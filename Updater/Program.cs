@@ -22,12 +22,7 @@ try
         ZipFile.ExtractToDirectory(packagePath, stagingDirectory, overwriteFiles: true);
         var sourceDirectory = FindPackageRoot(stagingDirectory);
         CopyDirectory(sourceDirectory, targetDirectory);
-        var restarted = Process.Start(new ProcessStartInfo
-        {
-            FileName = executablePath,
-            WorkingDirectory = targetDirectory,
-            UseShellExecute = true
-        });
+        var restarted = RestartApp(executablePath, targetDirectory);
         if (restarted is null) throw new InvalidOperationException("Não foi possível reiniciar o ClipDesk após a atualização.");
         updateSucceeded = true;
     }
@@ -47,12 +42,7 @@ catch (Exception ex)
     try
     {
         // A cópia anterior continua sendo a alternativa mais útil caso a substituição falhe.
-        Process.Start(new ProcessStartInfo
-        {
-            FileName = executablePath,
-            WorkingDirectory = targetDirectory,
-            UseShellExecute = true
-        });
+        RestartApp(executablePath, targetDirectory);
     }
     catch { }
 }
@@ -73,6 +63,21 @@ static Dictionary<string, string> ParseArguments(string[] args)
         }
     }
     return result;
+}
+
+static Process? RestartApp(string executablePath, string targetDirectory)
+{
+    // Explorer brokers the launch at the user's normal privilege level after
+    // an elevated updater has written the new files to Program Files.
+    var programFiles = Path.GetFullPath(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+    if ((Path.GetFullPath(targetDirectory).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar)
+        .StartsWith(programFiles, StringComparison.OrdinalIgnoreCase))
+    {
+        var launch = new ProcessStartInfo("explorer.exe") { UseShellExecute = true };
+        launch.ArgumentList.Add(executablePath);
+        return Process.Start(launch);
+    }
+    return Process.Start(new ProcessStartInfo(executablePath) { WorkingDirectory = targetDirectory, UseShellExecute = true });
 }
 
 static void WaitForParentToExit(int processId)

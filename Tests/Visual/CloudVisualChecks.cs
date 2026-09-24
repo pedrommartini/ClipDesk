@@ -20,10 +20,21 @@ internal static class CloudVisualChecks
         var pending=new ClipboardItem {Type=ClipboardItemType.File,DisplayName="Vídeo da campanha.mp4",X=630,Y=170,Width=340,Height=220,Attachments=[new CloudAttachment {OwnerId="owner",Name="Vídeo da campanha.mp4",IsDrive=true,Size=86_000_000,Uploaded=false}]};
         storage.SaveWorkspaces([new WorkspaceBoard {Name="Mesa principal",SyncMode=WorkspaceSyncMode.PersonalCloud,OwnerId="owner",Items=[new ClipboardItem {Type=ClipboardItemType.Text,DisplayName="Ideias do projeto",Text="Uma mesa local, na nuvem ou compartilhada.\nVocê escolhe como trabalhar.",X=60,Y=170,Width=380,Height=230},pending]}]);
         var window=new MainWindow {WindowState=WindowState.Normal};
+        var neutral=(SolidColorBrush)typeof(MainWindow).GetMethod("LocalPresenceColor",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,null)!;
+        var marquee=(System.Windows.Shapes.Rectangle)window.FindName("SelectionMarquee");
+        if(neutral.Color!=Color.FromRgb(148,163,184)
+            || marquee.Fill is not SolidColorBrush marqueeFill || marqueeFill.Color.A>12
+            || marquee.StrokeDashArray.Count==0)
+            throw new Exception("Local selection must use a neutral, faint fill and dashed outline.");
         var content=(FrameworkElement)window.Content;
         typeof(MainWindow).GetMethod("RenderAllItems",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,[false,false]);
         var canvas=(Canvas)window.FindName("WorkspaceCanvas");
         var fileCard=canvas.Children.OfType<ItemCard>().Single(c=>c.Item.Id==pending.Id);
+        var localRing=(System.Windows.Shapes.Rectangle)fileCard.FindName("SelectionRing");
+        var remoteRing=(System.Windows.Shapes.Rectangle)fileCard.FindName("CollaboratorSelection");
+        if(localRing.Stroke is not SolidColorBrush localStroke || localStroke.Color!=neutral.Color
+            || localRing.StrokeDashArray.Count==0 || remoteRing.StrokeDashArray.Count==0)
+            throw new Exception("Card selection outlines must be dashed and local selection neutral.");
         fileCard.SetCloudPresentation("owner",true);
         if(((Button)fileCard.FindName("CloudFileAction")).Visibility!=Visibility.Visible) throw new Exception("Owner on a second device cannot download the missing local file.");
         var fixture=Path.Combine(storage.AssetsDirectory,"cloud-visual.bin");Directory.CreateDirectory(storage.AssetsDirectory);File.WriteAllBytes(fixture,[1]);
@@ -256,7 +267,7 @@ internal static class CloudVisualChecks
                 || ((Canvas)cursors[presence.UserId].Visual).Children.OfType<Border>().Any())
                 throw new Exception("Releasing a selected item leaves a card outline attached to the remote pointer");
             if(remoteSelections[presence.UserId] is not null)throw new Exception("Released item retains a collaborator outline");
-            if(releasedId==fileCard.Item.Id && ((Border)fileCard.FindName("CollaboratorSelection")).Visibility!=Visibility.Collapsed)
+            if(releasedId==fileCard.Item.Id && ((System.Windows.Shapes.Rectangle)fileCard.FindName("CollaboratorSelection")).Visibility!=Visibility.Collapsed)
                 throw new Exception("Released card still displays a collaborator outline");
             if(releasedId==note.Id && typeof(BoardObjectView).GetField("_collaboratorSelection",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(noteView) is not null)
                 throw new Exception("Released note still draws a collaborator outline");
@@ -276,7 +287,7 @@ internal static class CloudVisualChecks
         }
         showFormat.Invoke(window,[note,noteView]);Layout(1280);
         var formatMenu=(Border)window.FindName("CreativeFormatMenu");var formatRows=(StackPanel)window.FindName("CreativeFormatMenuContent");
-        if(formatMenu.Visibility!=Visibility.Visible || formatRows.Children.Count!=2 || formatMenu.TranslatePoint(new Point(),content).Y>=note.Y)
+        if(formatMenu.Visibility!=Visibility.Visible || formatRows.Children.Count!=4 || formatMenu.TranslatePoint(new Point(),content).Y>=note.Y)
             throw new Exception("Creative formatting menu is not positioned above the new object.");
         var resizeNote=typeof(MainWindow).GetMethod("EnsureNoteContainsContent",BindingFlags.Instance|BindingFlags.NonPublic)!;
         note.Width=420;note.Height=260;resizeNote.Invoke(window,[note]);var shortHeight=note.Height;

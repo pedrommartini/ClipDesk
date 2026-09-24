@@ -8,11 +8,18 @@ namespace ClipDesk.Installer;
 public static class InstallerEngine
 {
     public static string DefaultInstallPath { get; } = Path.Combine(
+        Environment.GetFolderPath(InstallerBrand.IsDevelopment
+            ? Environment.SpecialFolder.LocalApplicationData
+            : Environment.SpecialFolder.ProgramFiles),
+        InstallerBrand.IsDevelopment ? "Programs" : string.Empty,
+        InstallerBrand.DirectoryName);
+
+    public static string LegacyInstallPath { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", InstallerBrand.DirectoryName);
 
     public static string? FindExistingInstallPath()
     {
-        var candidates = new[] { ShortcutService.GetRegisteredInstallPath(), DefaultInstallPath };
+        var candidates = new[] { ShortcutService.GetRegisteredInstallPath(), DefaultInstallPath, LegacyInstallPath };
         foreach (var candidate in candidates)
         {
             if (string.IsNullOrWhiteSpace(candidate)) continue;

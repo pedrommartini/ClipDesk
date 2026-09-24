@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows.Media.Imaging;
 using System.Security.Cryptography;
+using Microsoft.Data.Sqlite;
 using ClipDesk.Models;
 using ClipDesk.Core;
 
@@ -45,7 +46,7 @@ public sealed class StorageService
                 ? JsonSerializer.Deserialize<AppSettings>(json) ?? new()
                 : new();
         }
-        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        catch (Exception ex) when (IsRecoverableReadFailure(ex))
         {
             return new();
         }
@@ -152,7 +153,7 @@ public sealed class StorageService
                 }
             }
         }
-        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        catch (Exception ex) when (IsRecoverableReadFailure(ex))
         {
             // A mesa principal abaixo mantém o app utilizável caso um arquivo seja interrompido externamente.
         }
@@ -177,11 +178,14 @@ public sealed class StorageService
             if (saved is null) return [];
             return JsonSerializer.Deserialize<List<ClipboardHistoryEntry>>(saved, _jsonOptions) ?? [];
         }
-        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        catch (Exception ex) when (IsRecoverableReadFailure(ex))
         {
             return [];
         }
     }
+
+    private static bool IsRecoverableReadFailure(Exception exception) =>
+        exception is IOException or JsonException or UnauthorizedAccessException or SqliteException;
 
     public void SaveHistory(IEnumerable<ClipboardHistoryEntry> entries)
     {

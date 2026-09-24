@@ -16,6 +16,7 @@
   "installByDefault": true,
   "sortOrder": 20,
   "defaultSize": { "width": 300, "height": 390 },
+  "minimumSize": { "width": 285, "height": 285 },
   "defaultContent": { "$schema": "1", "expression": "", "display": "0" },
   "platforms": ["windows"],
   "capabilities": ["board-widget"],

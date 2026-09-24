@@ -14,6 +14,12 @@ $windowsRenderer = @($manifest.renderers | Where-Object { $_.platform -eq 'windo
 $isV2 = $manifest.manifestVersion -eq 2 -and $manifest.runtime -eq 'portable-v2' -and
     $manifest.pluginApiVersion -eq 2 -and $null -ne $manifest.module -and $null -ne $windowsRenderer
 if (-not $isV1 -and -not $isV2) { throw 'O manifesto precisa declarar wpf-v1/API 1 ou portable-v2/API 2 com renderizador wpf-v2.' }
+if ($isV2 -and ($null -eq $manifest.defaultSize -or $null -eq $manifest.minimumSize -or [double]$manifest.minimumSize.width -lt 120 -or
+    [Math]::Abs([double]$manifest.minimumSize.width - [double]$manifest.minimumSize.height) -gt 0.01 -or
+    [double]$manifest.minimumSize.width -gt [double]$manifest.defaultSize.width -or
+    [double]$manifest.minimumSize.height -gt [double]$manifest.defaultSize.height)) {
+    throw 'minimumSize precisa ser um quadrado de pelo menos 120×120.'
+}
 
 $output = [IO.Path]::GetFullPath($OutputDirectory)
 New-Item -ItemType Directory -Path $output -Force | Out-Null
@@ -49,6 +55,7 @@ try {
             id = $manifest.id
             name = $manifest.name
             description = $manifest.description
+            publisher = $manifest.publisher
             version = $manifest.version
             url = "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-$($manifest.version)/$($manifest.id)-$($manifest.version).zip"
             sha256 = $sha256
@@ -62,6 +69,7 @@ try {
             accentColor = $manifest.accentColor
             sortOrder = $manifest.sortOrder
             defaultSize = $manifest.defaultSize
+            minimumSize = $manifest.minimumSize
             defaultContent = $manifest.defaultContent
             platforms = $manifest.platforms
             stateVersion = $manifest.stateVersion

@@ -12,6 +12,7 @@ namespace ClipDesk.Views;
 
 public sealed partial class BoardObjectView : Canvas
 {
+    public static string BoardTextFontFamily { get; set; } = "Segoe UI Variable Text";
     public const double SelectionPadding = 14;
     public const double RotationSpace = 34;
     private const double HandleRadius = 5;
@@ -22,7 +23,7 @@ public sealed partial class BoardObjectView : Canvas
     private TransformAction _action;
     private bool _transformStarted;
     private bool _draggingVisual;
-    private SolidColorBrush _selectionColor = new((Color)ColorConverter.ConvertFromString("#22D3EE"));
+    private SolidColorBrush _selectionColor = new((Color)ColorConverter.ConvertFromString("#94A3B8"));
     private SolidColorBrush? _collaboratorSelection;
     private readonly ScaleTransform _motionScale = new(1, 1);
     private readonly TranslateTransform _motionTranslate = new();
@@ -196,7 +197,7 @@ public sealed partial class BoardObjectView : Canvas
             case BoardObjectKind.CurrencyConverter:
             case BoardObjectKind.Plugin: break;
         }
-        if(_collaboratorSelection is not null) dc.DrawRoundedRectangle(null,new Pen(_collaboratorSelection,2.2),bounds,10,10);
+        if(_collaboratorSelection is not null) dc.DrawRoundedRectangle(null,new Pen(_collaboratorSelection,2.2){DashStyle=new DashStyle([6d,4d],0)},bounds,10,10);
         if(_draggingVisual) dc.DrawRoundedRectangle(null,new Pen(_selectionColor,2.4){DashStyle=new DashStyle([8d,3d],0)},bounds,10,10);
         if (IsSelected) DrawSelection(dc, bounds); dc.Pop();
     }
@@ -225,9 +226,9 @@ public sealed partial class BoardObjectView : Canvas
     {
         var (minWidth, minHeight) = Object.Kind switch
         {
-            BoardObjectKind.Checklist => (220d, 170d), BoardObjectKind.Calculator => (215d, 285d),
-            BoardObjectKind.Translator => (270d, 205d), BoardObjectKind.CurrencyConverter => (260d, 190d),
-            BoardObjectKind.Plugin => (190d, 140d),
+            BoardObjectKind.Checklist => (220d, 220d), BoardObjectKind.Calculator => (285d, 285d),
+            BoardObjectKind.Translator => (270d, 270d), BoardObjectKind.CurrencyConverter => (260d, 260d),
+            BoardObjectKind.Plugin => PluginMinimumSize(),
             _ => (48d, 32d)
         };
         var left = _objectStart.Left; var top = _objectStart.Top; var right = _objectStart.Right; var bottom = _objectStart.Bottom;
@@ -257,7 +258,7 @@ public sealed partial class BoardObjectView : Canvas
         switch(Object.Style.GetValueOrDefault("shape","square")){case "line":var start=new Point(bounds.Left+bounds.Width*Number(Object.Style.GetValueOrDefault("lineStartX"),0),bounds.Top+bounds.Height*Number(Object.Style.GetValueOrDefault("lineStartY"),0));var end=new Point(bounds.Left+bounds.Width*Number(Object.Style.GetValueOrDefault("lineEndX"),1),bounds.Top+bounds.Height*Number(Object.Style.GetValueOrDefault("lineEndY"),1));dc.DrawLine(pen,start,end);break;case "circle":dc.DrawEllipse(fill,pen,new Point(bounds.Left+bounds.Width/2,bounds.Top+bounds.Height/2),bounds.Width/2,bounds.Height/2);break;case "triangle":var triangle=new StreamGeometry();using(var context=triangle.Open()){context.BeginFigure(new Point(bounds.Left+bounds.Width/2,bounds.Top),true,true);context.LineTo(bounds.BottomRight,true,false);context.LineTo(bounds.BottomLeft,true,false);}triangle.Freeze();dc.DrawGeometry(fill,pen,triangle);break;default:dc.DrawRoundedRectangle(fill,pen,bounds,9,9);break;}
     }
     private static void DrawStickyNote(DrawingContext dc,Brush fill,Rect bounds){dc.DrawRoundedRectangle(fill,null,bounds,16,16);dc.DrawRoundedRectangle(new LinearGradientBrush(Color.FromArgb(36,255,255,255),Colors.Transparent,90),null,new Rect(bounds.X+1,bounds.Y+1,Math.Max(1,bounds.Width-2),Math.Min(42,bounds.Height-2)),15,15);var fold=new StreamGeometry();using(var context=fold.Open()){context.BeginFigure(new Point(bounds.Right-25,bounds.Bottom),true,true);context.LineTo(new Point(bounds.Right,bounds.Bottom-25),true,false);context.LineTo(bounds.BottomRight,true,false);}fold.Freeze();dc.DrawGeometry(new SolidColorBrush(Color.FromArgb(34,33,28,50)),null,fold);}
-    private void DrawText(DrawingContext dc,string text,string color,double size,Rect bounds,Thickness padding){var formatted=new FormattedText(text,CultureInfo.CurrentUICulture,FlowDirection.LeftToRight,new Typeface("Segoe UI Variable Text"),size,Brush(color,"#F8FAFC"),VisualTreeHelper.GetDpi(this).PixelsPerDip){MaxTextWidth=Math.Max(1,bounds.Width-padding.Left-padding.Right),MaxTextHeight=Math.Max(1,bounds.Height-padding.Top-padding.Bottom),Trimming=TextTrimming.WordEllipsis,TextAlignment=Object.Style.GetValueOrDefault("align",Object.Kind==BoardObjectKind.StickyNote?"center":"left") switch{"center"=>TextAlignment.Center,"right"=>TextAlignment.Right,_=>TextAlignment.Left}};dc.DrawText(formatted,new Point(bounds.Left+padding.Left,bounds.Top+padding.Top));}
+    private void DrawText(DrawingContext dc,string text,string color,double size,Rect bounds,Thickness padding){var formatted=new FormattedText(text,CultureInfo.CurrentUICulture,FlowDirection.LeftToRight,new Typeface(BoardTextFontFamily),size,Brush(color,"#F8FAFC"),VisualTreeHelper.GetDpi(this).PixelsPerDip){MaxTextWidth=Math.Max(1,bounds.Width-padding.Left-padding.Right),MaxTextHeight=Math.Max(1,bounds.Height-padding.Top-padding.Bottom),Trimming=TextTrimming.WordEllipsis,TextAlignment=Object.Style.GetValueOrDefault("align",Object.Kind==BoardObjectKind.StickyNote?"center":"left") switch{"center"=>TextAlignment.Center,"right"=>TextAlignment.Right,_=>TextAlignment.Left}};dc.DrawText(formatted,new Point(bounds.Left+padding.Left,bounds.Top+padding.Top));}
 
     private void DrawWidgetShell(DrawingContext dc, Rect bounds, string title, string glyph, string accent = "#A78BFA")
     {
@@ -379,7 +380,7 @@ public sealed partial class BoardObjectView : Canvas
     {
         var fontFamily = family == "Material Symbols Rounded"
             ? new FontFamily("/ClipDesk;component/Resources/Fonts/#Material Symbols Rounded")
-            : new FontFamily(family);
+            : new FontFamily(family.StartsWith("Segoe UI Variable", StringComparison.Ordinal) ? BoardTextFontFamily : family);
         var formatted = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, new Typeface(fontFamily, FontStyles.Normal, weight ?? FontWeights.Normal, FontStretches.Normal), size, Brush(color, "#F8FAFC"), VisualTreeHelper.GetDpi(this).PixelsPerDip)
         {
             MaxTextWidth = Math.Max(1, maxWidth), MaxTextHeight = Math.Max(20, size * 2.6), Trimming = TextTrimming.CharacterEllipsis, TextAlignment = alignment

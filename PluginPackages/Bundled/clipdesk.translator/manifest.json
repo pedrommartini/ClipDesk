@@ -16,6 +16,7 @@
   "installByDefault": true,
   "sortOrder": 30,
   "defaultSize": { "width": 370, "height": 270 },
+  "minimumSize": { "width": 270, "height": 270 },
   "defaultContent": { "$schema": "1", "sourceLanguage": "auto", "targetLanguage": "en", "input": "", "output": "A tradução aparece aqui" },
   "platforms": ["windows"],
   "capabilities": ["board-widget"],

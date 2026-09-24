@@ -67,7 +67,7 @@ public partial class MainWindow
             HideBoardObjectContextMenu();
         if(CreativeFormatMenu.Visibility!=Visibility.Visible||CreativeFormatMenu.IsMouseOver)return;
         var source=e.OriginalSource as DependencyObject;var objectView=FindAncestor<BoardObjectView>(source);
-        if(objectView==_selectedBoardObjectView)
+        if(objectView is not null && _selectedBoardObjectViews.Contains(objectView))
         {
             if(objectView?.IsPluginInteractionSource(source)==true) ClearBoardObjectSelection();
             return;
@@ -351,13 +351,22 @@ public partial class MainWindow
             else HideAlignmentGuides();
             obj.X = Math.Clamp(obj.X, 0, Math.Max(0, _activeWorkspace.WorldWidth - obj.Width));
             obj.Y = Math.Clamp(obj.Y, 0, Math.Max(0, _activeWorkspace.WorldHeight - obj.Height));
-            PositionBoardObjectView(view); MoveLinkedNodes(ObjectNodeId(obj.Id), new Point(obj.X, obj.Y)); obj.UpdatedAt = DateTimeOffset.UtcNow;
+            PositionBoardObjectView(view);
+            if (view.IsMovingTransform && _groupDragObjectLead == view && _groupDragObjectPositions.TryGetValue(view, out var origin))
+                MoveSelectedGroup(new Vector(obj.X - origin.X, obj.Y - origin.Y), null, view);
+            MoveLinkedNodes(ObjectNodeId(obj.Id), new Point(obj.X, obj.Y)); obj.UpdatedAt = DateTimeOffset.UtcNow;
             RefreshConnectorsForNodes(ConnectedComponent(ObjectNodeId(obj.Id)));
             _presenceInputDirty=true;
             QueueBoardObjectRealtime(obj);
             PositionCreativeFormatMenu(obj);
         };
-        view.DragCompleted += (_, _) => { _creativeMoveSaveTimer.Stop(); FinishAlignmentDrag(); ClearLinkedDrag(); QueueBoardObjectRealtime(obj,flush:true); };
+        view.DragCompleted += (_, _) =>
+        {
+            _creativeMoveSaveTimer.Stop(); FinishAlignmentDrag(); ClearLinkedDrag();
+            foreach (var moved in _groupDragObjectPositions.Keys) QueueBoardObjectRealtime(moved.Object);
+            _groupDragObjectPositions.Clear(); _groupDragPositions.Clear(); _groupDragObjectLead = null;
+            QueueBoardObjectRealtime(obj, flush: true);
+        };
         WorkspaceCanvas.Children.Add(view);
         return view;
     }
@@ -375,6 +384,8 @@ public partial class MainWindow
     private void SelectBoardObject(BoardObjectView view)
     {
         HideBoardObjectContextMenu();
+        if (Mouse.LeftButton == MouseButtonState.Pressed && view.IsSelected
+            && _selectedCards.Count + _selectedBoardObjectViews.Count > 1) return;
         ClearSelection();
         _selectedBoardObjectView = view;
         _selectedBoardObjectViews.Add(view);
@@ -779,8 +790,20 @@ public partial class MainWindow
 
     private void BeginBoardObjectTransform(BoardObjectView view)
     {
-        RegisterUndoSnapshot();BringBoardObjectToFront(view);var node=ObjectNodeId(view.Object.Id);if(_moveConnectedTogether)PrepareLinkedDrag(node,new Point(view.Object.X,view.Object.Y),ConnectedComponent(node));
-        PrepareAlignmentTargets(_linkedCardDragOrigins.Keys, _linkedObjectDragOrigins.Keys.Append(view.Object));
+        RegisterUndoSnapshot(); BringBoardObjectToFront(view);
+        _groupDragObjectLead = view.IsMovingTransform ? view : null;
+        _groupDragPositions.Clear();
+        _groupDragObjectPositions.Clear();
+        if (view.IsMovingTransform)
+        {
+            foreach (var card in _selectedCards.Where(card => card.Visibility == Visibility.Visible))
+                _groupDragPositions[card] = new Point(Canvas.GetLeft(card), Canvas.GetTop(card));
+            CaptureSelectedBoardObjectDragPositions();
+        }
+        var node=ObjectNodeId(view.Object.Id);
+        if(_moveConnectedTogether)PrepareLinkedDrag(node,new Point(view.Object.X,view.Object.Y),ConnectedComponent(node));
+        PrepareAlignmentTargets(_groupDragPositions.Keys.Concat(_linkedCardDragOrigins.Keys),
+            _groupDragObjectPositions.Keys.Select(selected => selected.Object).Concat(_linkedObjectDragOrigins.Keys).Append(view.Object));
     }
 
     private void PrepareLinkedDrag(string leadId,Point origin,IEnumerable<string> connected)

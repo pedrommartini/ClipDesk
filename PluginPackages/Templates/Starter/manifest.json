@@ -29,6 +29,10 @@
     "width": 320,
     "height": 250
   },
+  "minimumSize": {
+    "width": 240,
+    "height": 240
+  },
   "defaultContent": {
     "$schema": "1",
     "text": "Meu primeiro plugin"
@@ -36,9 +40,10 @@
   "platforms": [
     "windows"
   ],
-  "permissions": [],
+  "permissions": ["file.read"],
   "capabilities": [
-    "board-widget"
+    "board-widget",
+    "file-drop"
   ],
   "networkHosts": []
 }

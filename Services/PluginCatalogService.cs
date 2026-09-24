@@ -293,6 +293,11 @@ public sealed class PluginCatalogService
             throw new InvalidDataException("Montagem de plugin inválida.");
         if (manifest.ManifestVersion == 2)
         {
+            if (manifest.DefaultSize is null || manifest.MinimumSize is null || manifest.MinimumSize.Width < 120
+                || Math.Abs(manifest.MinimumSize.Width - manifest.MinimumSize.Height) > .01
+                || manifest.MinimumSize.Width > manifest.DefaultSize.Width
+                || manifest.MinimumSize.Height > manifest.DefaultSize.Height)
+                throw new InvalidDataException("O tamanho mínimo do plugin precisa ser um quadrado de pelo menos 120×120.");
             if (!IsSafeFileName(manifest.Module?.Assembly)
                 || (manifest.Renderers ?? []).Any(renderer => !IsSafeFileName(renderer.Assembly)))
                 throw new InvalidDataException("Uma montagem v2 é inválida.");

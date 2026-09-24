@@ -468,6 +468,43 @@ public sealed partial class ItemCard : UserControl
         RootScale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(320)) { EasingFunction = ease });
     }
 
+    public void PlayPluginUnfold(int sequenceIndex = 0)
+    {
+        if (!SystemParameters.ClientAreaAnimation)
+        {
+            PluginFoldCrease.Visibility = Visibility.Collapsed;
+            Opacity = 1;
+            RootScale.ScaleX = RootScale.ScaleY = 1;
+            return;
+        }
+
+        var delay = TimeSpan.FromMilliseconds(Math.Min(Math.Max(0, sequenceIndex), 4) * 16);
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        RootScale.ScaleX = RootScale.ScaleY = 1;
+        RootScale.BeginAnimation(ScaleTransform.ScaleXProperty,
+            new DoubleAnimation(.965, 1, TimeSpan.FromMilliseconds(185))
+            { BeginTime = delay, EasingFunction = ease, FillBehavior = FillBehavior.Stop });
+        RootScale.BeginAnimation(ScaleTransform.ScaleYProperty,
+            new DoubleAnimation(.982, 1, TimeSpan.FromMilliseconds(185))
+            { BeginTime = delay, EasingFunction = ease, FillBehavior = FillBehavior.Stop });
+        BeginAnimation(OpacityProperty,
+            new DoubleAnimation(.93, 1, TimeSpan.FromMilliseconds(145))
+            { BeginTime = delay, EasingFunction = ease, FillBehavior = FillBehavior.Stop });
+
+        PluginFoldCrease.Visibility = Visibility.Visible;
+        PluginFoldCrease.Opacity = 0;
+        var crease = new DoubleAnimationUsingKeyFrames
+        {
+            BeginTime = delay,
+            Duration = TimeSpan.FromMilliseconds(185),
+            FillBehavior = FillBehavior.Stop
+        };
+        crease.KeyFrames.Add(new LinearDoubleKeyFrame(.22, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(38))));
+        crease.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(185))));
+        crease.Completed += (_, _) => PluginFoldCrease.Visibility = Visibility.Collapsed;
+        PluginFoldCrease.BeginAnimation(OpacityProperty, crease);
+    }
+
     public void PlayWorkspaceEntrance(int index, bool isFirstVisit)
     {
         var delay = TimeSpan.FromMilliseconds(Math.Min(index, 12) * 38 + (isFirstVisit ? 80 : 0));

@@ -60,7 +60,7 @@ public sealed class CurrencyConverterPlugin : IWindowsPluginRenderer, IWindowsPl
                 var response = await context.Module.ExecuteAsync(context.State, new PluginCommand("currencies"), context.Execution);
                 if (disposed || !response.Succeeded || response.Data?.GetValueOrDefault("options") is not { } json) return;
                 _currencies = JsonSerializer.Deserialize<List<PluginOption>>(json);
-                if (_currencies is not null && anchor.ContextMenu?.IsOpen == true) Show(_currencies);
+                // The next opening uses the complete remote list; keep the current searchable menu stable.
             }
             catch (OperationCanceledException) { }
         }

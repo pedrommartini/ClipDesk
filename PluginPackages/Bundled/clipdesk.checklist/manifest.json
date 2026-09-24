@@ -16,6 +16,7 @@
   "installByDefault": true,
   "sortOrder": 10,
   "defaultSize": { "width": 320, "height": 260 },
+  "minimumSize": { "width": 220, "height": 220 },
   "defaultContent": { "$schema": "2", "title": "Checklist", "items": "Primeiro item\nSegundo item\nTerceiro item", "checked": "" },
   "platforms": ["windows"],
   "capabilities": ["board-widget"],

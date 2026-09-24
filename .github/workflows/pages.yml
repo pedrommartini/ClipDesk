@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "landing/**"
+      - "docs/ClipDesk-Plugin-AI-DevKit.zip"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -29,6 +30,10 @@ jobs:
       - name: Configurar GitHub Pages
         uses: actions/configure-pages@v5
       - name: Preparar landing page
+        run: |
+          mkdir -p landing/downloads
+          cp docs/ClipDesk-Plugin-AI-DevKit.zip landing/downloads/ClipDesk-Plugin-AI-DevKit.zip
+      - name: Enviar landing page
         uses: actions/upload-pages-artifact@v3
         with:
           path: landing

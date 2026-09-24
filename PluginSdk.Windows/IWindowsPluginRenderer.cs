@@ -64,10 +64,34 @@ public sealed class WindowsPluginViewContext
     public IPluginExecutionContext Execution { get; }
     public bool IsDarkMode { get; }
     public bool IsEditing { get; }
-    public double Width { get; }
-    public double Height { get; }
-    public double Scale { get; }
+    public double Width { get; private set; }
+    public double Height { get; private set; }
+    public double Scale { get; private set; }
     public string AccentColor { get; }
+    /// <summary>Subscribe in CreateBody to receive files explicitly dropped on this plugin.
+    /// The host validates the file.read permission and supplies existing local files only.
+    /// Keep file contents out of PluginState; read them only for the user's requested action.</summary>
+    public event Func<IReadOnlyList<PluginDroppedFile>, Task>? FilesDropped;
+    /// <summary>Raised when this instance is resized. Use it for layout switches;
+    /// Grid, wrapping and scrolling should handle ordinary size changes.</summary>
+    public event Action? LayoutChanged;
+
+    public void UpdateLayout(double width, double height, double scale)
+    {
+        if (Width == width && Height == height && Scale == scale) return;
+        Width = width;
+        Height = height;
+        Scale = scale;
+        LayoutChanged?.Invoke();
+    }
+
+    public bool AcceptsFileDrops => FilesDropped is not null;
+    public async Task DeliverFilesAsync(IReadOnlyList<PluginDroppedFile> files)
+    {
+        if (FilesDropped is null) return;
+        foreach (Func<IReadOnlyList<PluginDroppedFile>, Task> handler in FilesDropped.GetInvocationList())
+            await handler(files);
+    }
 
     public void NotifyBeforeChange() => _beforeChange();
 
@@ -92,6 +116,8 @@ public sealed class WindowsPluginViewContext
 
     public void RequestHostAction(PluginHostAction action) => _hostAction(action);
 }
+
+public sealed record PluginDroppedFile(string Path, string FileName, long Length);
 
 /// <summary>Transition helper for packages that need to remain loadable by a v1 host.</summary>
 public static class LegacyPluginAdapter

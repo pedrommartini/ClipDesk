@@ -83,7 +83,10 @@ public partial class MainWindow : Window
     private Point _canvasContextPoint;
     private int _canvasContextAnimationVersion;
     private ItemCard? _groupDragLead;
+    private Point? _fileCardDragOrigin;
     private readonly Dictionary<ItemCard, Point> _groupDragPositions = [];
+    private readonly Dictionary<BoardObjectView, Point> _groupDragObjectPositions = [];
+    private BoardObjectView? _groupDragObjectLead;
     private double _workspaceZoom = 1;
     private AppSettings _appearanceSettings = new();
     private bool _isRightPanCandidate;
@@ -120,6 +123,7 @@ public partial class MainWindow : Window
         Closing += MainWindow_Closing;
         _appearanceSettings = _storageService.LoadSettings();
         _isDarkMode = _appearanceSettings.IsDarkMode;
+        InitializeCustomization();
         _magnetAlignmentEnabled = _appearanceSettings.MagnetAlignmentEnabled;
         UpdateMagnetButtonPresentation();
         _workspaceZoom = _appearanceSettings.BoardViewports.TryGetValue(_activeWorkspace.Id.ToString("N"), out var savedViewport)
@@ -393,6 +397,12 @@ public partial class MainWindow : Window
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (e.Key == Key.Escape && CustomizationOverlay.Visibility == Visibility.Visible)
+        {
+            CustomizationOverlay.Visibility = Visibility.Collapsed;
+            e.Handled = true;
+            return;
+        }
         if (e.Key == Key.Escape && PluginStoreOverlay.Visibility == Visibility.Visible)
         {
             HidePluginStore();
@@ -506,7 +516,7 @@ public partial class MainWindow : Window
 
     private void Window_DragOver(object sender, DragEventArgs e)
     {
-        if (WorkspaceNameOverlay.Visibility == Visibility.Visible)
+        if (WorkspaceNameOverlay.Visibility == Visibility.Visible || CustomizationOverlay.Visibility == Visibility.Visible)
         {
             e.Effects = DragDropEffects.None;
             e.Handled = true;
@@ -530,7 +540,8 @@ public partial class MainWindow : Window
         {
             var canDrop = HasFileDrop(e) || TryGetDroppedLink(e) is not null;
             e.Effects = canDrop ? DragDropEffects.Copy : DragDropEffects.None;
-            HistoryDropGlowText.Text = "Solte para criar um atalho na mesa";
+            HistoryDropGlowText.Text = canDrop && PluginAt(e.GetPosition(WorkspaceCanvas))?.CanReceiveFileDrops == true
+                ? "Solte para enviar ao plugin" : "Solte para criar um atalho na mesa";
             SetHistoryDropGlow(canDrop);
         }
 
@@ -540,6 +551,11 @@ public partial class MainWindow : Window
     private void Window_Drop(object sender, DragEventArgs e)
     {
         SetHistoryDropGlow(false);
+        if (CustomizationOverlay.Visibility == Visibility.Visible)
+        {
+            e.Handled = true;
+            return;
+        }
         if (e.Data.GetDataPresent(HistoryView.DragFormat))
         {
             SetHistoryDropGlow(false);
@@ -559,6 +575,13 @@ public partial class MainWindow : Window
         }
 
         var paths = GetDroppedPaths(e);
+        if (paths.Length > 0 && paths.All(File.Exists)
+            && PluginAt(e.GetPosition(WorkspaceCanvas)) is { CanReceiveFileDrops: true } receiver)
+        {
+            _ = DeliverFilesToPluginAsync(receiver, paths);
+            e.Handled = true;
+            return;
+        }
         if (paths.Length == 0)
         {
             if (TryGetDroppedLink(e) is { } url)
@@ -571,6 +594,25 @@ public partial class MainWindow : Window
 
         AddItems(_clipboardService.CreateFileItems(paths), e.GetPosition(WorkspaceCanvas));
         e.Handled = true;
+    }
+
+    private BoardObjectView? PluginAt(Point canvasPoint) => WorkspaceCanvas.Children.OfType<BoardObjectView>()
+        .Where(view => view.CanReceiveFileDrops && new Rect(view.Object.X, view.Object.Y, view.Object.Width, view.Object.Height).Contains(canvasPoint))
+        .OrderByDescending(view => Panel.GetZIndex(view)).FirstOrDefault();
+
+    private async Task DeliverFilesToPluginAsync(BoardObjectView view, IEnumerable<string> paths)
+    {
+        try
+        {
+            var files = paths.Where(File.Exists).Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(16).Select(path => new ClipDesk.PluginSdk.Windows.PluginDroppedFile(
+                    Path.GetFullPath(path), Path.GetFileName(path), new FileInfo(path).Length)).ToArray();
+            if (files.Length > 0) await view.DeliverDroppedFilesAsync(files);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            ShowToast($"Não foi possível entregar o arquivo ao plugin: {ex.Message}");
+        }
     }
 
     private void FolderOverlay_DragOver(object sender, DragEventArgs e)
@@ -1284,9 +1326,12 @@ public partial class MainWindow : Window
     {
         if (sender is ItemCard card)
         {
+            _fileCardDragOrigin = card.Item.Type == ClipboardItemType.File
+                ? new Point(Canvas.GetLeft(card), Canvas.GetTop(card)) : null;
             ExpandConnectedDragSelection(card);
             RegisterUndoSnapshot();
             _groupDragLead = card;
+            _groupDragObjectLead = null;
             _groupDragPositions.Clear();
             foreach (var selected in _selectedCards)
             {
@@ -1294,7 +1339,9 @@ public partial class MainWindow : Window
                 selected.Item.ZIndex = NextBoardZIndex();
                 Panel.SetZIndex(selected, selected.Item.ZIndex);
             }
-            PrepareAlignmentTargets(_groupDragPositions.Keys.Concat(_linkedCardDragOrigins.Keys), _linkedObjectDragOrigins.Keys);
+            CaptureSelectedBoardObjectDragPositions();
+            PrepareAlignmentTargets(_groupDragPositions.Keys.Concat(_linkedCardDragOrigins.Keys),
+                _groupDragObjectPositions.Keys.Select(view => view.Object).Concat(_linkedObjectDragOrigins.Keys));
         }
     }
 
@@ -1310,7 +1357,7 @@ public partial class MainWindow : Window
         MoveLinkedNodes(CardNodeId(card.Item.Id), new Point(Canvas.GetLeft(card), Canvas.GetTop(card)));
         RefreshConnectorsForNodes(ConnectedComponent(CardNodeId(card.Item.Id)));
         _presenceInputDirty=true;
-        var isGroupDrag = _groupDragPositions.Count > 1;
+        var isGroupDrag = _groupDragPositions.Count + _groupDragObjectPositions.Count > 1;
         var target = isGroupDrag ? null : FindFolderTarget(card);
         SetTrashHover(IsOverTrash(card));
         if (_activeDropTarget == target)
@@ -1344,24 +1391,52 @@ public partial class MainWindow : Window
             _activeDropTarget = null;
             DeleteCards(_groupDragPositions.Count > 1 ? _groupDragPositions.Keys : [card]);
             _groupDragPositions.Clear();
+            _groupDragObjectPositions.Clear();
             _groupDragLead = null;
             ClearLinkedDrag();
+            return;
+        }
+
+        if (card.Item.Type == ClipboardItemType.File && card.Item.FilePaths.Count > 0
+            && _fileCardDragOrigin is { } dragOrigin
+            && _groupDragPositions.Count <= 1 && _groupDragObjectPositions.Count == 0
+            && _linkedCardDragOrigins.Count == 0 && _linkedObjectDragOrigins.Count == 0
+            && PluginAt(new Point(Canvas.GetLeft(card) + card.ActualWidth / 2,
+                Canvas.GetTop(card) + card.ActualHeight / 2)) is { } fileReceiver)
+        {
+            _ = DeliverFilesToPluginAsync(fileReceiver, card.Item.FilePaths);
+            Canvas.SetLeft(card, dragOrigin.X);
+            Canvas.SetTop(card, dragOrigin.Y);
+            card.Item.X = dragOrigin.X;
+            card.Item.Y = dragOrigin.Y;
+            _activeDropTarget = null;
+            _groupDragPositions.Clear();
+            _groupDragObjectPositions.Clear();
+            _groupDragLead = null;
+            _fileCardDragOrigin = null;
+            ClearLinkedDrag();
+            Save();
             return;
         }
 
         var target = _activeDropTarget ?? FindFolderTarget(card);
         _activeDropTarget = null;
 
-        if (target is not null && _groupDragPositions.Count <= 1)
+        if (target is not null && _groupDragPositions.Count + _groupDragObjectPositions.Count <= 1)
         {
             PlaceCardIntoFolder(card, target);
             _groupDragPositions.Clear();
+            _groupDragObjectPositions.Clear();
             _groupDragLead = null;
             ClearLinkedDrag();
             return;
         }
 
         _groupDragPositions.Clear();
+        var lastMovedObject = _groupDragObjectPositions.Keys.LastOrDefault();
+        foreach (var view in _groupDragObjectPositions.Keys) QueueBoardObjectRealtime(view.Object);
+        if (lastMovedObject is not null) QueueBoardObjectRealtime(lastMovedObject.Object, flush: true);
+        _groupDragObjectPositions.Clear();
         _groupDragLead = null;
         ClearLinkedDrag();
         Save();
@@ -1667,7 +1742,7 @@ public partial class MainWindow : Window
         {
             HideWorkspaceDropdown();
         }
-        if (e.OriginalSource == Root || e.OriginalSource == WorkspaceCanvas || e.OriginalSource == WorkspaceExtentHost)
+        if (IsWorkspaceSurface(e.OriginalSource as DependencyObject))
         {
             if (e.ChangedButton == MouseButton.Left)
             {
@@ -1678,6 +1753,11 @@ public partial class MainWindow : Window
             }
         }
     }
+
+    private bool IsWorkspaceSurface(DependencyObject? source) =>
+        ReferenceEquals(source, Root)
+        || ReferenceEquals(source, WorkspaceCanvas)
+        || ReferenceEquals(source, WorkspaceExtentHost);
 
     private static bool IsInsideElement(DependencyObject? source, DependencyObject ancestor)
     {
@@ -1691,6 +1771,15 @@ public partial class MainWindow : Window
 
     private void Root_MouseMove(object sender, MouseEventArgs e)
     {
+        if (_isMarqueeSelecting)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed)
+            {
+                UpdateMarqueeSelection(e.GetPosition(WorkspaceCanvas));
+                e.Handled = true;
+            }
+            return;
+        }
         if (HandleCreativeMouseMove(e)) { e.Handled = true; return; }
         if (_isRightPanCandidate || _isMiddlePanningWorkspace)
         {
@@ -1719,8 +1808,6 @@ public partial class MainWindow : Window
                 }
             }
         }
-        if (!_isMarqueeSelecting || e.LeftButton != MouseButtonState.Pressed) return;
-        UpdateMarqueeSelection(e.GetPosition(WorkspaceCanvas));
     }
 
     private void Root_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
@@ -1756,6 +1843,16 @@ public partial class MainWindow : Window
                 if(e.ChangedButton==MouseButton.Right) {e.Handled=true;return;}
             }
         }
+        if (e.ChangedButton == MouseButton.Left
+            && _activeCreativeTool == CreativeTool.Select
+            && IsWorkspaceSurface(interactionSource))
+        {
+            HideCanvasContextMenu();
+            HideBoardObjectContextMenu();
+            BeginMarqueeSelection(e.GetPosition(WorkspaceCanvas));
+            e.Handled = true;
+            return;
+        }
         if (e.ChangedButton == MouseButton.Left && _activeCreativeTool != CreativeTool.Select && WorkspaceScroll.IsMouseOver)
         {
             if (HandleCreativeMouseDown(e)) { e.Handled = true; return; }
@@ -1770,6 +1867,12 @@ public partial class MainWindow : Window
 
     private void Root_PreviewMouseUp(object sender, MouseButtonEventArgs e)
     {
+        if (e.ChangedButton == MouseButton.Left && _isMarqueeSelecting)
+        {
+            EndMarqueeSelection();
+            e.Handled = true;
+            return;
+        }
         if (e.ChangedButton == MouseButton.Left && HandleCreativeMouseUp(e)) { e.Handled = true; return; }
         if (e.ChangedButton != MouseButton.Middle) return;
         if (!_isMiddlePanningWorkspace) return;
@@ -1805,6 +1908,7 @@ public partial class MainWindow : Window
         _marqueeStart = start;
         _isMarqueeSelecting = true;
         ClearSelection();
+        SelectionMarquee.Stroke = LocalPresenceColor();
         UpdateMarqueeVisual(new Rect(start, start));
         SelectionMarquee.Visibility = Visibility.Visible;
         Root.CaptureMouse();
@@ -1817,14 +1921,14 @@ public partial class MainWindow : Window
         var rectangle = new Rect(new Point(left, top), new Point(Math.Max(_marqueeStart.X, current.X), Math.Max(_marqueeStart.Y, current.Y)));
         UpdateMarqueeVisual(rectangle);
 
-        foreach (var card in WorkspaceCanvas.Children.OfType<ItemCard>())
+        foreach (var card in WorkspaceCanvas.Children.OfType<ItemCard>().Where(card => card.Visibility == Visibility.Visible))
         {
             var selected = rectangle.IntersectsWith(card.GetVisualBounds(WorkspaceCanvas));
             if (selected && !_selectedCards.Contains(card)) _selectedCards.Add(card);
             if (!selected) _selectedCards.Remove(card);
             card.SetSelected(selected);
         }
-        foreach (var view in WorkspaceCanvas.Children.OfType<BoardObjectView>().Where(view => view.Object.Kind != BoardObjectKind.Connector))
+        foreach (var view in WorkspaceCanvas.Children.OfType<BoardObjectView>().Where(view => view.Visibility == Visibility.Visible && view.Object.Kind != BoardObjectKind.Connector))
         {
             var selected = rectangle.IntersectsWith(new Rect(view.Object.X, view.Object.Y, view.Object.Width, view.Object.Height));
             if (selected && !_selectedBoardObjectViews.Contains(view)) _selectedBoardObjectViews.Add(view);
@@ -1889,18 +1993,44 @@ public partial class MainWindow : Window
 
     private void MoveSelectedGroup(ItemCard lead)
     {
-        if (_groupDragLead != lead || _groupDragPositions.Count <= 1) return;
+        if (_groupDragLead != lead || _groupDragPositions.Count + _groupDragObjectPositions.Count <= 1) return;
         var originalLead = _groupDragPositions[lead];
         var delta = new Vector(Canvas.GetLeft(lead) - originalLead.X, Canvas.GetTop(lead) - originalLead.Y);
+        MoveSelectedGroup(delta, lead, null);
+    }
+
+    private void CaptureSelectedBoardObjectDragPositions()
+    {
+        _groupDragObjectPositions.Clear();
+        foreach (var view in _selectedBoardObjectViews.Where(view => !view.Object.Locked && view.Visibility == Visibility.Visible))
+            _groupDragObjectPositions[view] = new Point(view.Object.X, view.Object.Y);
+    }
+
+    private void MoveSelectedGroup(Vector delta, ItemCard? leadCard, BoardObjectView? leadView)
+    {
+        var movedNodes = new List<string>();
         foreach (var (card, originalPosition) in _groupDragPositions)
         {
-            if (card == lead) continue;
+            if (card == leadCard) continue;
             var position = ClampCardPosition(card, new Point(originalPosition.X + delta.X, originalPosition.Y + delta.Y));
             Canvas.SetLeft(card, position.X);
             Canvas.SetTop(card, position.Y);
             card.Item.X = position.X;
             card.Item.Y = position.Y;
+            movedNodes.Add(CardNodeId(card.Item.Id));
         }
+        foreach (var (view, originalPosition) in _groupDragObjectPositions)
+        {
+            if (view == leadView) continue;
+            var obj = view.Object;
+            obj.X = Math.Clamp(originalPosition.X + delta.X, 0, Math.Max(0, _activeWorkspace.WorldWidth - obj.Width));
+            obj.Y = Math.Clamp(originalPosition.Y + delta.Y, 0, Math.Max(0, _activeWorkspace.WorldHeight - obj.Height));
+            obj.UpdatedAt = DateTimeOffset.UtcNow;
+            PositionBoardObjectView(view);
+            QueueBoardObjectRealtime(obj);
+            movedNodes.Add(ObjectNodeId(obj.Id));
+        }
+        foreach (var node in movedNodes) RefreshConnectorsForNodes(ConnectedComponent(node));
     }
 
     private Point ClampCardPosition(ItemCard card, Point position)
@@ -3063,14 +3193,22 @@ public partial class MainWindow : Window
     private void ApplyTheme()
     {
         ThemeService.Apply(_isDarkMode);
-        var workspace = _isDarkMode ? "#0B1524" : "#F4F4F2";
-        var gridLine = _isDarkMode ? "#182A42" : "#E3E5E8";
-        // Only the fixed-size board owns the grid. The surrounding viewport has
-        // a separate surface so the background never looks infinite.
-        Root.Background = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#070C14" : "#E5E8EC")!;
-        WorkspaceCanvas.Background = CreateGridBrush(workspace, gridLine);
-        Background = (Brush)new BrushConverter().ConvertFromString(workspace)!;
-        HeaderBackdrop.Background = Brushes.Transparent;
+        // The dotted pattern belongs to the finite board and follows its zoom.
+        // A calmer surface keeps the content legible even in a crowded workspace.
+        Root.Background = CreateViewportBrush(_isDarkMode);
+        WorkspaceCanvas.Background = _appearanceSettings.BoardBackground == "classic"
+            ? CreateClassicBoardBrush(_isDarkMode) : CreateBoardBrush(_isDarkMode);
+        Background = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#101827" : "#F8FAFD")!;
+        HeaderBackdrop.Background = new LinearGradientBrush
+        {
+            StartPoint = new Point(0, 0),
+            EndPoint = new Point(0, 1),
+            GradientStops = new GradientStopCollection
+            {
+                new(_isDarkMode ? Color.FromArgb(242, 10, 17, 29) : Color.FromArgb(242, 248, 250, 253), 0),
+                new(_isDarkMode ? Color.FromArgb(0, 10, 17, 29) : Color.FromArgb(0, 248, 250, 253), 1)
+            }
+        };
         HeaderBackdrop.BorderBrush = Brushes.Transparent;
         TopToolbar.Background = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#A8172232" : "#9CFFFFFF")!;
         TopToolbar.BorderBrush = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#334D6E" : "#55FFFFFF")!;
@@ -3082,8 +3220,8 @@ public partial class MainWindow : Window
         ZoomSurface.Background = WorkspaceSearchSurface.Background;
         ZoomSurface.BorderBrush = WorkspaceSearchSurface.BorderBrush;
         ZoomValueText.Foreground = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#D8D4F0" : "#4B5563")!;
-        CreativeToolRail.Background = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#B8172232" : "#C8FFFFFF")!;
-        CreativeToolRail.BorderBrush = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#405A7C" : "#CBD5E1")!;
+        CreativeToolRail.Background = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#B8172232" : "#ED1E293B")!;
+        CreativeToolRail.BorderBrush = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#405A7C" : "#64748B")!;
         CreativeFormatMenu.Background = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#F21A2332" : "#F7FFFFFF")!;
         CreativeFormatMenu.BorderBrush = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#526784A6" : "#CBD5E1")!;
         CanvasContextMenu.Background = (Brush)new BrushConverter().ConvertFromString(_isDarkMode ? "#F51A2434" : "#FCFFFFFF")!;
@@ -3145,32 +3283,89 @@ public partial class MainWindow : Window
         _ = DwmSetWindowAttribute(handle, 20, ref enabled, sizeof(int));
     }
 
-    private static DrawingBrush CreateGridBrush(string background, string line)
+    private static DrawingBrush CreateViewportBrush(bool isDarkMode)
     {
-        var backgroundBrush = (Brush)new BrushConverter().ConvertFromString(background)!;
-        var lineBrush = (Brush)new BrushConverter().ConvertFromString(line)!;
-        return new DrawingBrush
+        var bounds = new RectangleGeometry(new Rect(0, 0, 1, 1));
+        var background = new LinearGradientBrush(
+            isDarkMode ? Color.FromRgb(7, 12, 22) : Color.FromRgb(226, 233, 244),
+            isDarkMode ? Color.FromRgb(20, 30, 49) : Color.FromRgb(243, 247, 252),
+            115);
+        var violet = new RadialGradientBrush
         {
-            TileMode = TileMode.Tile,
-            Viewport = new Rect(0, 0, 32, 32),
-            ViewportUnits = BrushMappingMode.Absolute,
-            Stretch = Stretch.None,
-            Drawing = new DrawingGroup
+            Center = new Point(0.08, 0.04),
+            GradientOrigin = new Point(0.08, 0.04),
+            RadiusX = 0.7,
+            RadiusY = 0.85,
+            GradientStops = new GradientStopCollection
             {
-                Children =
-                {
-                    new GeometryDrawing(backgroundBrush, null, new RectangleGeometry(new Rect(0, 0, 32, 32))),
-                    new GeometryDrawing(null, new Pen(lineBrush, 1), new GeometryGroup
-                    {
-                        Children =
-                        {
-                            new LineGeometry(new Point(32, 0), new Point(32, 32)),
-                            new LineGeometry(new Point(0, 32), new Point(32, 32))
-                        }
-                    })
-                }
+                new(isDarkMode ? Color.FromArgb(64, 88, 69, 149) : Color.FromArgb(78, 203, 190, 235), 0),
+                new(Colors.Transparent, 1)
             }
         };
+        var blue = new RadialGradientBrush
+        {
+            Center = new Point(0.95, 0.88),
+            GradientOrigin = new Point(0.95, 0.88),
+            RadiusX = 0.7,
+            RadiusY = 0.8,
+            GradientStops = new GradientStopCollection
+            {
+                new(isDarkMode ? Color.FromArgb(45, 48, 111, 158) : Color.FromArgb(62, 169, 213, 236), 0),
+                new(Colors.Transparent, 1)
+            }
+        };
+        var drawing = new DrawingGroup();
+        drawing.Children.Add(new GeometryDrawing(background, null, bounds));
+        drawing.Children.Add(new GeometryDrawing(violet, null, bounds));
+        drawing.Children.Add(new GeometryDrawing(blue, null, bounds));
+        var brush = new DrawingBrush(drawing)
+        {
+            TileMode = TileMode.None,
+            Viewbox = new Rect(0, 0, 1, 1),
+            ViewboxUnits = BrushMappingMode.Absolute,
+            Viewport = new Rect(0, 0, 1, 1),
+            ViewportUnits = BrushMappingMode.RelativeToBoundingBox,
+            Stretch = Stretch.Fill
+        };
+        brush.Freeze();
+        return brush;
+    }
+
+    private static DrawingBrush CreateBoardBrush(bool isDarkMode)
+    {
+        const double tileSize = 256;
+        var surface = new SolidColorBrush(isDarkMode ? Color.FromArgb(217, 16, 24, 39) : Color.FromArgb(237, 248, 250, 253));
+        var guide = new SolidColorBrush(isDarkMode ? Color.FromRgb(30, 43, 63) : Color.FromRgb(226, 233, 243));
+        var dot = new SolidColorBrush(isDarkMode ? Color.FromRgb(49, 65, 88) : Color.FromRgb(183, 196, 214));
+        var anchor = new SolidColorBrush(isDarkMode ? Color.FromRgb(79, 76, 123) : Color.FromRgb(187, 177, 223));
+        var dots = new GeometryGroup();
+        for (var x = 32d; x < tileSize; x += 64)
+            for (var y = 32d; y < tileSize; y += 64)
+                dots.Children.Add(new EllipseGeometry(new Point(x, y), 1.15, 1.15));
+
+        var drawing = new DrawingGroup();
+        drawing.Children.Add(new GeometryDrawing(surface, null, new RectangleGeometry(new Rect(0, 0, tileSize, tileSize))));
+        drawing.Children.Add(new GeometryDrawing(null, new Pen(guide, 1), new GeometryGroup
+        {
+            Children =
+            {
+                new LineGeometry(new Point(tileSize, 0), new Point(tileSize, tileSize)),
+                new LineGeometry(new Point(0, tileSize), new Point(tileSize, tileSize))
+            }
+        }));
+        drawing.Children.Add(new GeometryDrawing(dot, null, dots));
+        drawing.Children.Add(new GeometryDrawing(anchor, null, new EllipseGeometry(new Point(tileSize, tileSize), 1.7, 1.7)));
+
+        var brush = new DrawingBrush
+        {
+            TileMode = TileMode.Tile,
+            Viewport = new Rect(0, 0, tileSize, tileSize),
+            ViewportUnits = BrushMappingMode.Absolute,
+            Stretch = Stretch.None,
+            Drawing = drawing
+        };
+        brush.Freeze();
+        return brush;
     }
 
     private void Save(bool queueCloud = true)

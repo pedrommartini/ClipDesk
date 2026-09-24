@@ -23,6 +23,8 @@ public sealed class PluginManifest
     public bool InstallByDefault { get; init; }
     public int SortOrder { get; init; }
     public PluginSize DefaultSize { get; init; } = new();
+    /// <summary>Smallest usable compact layout, in board coordinates.</summary>
+    public PluginSize MinimumSize { get; init; } = new() { Width = 190, Height = 190 };
     public Dictionary<string, string> DefaultContent { get; init; } = [];
     public IReadOnlyList<string> Platforms { get; init; } = ["windows"];
     public IReadOnlyList<string> Permissions { get; init; } = [];
@@ -76,6 +78,7 @@ public static class PluginCapabilities
 {
     public const string BoardWidget = "board-widget";
     public const string AddFilesToBoard = "board-files";
+    public const string ReceiveFileDrops = "file-drop";
     public const string Command = "command";
     public const string BackgroundRefresh = "background-refresh";
 }
@@ -114,6 +117,12 @@ public static class PluginCompatibility
         if (manifest.PluginApiVersion != PortableApiVersion
             || manifest.Runtime != PluginRuntimes.PortableV2
             || manifest.StateVersion < 1
+            || manifest.DefaultSize is null
+            || manifest.MinimumSize is null
+            || manifest.MinimumSize.Width < 120
+            || Math.Abs(manifest.MinimumSize.Width - manifest.MinimumSize.Height) > .01
+            || manifest.MinimumSize.Width > manifest.DefaultSize.Width
+            || manifest.MinimumSize.Height > manifest.DefaultSize.Height
             || !IsValidEntryPoint(manifest.Module)) return false;
 
         var renderer = manifest.RendererFor(platform);

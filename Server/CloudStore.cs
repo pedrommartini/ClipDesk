@@ -172,12 +172,12 @@ public sealed class CloudStore
         {
             "workspace"=>new[]{"name","ownerId","mode","worldWidth","worldHeight","schemaVersion","createdAt"},
             "item"=>new[]{"type","name","text","url","x","y","width","height","zIndex","parentId","createdAt","attachments"},
-            "boardObject"=>new[]{"objectKind","x","y","width","height","rotation","zIndex","locked","createdBy","createdAt","updatedAt","style","content"},
+            "boardObject"=>new[]{"objectKind","pluginId","pluginName","pluginVersion","x","y","width","height","rotation","zIndex","locked","createdBy","createdAt","updatedAt","style","content"},
             "history"=>new[]{"type","title","preview","text","url","capturedAt","attachments"},
             _=>[]
         };
         if(op.Data.Any(p=>!allowed.Contains(p.Key))) throw new ArgumentException("Campo de sincronização inválido.");
-        foreach(var key in new[]{"name","ownerId","mode","createdAt","title","preview","text","url","capturedAt","parentId"})
+        foreach(var key in new[]{"name","ownerId","mode","createdAt","title","preview","text","url","capturedAt","parentId","pluginId","pluginName","pluginVersion"})
             if(op.Data[key] is { } node && (node is not JsonValue value || !value.TryGetValue<string>(out _))) throw new ArgumentException("Texto inválido.");
         if(op.Data["type"] is { } kind && (!int.TryParse(kind.ToJsonString(),out var type) || type is <0 or >5)) throw new ArgumentException("Tipo de card inválido.");
         if(op.Data["objectKind"] is { } objectKind

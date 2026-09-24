@@ -26,6 +26,15 @@ public partial class PluginStoreView : UserControl
     public event Action<PluginCatalogEntry>? PluginActionRequested;
     public event Action<PluginCatalogEntry>? PluginRepairRequested;
     public event Action<PluginCatalogEntry>? PluginUninstallRequested;
+    public event EventHandler? LocalPluginLoadRequested;
+    public event EventHandler? PluginDeployRequested;
+    public event EventHandler? RefreshRequested;
+
+    public void SetRefreshInProgress(bool value)
+    {
+        RefreshStoreButton.IsEnabled = !value;
+        RefreshStoreIcon.Text = value ? "\uE895" : "\uE72C";
+    }
 
     public void Bind(IReadOnlyList<PluginCatalogEntry> entries)
     {
@@ -142,6 +151,14 @@ public partial class PluginStoreView : UserControl
         if (entry.IsInstalled) status.SetResourceReference(TextBlock.ForegroundProperty, "StoreSuccessBrush");
         else status.SetResourceReference(TextBlock.ForegroundProperty, "StoreAccentBrush");
         identity.Children.Add(status);
+        if (!string.IsNullOrWhiteSpace(entry.Manifest.Publisher) && entry.Manifest.Publisher != "ClipDesk")
+        {
+            identity.Children.Add(new TextBlock
+            {
+                Text = $"  ·  @{entry.Manifest.Publisher}", FontSize = 10, VerticalAlignment = VerticalAlignment.Center,
+                Foreground = new SolidColorBrush(Color.FromRgb(136, 153, 180))
+            });
+        }
         copy.Children.Add(identity);
         Grid.SetColumn(copy, 1);
         header.Children.Add(copy);
@@ -337,6 +354,9 @@ public partial class PluginStoreView : UserControl
     }
 
     private void CloseButton_Click(object sender, RoutedEventArgs e) => CloseRequested?.Invoke(this, EventArgs.Empty);
+    private void LoadLocalPluginButton_Click(object sender, RoutedEventArgs e) => LocalPluginLoadRequested?.Invoke(this, EventArgs.Empty);
+    private void DeployPluginButton_Click(object sender, RoutedEventArgs e) => PluginDeployRequested?.Invoke(this, EventArgs.Empty);
+    private void RefreshStoreButton_Click(object sender, RoutedEventArgs e) => RefreshRequested?.Invoke(this, EventArgs.Empty);
 
     private void ShowInstalledButton_Click(object sender, RoutedEventArgs e)
     {

@@ -105,7 +105,7 @@ public partial class MainWindow
             new() { ["sourceLanguage"] = "auto", ["targetLanguage"] = "en", ["input"] = "", ["output"] = "A tradução aparece aqui" });
 
     private void AddCurrencyConverterFromCanvasMenu_Click(object sender, RoutedEventArgs e) =>
-        CreateBoardWidgetFromCanvasMenu(BoardObjectKind.CurrencyConverter, 350, 245,
+        CreateBoardWidgetFromCanvasMenu(BoardObjectKind.CurrencyConverter, 350, 260,
             new() { ["accent"] = "#62DDB0" },
             new() { ["sourceCurrency"] = "BRL", ["targetCurrency"] = "USD", ["amount"] = "1", ["result"] = "Escolha as moedas e converta" });
 
@@ -385,14 +385,16 @@ public partial class MainWindow
         try
         {
             RegisterUndoSnapshot();
-            foreach (var item in items)
+            for (var index = 0; index < items.Count; index++)
             {
+                var item = items[index];
                 var position = FindPositionBesidePlugin(source, item.Width, item.Height);
                 item.X = position.X;
                 item.Y = position.Y;
                 item.ZIndex = NextBoardZIndex();
                 _items.Add(item);
-                var card = AddCard(item, playPopIn: true);
+                var card = AddCard(item, playPopIn: false);
+                card.PlayPluginUnfold(index);
                 added.Add((item, card));
             }
             if (added.LastOrDefault().Card is { } lastCard) SelectSingle(lastCard);

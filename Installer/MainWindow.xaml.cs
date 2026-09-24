@@ -23,7 +23,10 @@ public partial class MainWindow : Window
         BrandTitle.Text = InstallerBrand.AppName;
         ExistingTitle.Text = $"{InstallerBrand.AppName} já está instalado";
         _uninstallPath = uninstallPath;
-        _installPath = InstallerEngine.FindExistingInstallPath() ?? InstallerEngine.DefaultInstallPath;
+        var existingPath = InstallerEngine.FindExistingInstallPath();
+        _installPath = !InstallerBrand.IsDevelopment && string.Equals(existingPath, InstallerEngine.LegacyInstallPath, StringComparison.OrdinalIgnoreCase)
+            ? InstallerEngine.DefaultInstallPath
+            : existingPath ?? InstallerEngine.DefaultInstallPath;
         UpdateInstallLocation();
         if (InstallerBrand.IsDevelopment && uninstallPath is null)
         {
@@ -125,7 +128,13 @@ public partial class MainWindow : Window
     private void LaunchButton_Click(object sender, RoutedEventArgs e)
     {
         if (_result is not null)
-            Process.Start(new ProcessStartInfo(_result.ExecutablePath) { UseShellExecute = true, WorkingDirectory = _result.InstallPath });
+        {
+            var launch = InstallerBrand.IsDevelopment
+                ? new ProcessStartInfo(_result.ExecutablePath) { UseShellExecute = true, WorkingDirectory = _result.InstallPath }
+                : new ProcessStartInfo("explorer.exe") { UseShellExecute = true };
+            if (!InstallerBrand.IsDevelopment) launch.ArgumentList.Add(_result.ExecutablePath);
+            Process.Start(launch);
+        }
         Close();
     }
 
@@ -139,7 +148,9 @@ public partial class MainWindow : Window
     private void ChooseFolderButton_Click(object sender, RoutedEventArgs e)
     {
         var parent = Directory.GetParent(_installPath)?.FullName
-            ?? Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            ?? Environment.GetFolderPath(InstallerBrand.IsDevelopment
+                ? Environment.SpecialFolder.LocalApplicationData
+                : Environment.SpecialFolder.ProgramFiles);
         NavigateFolder(parent);
         FolderPickerOverlay.Visibility = Visibility.Visible;
         FolderPickerOverlay.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(220))

@@ -66,17 +66,7 @@ internal static class WidgetUi
         };
 
     public static Button Button(WindowsPluginViewContext context, string value, bool accent = false)
-    {
-        var content = Text(context, value, 13);
-        if (accent) content.Foreground = ContrastBrush(context.AccentColor);
-        return new Button
-        {
-            Content = content, Tag = "plugin-interactive", Cursor = Cursors.Hand,
-            Background = Brush(accent ? context.AccentColor : context.IsDarkMode ? "#29384D" : "#E9EFF6"),
-            BorderThickness = new Thickness(0), Padding = new Thickness(8, 4, 8, 4),
-            MinHeight = Math.Clamp(29 * context.Scale, 27, 90)
-        };
-    }
+        => PluginButtons.Create(context, value, accent);
 
     public static Brush ContrastBrush(string color)
     {
@@ -141,14 +131,7 @@ internal static class WidgetUi
     public static void ShowChoices(Button anchor, IEnumerable<(string Code, string Label)> choices,
         string selected, Action<string> select, WindowsPluginViewContext context)
     {
-        var menu = new ContextMenu { MaxHeight = 360, Tag = "plugin-interactive" };
-        foreach (var (code, label) in choices)
-        {
-            var item = new MenuItem { Header = label, IsChecked = code.Equals(selected, StringComparison.OrdinalIgnoreCase),
-                Tag = "plugin-interactive", FontSize = Size(context, 13) };
-            item.Click += (_, e) => { e.Handled = true; select(code); };
-            menu.Items.Add(item);
-        }
-        anchor.ContextMenu = menu; menu.PlacementTarget = anchor; menu.IsOpen = true;
+        PluginDropdowns.Show(anchor, context,
+            choices.Select(choice => new PluginDropdownOption(choice.Code, choice.Label)), selected, select);
     }
 }
