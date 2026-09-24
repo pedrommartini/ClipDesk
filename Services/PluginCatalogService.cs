@@ -301,6 +301,10 @@ public sealed class PluginCatalogService
                 throw new InvalidDataException("A lista de hosts de rede contém um endereço inválido.");
             if ((manifest.NetworkHosts?.Count ?? 0) > 0 && !(manifest.Permissions ?? []).Contains(PluginPermissions.Network, StringComparer.OrdinalIgnoreCase))
                 throw new InvalidDataException("O plugin declara hosts sem solicitar a permissão de rede.");
+            if ((manifest.Capabilities ?? []).Contains(PluginCapabilities.AddFilesToBoard, StringComparer.OrdinalIgnoreCase)
+                && !(manifest.Permissions ?? []).Contains(PluginPermissions.FileRead, StringComparer.OrdinalIgnoreCase)
+                && !(manifest.Permissions ?? []).Contains(PluginPermissions.FileWrite, StringComparer.OrdinalIgnoreCase))
+                throw new InvalidDataException("O plugin declara arquivos na mesa sem solicitar acesso a arquivos.");
         }
     }
 

@@ -75,6 +75,7 @@ public static class PluginPermissions
 public static class PluginCapabilities
 {
     public const string BoardWidget = "board-widget";
+    public const string AddFilesToBoard = "board-files";
     public const string Command = "command";
     public const string BackgroundRefresh = "background-refresh";
 }

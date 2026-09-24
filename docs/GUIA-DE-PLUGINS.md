@@ -107,7 +107,7 @@ public sealed class CounterPlugin : IWindowsPluginRenderer
 }
 ```
 
-`ExecuteAsync` registra o ponto de desfazer, executa o módulo, normaliza e persiste o novo estado. Passe `rebuild: false` durante digitação para preservar foco. Cancele chamadas pendentes em `Unloaded`. Use `context.RequestHostAction` para clipboard, URI e mensagens; não chame APIs globais diretamente.
+`ExecuteAsync` registra o ponto de desfazer, executa o módulo, normaliza e persiste o novo estado. Passe `rebuild: false` durante digitação para preservar foco. Cancele chamadas pendentes em `Unloaded`. Use `context.RequestHostAction` para clipboard, URI, mensagens e arquivos na mesa; não chame APIs globais diretamente.
 
 O host fornece tema, modo de edição, dimensões e escala. Use layouts fluidos, rolagem e alvos de toque confortáveis. `WidgetUi` oferece controles coerentes com tema claro/escuro. Teste em aproximadamente 300×240, em tamanhos grandes e com zoom.
 
@@ -173,6 +173,40 @@ var json = await context.Network.GetStringAsync(
 ```
 
 Subdomínios não são implícitos. Redirecionamentos são bloqueados. Trate modo offline e mostre uma mensagem curta; detalhes técnicos podem ir em `Data["detail"]`, nunca na UI principal.
+
+### Adicionar arquivos à mesa
+
+Declare a capacidade `board-files`. Use `file.write` para conteúdo gerado pelo plugin e `file.read` somente quando o plugin já possui um caminho local legítimo:
+
+```json
+"permissions": ["file.write"],
+"capabilities": ["board-widget", "board-files"]
+```
+
+O renderizador solicita a ação; o host valida, materializa o arquivo, cria um cartão normal ao lado da própria instância e cuida de desfazer, persistência e sincronização:
+
+```csharp
+using System.Text;
+
+var arquivo = PluginBoardFile.FromContent(
+    "relatorio.csv",
+    Encoding.UTF8.GetBytes("nome,valor\nClipDesk,1"));
+
+context.RequestHostAction(PluginHostAction.AddFiles(
+    new PluginBoardFileRequest([arquivo])));
+```
+
+Para um arquivo local já existente:
+
+```csharp
+var arquivo = PluginBoardFile.FromPath(caminhoAbsoluto, "Resultado.pdf");
+context.RequestHostAction(PluginHostAction.AddFiles(
+    new PluginBoardFileRequest([arquivo])));
+```
+
+Nesse segundo caso, declare `file.read`. Não envie caminhos relativos, pastas ou um caminho arbitrário obtido sem ação clara do usuário. Cada solicitação aceita até 16 arquivos; conteúdo gerado é limitado a 25 MiB por arquivo e 64 MiB no total. O nome deve ser apenas um nome de arquivo, sem diretórios. Uma solicitação inválida é rejeitada integralmente e não altera a mesa.
+
+`PluginBoardFile` aceita exatamente uma origem: `Content`, armazenado pelo host em sua área gerenciada, ou `Source`, que no Windows deve ser um caminho absoluto para um arquivo existente. O contrato permanece portável: um futuro host MAUI materializa `Content` da mesma maneira e adapta identificadores de arquivo específicos da plataforma.
 
 ## 4. Teste
 

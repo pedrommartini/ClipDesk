@@ -79,6 +79,7 @@ Esse gate promove uma versão validada da loja; ele não conecta produção perm
 - Adicionado botão dividido na loja: **Adicionar** permanece como ação principal, enquanto a seta oferece **Reparar** e **Desinstalar**.
 - Reparar passou a ativar uma cópia limpa e validada do pacote sem apagar o estado das instâncias; desinstalar é uma desativação local reversível que preserva objetos e dados das mesas.
 - Atualizações independentes dos plugins passaram a ser verificadas na inicialização, na abertura da loja e periodicamente a cada 30 minutos, sem reativar plugins desinstalados.
+- Criado contrato tipado para plugins adicionarem arquivos locais ou conteúdo gerado diretamente à mesa. O host valida capacidades e permissões, materializa conteúdo em armazenamento gerenciado e posiciona os cartões ao lado da instância solicitante, preservando desfazer e sincronização.
 
 ## Próximos passos recomendados
 

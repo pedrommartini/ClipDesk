@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -7,8 +8,11 @@ using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using System.Windows.Shapes;
 using ClipDesk.Core;
+using ClipDesk.Models;
 using ClipDesk.PluginSdk;
+using ClipDesk.PluginSdk.Windows;
 using ClipDesk.Views;
+using Path = System.IO.Path;
 
 namespace ClipDesk;
 
@@ -260,6 +264,199 @@ public partial class MainWindow
                 request.Dispose();
             }
         }
+    }
+
+    private async void BoardObjectPluginHostActionRequested(BoardObjectView view, PluginHostAction action)
+    {
+        if (action.Kind != PluginHostActionKind.AddFilesToBoard || action.BoardFiles is null) return;
+        var pluginId = view.Object.PluginId ?? BoardPluginIdentity.FromKind(view.Object.Kind);
+        var manifest = pluginId is null ? null : _pluginCatalogService.GetInstalledPackage(pluginId)?.Manifest;
+        if (manifest is null)
+        {
+            ShowToast("Não foi possível identificar o plugin que solicitou o arquivo.");
+            return;
+        }
+
+        try
+        {
+            await AddPluginFilesToBoardAsync(view, manifest, action.BoardFiles);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            ShowToast($"{manifest.Name}: {ex.Message}");
+        }
+    }
+
+    private async Task<int> AddPluginFilesToBoardAsync(BoardObjectView sourceView, PluginManifest manifest,
+        PluginBoardFileRequest request)
+    {
+        if (!_activeWorkspace.Objects.Contains(sourceView.Object))
+            throw new InvalidDataException("A instância do plugin não pertence à mesa atual.");
+        if (!(manifest.Capabilities ?? []).Contains(PluginCapabilities.AddFilesToBoard, StringComparer.OrdinalIgnoreCase))
+            throw new InvalidDataException("O plugin não declarou a capacidade de adicionar arquivos à mesa.");
+        if (request.Files is null || request.Files.Count is < 1 or > PluginBoardFileRequest.MaximumFiles)
+            throw new InvalidDataException($"Cada ação deve conter entre 1 e {PluginBoardFileRequest.MaximumFiles} arquivos.");
+
+        var needsRead = request.Files.Any(file => !string.IsNullOrWhiteSpace(file.Source));
+        var needsWrite = request.Files.Any(file => file.Content is not null);
+        if (needsRead && !(manifest.Permissions ?? []).Contains(PluginPermissions.FileRead, StringComparer.OrdinalIgnoreCase))
+            throw new InvalidDataException("O plugin não possui permissão para ler arquivos locais.");
+        if (needsWrite && !(manifest.Permissions ?? []).Contains(PluginPermissions.FileWrite, StringComparer.OrdinalIgnoreCase))
+            throw new InvalidDataException("O plugin não possui permissão para criar arquivos locais.");
+
+        long contentBytes = 0;
+        var prepared = new List<(string Path, string DisplayName, bool Managed)>();
+        try
+        {
+            foreach (var file in request.Files)
+            {
+                var displayName = NormalizePluginFileName(file.FileName);
+                var hasSource = !string.IsNullOrWhiteSpace(file.Source);
+                var hasContent = file.Content is not null;
+                if (hasSource == hasContent)
+                    throw new InvalidDataException($"{displayName}: informe um caminho ou conteúdo, mas não ambos.");
+
+                if (hasSource)
+                {
+                    var source = file.Source!;
+                    if (!Path.IsPathFullyQualified(source))
+                        throw new InvalidDataException($"{displayName}: o caminho precisa ser absoluto.");
+                    var path = Path.GetFullPath(source);
+                    if (!File.Exists(path)) throw new InvalidDataException($"Arquivo não encontrado: {displayName}.");
+                    prepared.Add((path, displayName, false));
+                    continue;
+                }
+
+                if (file.Content!.LongLength > PluginBoardFileRequest.MaximumFileBytes)
+                    throw new InvalidDataException($"{displayName} excede o limite de 25 MiB.");
+                contentBytes += file.Content.LongLength;
+                if (contentBytes > PluginBoardFileRequest.MaximumRequestBytes)
+                    throw new InvalidDataException("Os arquivos gerados excedem o limite total de 64 MiB.");
+
+                Directory.CreateDirectory(_storageService.AssetsDirectory);
+                var extension = Path.GetExtension(displayName);
+                var destination = Path.Combine(_storageService.AssetsDirectory, $"plugin-{Guid.NewGuid():N}{extension}");
+                var temporary = destination + ".tmp";
+                try
+                {
+                    await File.WriteAllBytesAsync(temporary, file.Content);
+                    File.Move(temporary, destination);
+                }
+                finally { if (File.Exists(temporary)) File.Delete(temporary); }
+                prepared.Add((destination, displayName, true));
+            }
+
+            var items = new List<ClipboardItem>(prepared.Count);
+            foreach (var file in prepared)
+            {
+                var item = _clipboardService.CreateFileItems([file.Path]).SingleOrDefault()
+                           ?? throw new InvalidDataException($"Não foi possível preparar {file.DisplayName}.");
+                item.DisplayName = file.DisplayName;
+                var isPdf = Path.GetExtension(file.Path).Equals(".pdf", StringComparison.OrdinalIgnoreCase);
+                item.Width = isPdf ? 370 : 330;
+                item.Height = isPdf ? 420 : 205;
+                items.Add(item);
+            }
+
+            return Dispatcher.CheckAccess()
+                ? CommitPluginFileItems(sourceView.Object, items)
+                : await Dispatcher.InvokeAsync(() => CommitPluginFileItems(sourceView.Object, items));
+        }
+        catch
+        {
+            foreach (var file in prepared.Where(file => file.Managed))
+            {
+                try { if (File.Exists(file.Path)) File.Delete(file.Path); }
+                catch (Exception cleanupError) when (cleanupError is IOException or UnauthorizedAccessException) { }
+            }
+            throw;
+        }
+    }
+
+    private int CommitPluginFileItems(BoardObject source, IReadOnlyList<ClipboardItem> items)
+    {
+        if (!_activeWorkspace.Objects.Contains(source))
+            throw new InvalidDataException("A instância do plugin não está mais na mesa atual.");
+        var added = new List<(ClipboardItem Item, ItemCard Card)>();
+        try
+        {
+            RegisterUndoSnapshot();
+            foreach (var item in items)
+            {
+                var position = FindPositionBesidePlugin(source, item.Width, item.Height);
+                item.X = position.X;
+                item.Y = position.Y;
+                item.ZIndex = NextBoardZIndex();
+                _items.Add(item);
+                var card = AddCard(item, playPopIn: true);
+                added.Add((item, card));
+            }
+            if (added.LastOrDefault().Card is { } lastCard) SelectSingle(lastCard);
+            _soundService.Added();
+            Save();
+            ShowToast(items.Count == 1
+                ? $"{items[0].DisplayName} adicionado ao lado do plugin"
+                : $"{items.Count} arquivos adicionados ao lado do plugin");
+            return items.Count;
+        }
+        catch
+        {
+            foreach (var (item, card) in added)
+            {
+                _items.Remove(item);
+                WorkspaceCanvas.Children.Remove(card);
+            }
+            throw;
+        }
+    }
+
+    private Point FindPositionBesidePlugin(BoardObject source, double width, double height)
+    {
+        const double gap = 24;
+        IEnumerable<Point> Candidates()
+        {
+            for (var row = 0; row < 12; row++)
+                yield return new Point(source.X + source.Width + gap, source.Y + row * (height + gap));
+            for (var row = 0; row < 12; row++)
+                yield return new Point(source.X - width - gap, source.Y + row * (height + gap));
+            for (var column = 0; column < 12; column++)
+                yield return new Point(source.X + column * (width + gap), source.Y + source.Height + gap);
+            for (var column = 0; column < 12; column++)
+                yield return new Point(source.X + column * (width + gap), source.Y - height - gap);
+        }
+
+        foreach (var candidate in Candidates())
+        {
+            var bounds = new Rect(candidate, new Size(width, height));
+            if (bounds.Left < 0 || bounds.Top < 0 || bounds.Right > _activeWorkspace.WorldWidth
+                || bounds.Bottom > _activeWorkspace.WorldHeight || PluginFilePositionCollides(bounds, source.Id)) continue;
+            return candidate;
+        }
+        return new Point(
+            Math.Clamp(source.X + source.Width + gap, 0, Math.Max(0, _activeWorkspace.WorldWidth - width)),
+            Math.Clamp(source.Y, 0, Math.Max(0, _activeWorkspace.WorldHeight - height)));
+    }
+
+    private bool PluginFilePositionCollides(Rect candidate, string sourceObjectId)
+    {
+        var padded = new Rect(candidate.X - 8, candidate.Y - 8, candidate.Width + 16, candidate.Height + 16);
+        if (_items.Any(item => padded.IntersectsWith(new Rect(item.X, item.Y,
+                item.Width > 0 ? item.Width : 340, item.Height > 0 ? item.Height : 220)))) return true;
+        return _activeWorkspace.Objects.Any(obj => obj.Id != sourceObjectId && obj.Kind != BoardObjectKind.Connector
+            && padded.IntersectsWith(new Rect(obj.X, obj.Y, obj.Width, obj.Height)));
+    }
+
+    private static string NormalizePluginFileName(string fileName)
+    {
+        var value = fileName?.Trim() ?? "";
+        if (value.Length == 0 || value != Path.GetFileName(value)
+            || value.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            throw new InvalidDataException("O nome do arquivo solicitado é inválido.");
+        if (value.Length <= 180) return value;
+        var extension = Path.GetExtension(value);
+        if (extension.Length > 24) throw new InvalidDataException("A extensão do arquivo solicitado é inválida.");
+        var stem = Path.GetFileNameWithoutExtension(value);
+        return stem[..Math.Min(stem.Length, 180 - extension.Length)] + extension;
     }
 
     private async Task LoadCurrencyChoicesAsync()

@@ -125,6 +125,19 @@ context.RequestHostAction(new(PluginHostActionKind.ShowMessage, mensagem));
 
 Não chame clipboard, `Process.Start`, shell ou APIs globais diretamente.
 
+Para criar cartões de arquivo ao lado do plugin, declare `"board-files"` em `capabilities` e `"file.write"` em `permissions`. Envie o conteúdo ao host:
+
+```csharp
+using System.Text;
+
+var arquivo = PluginBoardFile.FromContent(
+    "resultado.txt", Encoding.UTF8.GetBytes("Conteúdo gerado"));
+context.RequestHostAction(PluginHostAction.AddFiles(
+    new PluginBoardFileRequest([arquivo])));
+```
+
+Se o plugin já recebeu legitimamente um arquivo local, use `PluginBoardFile.FromPath(caminhoAbsoluto, nome)` e declare também `"file.read"`. Não leia diretórios nem descubra caminhos por conta própria. O host valida a solicitação, cria o cartão ao lado da instância, registra desfazer e executa persistência/sincronização. Limites: 16 arquivos, 25 MiB por conteúdo e 64 MiB por solicitação. `Content` e `Source` são mutuamente exclusivos.
+
 ## Rede e permissões
 
 Para rede, declare `"network"` em `permissions`, liste hosts exatos em `networkHosts` e use apenas:
@@ -137,7 +150,7 @@ var json = await context.Network.GetStringAsync(
     new Uri("https://api.example.com/data"), cancellationToken);
 ```
 
-Somente HTTPS é aceito; subdomínios não são implícitos, redirecionamentos são bloqueados e a resposta é limitada pelo host. Defina comportamento offline. Arquivos e tarefas em segundo plano ainda não possuem serviço v2: não os implemente diretamente.
+Somente HTTPS é aceito; subdomínios não são implícitos, redirecionamentos são bloqueados e a resposta é limitada pelo host. Defina comportamento offline. Arquivos podem ser adicionados à mesa somente pela ação tipada descrita acima; tarefas em segundo plano ainda não possuem serviço v2.
 
 ## Manifesto v2
 
@@ -149,6 +162,7 @@ Edite o `manifest.json` do template. Preserve:
 - renderizador Windows com `platform: "windows"` e `runtime: "wpf-v2"`;
 - `platforms: ["windows"]` enquanto não existir renderizador MAUI compilado;
 - `capabilities: ["board-widget"]` para widgets da mesa;
+- acrescente `"board-files"` somente se o renderizador realmente solicitar arquivos na mesa;
 - `defaultContent` coerente com `CreateDefaultState`;
 - `installByDefault: false` para plugins opcionais.
 
@@ -195,6 +209,7 @@ O host é responsável pelo ciclo de vida do pacote. A loja oferece **Adicionar*
 - [ ] Estado é pequeno, versionado, normalizado e retrocompatível.
 - [ ] Comandos validam argumentos e retornam status apropriado.
 - [ ] UI usa o host para efeitos externos e a cor de destaque do contexto.
+- [ ] Arquivos são enviados por `PluginHostAction.AddFiles`, com `board-files` e somente as permissões necessárias.
 - [ ] Trocar a cor atualiza cabeçalho, ações primárias e indicadores imediatamente, sem reabrir o plugin.
 - [ ] O plugin não desenha nem persiste outline de seleção ou cor de colaborador.
 - [ ] Manifesto anuncia somente recursos realmente implementados.

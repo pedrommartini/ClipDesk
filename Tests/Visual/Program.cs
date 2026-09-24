@@ -18,6 +18,7 @@ internal static class Program
         var app = new Application();
         if(args.Contains("--plugin-store")) { PluginStoreVisualChecks.Run(app); return; }
         if(args.Contains("--plugin-delivery")) { PluginDeliveryChecks.Run(app); return; }
+        if(args.Contains("--plugin-board-files")) { PluginBoardFileChecks.Run(); return; }
         if(args.Contains("--plugin-v2")) { PluginV2Checks.Run(); return; }
         PresenceProtocolChecks.Run();
         var storage = new StorageService(); // No user data is loaded or saved.

@@ -81,8 +81,10 @@ Efeitos externos passam pelo host:
 
 - Rede: `IPluginNetworkClient`; exige permissão `network` e host em `networkHosts`. O WPF aceita apenas HTTPS, bloqueia redirecionamentos e limita a resposta a 1 MiB.
 - Clipboard, abertura de URI e mensagens: ações tipadas de `PluginHostAction` no renderizador.
-- Arquivos: os contratos reservam `file.read` e `file.write`, mas ainda não há serviço v2; nenhum plugin padrão depende deles.
+- Arquivos na mesa: `PluginHostAction.AddFiles` recebe `PluginBoardFileRequest`. `Content` exige `file.write` e é materializado no armazenamento gerenciado; `Source` exige `file.read` e, no Windows, deve ser um caminho absoluto existente. O manifesto também precisa anunciar `board-files`.
 - Segundo plano: módulos não criam serviço residente. Atualizações visuais são canceladas quando a view é descarregada. No Android, trabalho prolongado terá de passar por WorkManager/foreground service e pelas políticas do sistema.
+
+O host limita cada ação a 16 arquivos, 25 MiB por conteúdo gerado e 64 MiB no total. A solicitação é validada antes de alterar a mesa. Depois, cada arquivo vira um cartão normal, posicionado prioritariamente à direita da instância solicitante, com alternativas à esquerda, abaixo ou acima quando houver borda ou colisão. A operação participa do desfazer, da persistência e da sincronização existentes. Plugins não recebem acesso ao `WorkspaceBoard`, ao canvas ou a tipos WPF.
 
 Permissões reduzem a superfície acidental, mas plugins Windows ainda executam no processo e não são sandbox de código hostil. Pacotes de terceiros exigirão assinatura, revisão e, idealmente, isolamento fora do processo.
 

@@ -229,6 +229,9 @@ public sealed partial class BoardObjectView
             case PluginHostActionKind.ShowMessage:
                 WidgetActionRequested?.Invoke(this, $"plugin:message:{action.Value}");
                 break;
+            case PluginHostActionKind.AddFilesToBoard when action.BoardFiles is not null:
+                PluginHostActionRequested?.Invoke(this, action);
+                break;
         }
     }
 

@@ -337,6 +337,7 @@ public partial class MainWindow
         view.Selected += (_, _) => SelectBoardObject(view);
         view.EditRequested += (_, _) => BeginBoardObjectEdit(view);
         view.WidgetActionRequested += BoardObjectWidgetActionRequested;
+        view.PluginHostActionRequested += BoardObjectPluginHostActionRequested;
         view.ContextActionsRequested += (_, _) => ShowBoardObjectContextMenu(view);
         view.BreakRequested += (_, segment) => { ClearSelection(); BreakConnector(obj, segment); };
         view.DragStarted += (_, _) => BeginBoardObjectTransform(view);

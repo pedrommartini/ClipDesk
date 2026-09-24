@@ -6,6 +6,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using ClipDesk.Core;
+using ClipDesk.PluginSdk.Windows;
 
 namespace ClipDesk.Views;
 
@@ -54,6 +55,7 @@ public sealed partial class BoardObjectView : Canvas
     public event EventHandler? EditRequested;
     public event Action<BoardObjectView, int>? BreakRequested;
     public event Action<BoardObjectView, string>? WidgetActionRequested;
+    public event Action<BoardObjectView, PluginHostAction>? PluginHostActionRequested;
     public event EventHandler? ContextActionsRequested;
 
     private bool UsesFloatingVisual => Object.Kind is BoardObjectKind.Text or BoardObjectKind.Shape or BoardObjectKind.StickyNote

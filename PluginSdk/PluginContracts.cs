@@ -89,6 +89,27 @@ public sealed record PluginCommandResult(
 
 public sealed record PluginOption(string Value, string Label);
 
+/// <summary>
+/// A file that a platform renderer asks the ClipDesk host to place on the board.
+/// Exactly one of Source or Content must be supplied. Source is interpreted by
+/// the current platform; Content is materialized in managed host storage.
+/// </summary>
+public sealed record PluginBoardFile(string FileName, string? Source = null, byte[]? Content = null)
+{
+    public static PluginBoardFile FromPath(string path, string? displayName = null) =>
+        new(displayName ?? Path.GetFileName(path), Source: path);
+
+    public static PluginBoardFile FromContent(string fileName, byte[] content) =>
+        new(fileName, Content: content);
+}
+
+public sealed record PluginBoardFileRequest(IReadOnlyList<PluginBoardFile> Files)
+{
+    public const int MaximumFiles = 16;
+    public const int MaximumFileBytes = 25 * 1024 * 1024;
+    public const int MaximumRequestBytes = 64 * 1024 * 1024;
+}
+
 public interface IPluginNetworkClient
 {
     Task<string> GetStringAsync(Uri uri, CancellationToken cancellationToken = default);

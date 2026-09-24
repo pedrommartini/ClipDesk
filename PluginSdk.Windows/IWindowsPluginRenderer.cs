@@ -13,10 +13,17 @@ public enum PluginHostActionKind
 {
     CopyToClipboard,
     OpenUri,
-    ShowMessage
+    ShowMessage,
+    AddFilesToBoard
 }
 
-public sealed record PluginHostAction(PluginHostActionKind Kind, string? Value = null);
+public sealed record PluginHostAction(PluginHostActionKind Kind, string? Value = null)
+{
+    public PluginBoardFileRequest? BoardFiles { get; init; }
+
+    public static PluginHostAction AddFiles(PluginBoardFileRequest request) =>
+        new(PluginHostActionKind.AddFilesToBoard) { BoardFiles = request };
+}
 
 public sealed class WindowsPluginViewContext
 {
@@ -103,6 +110,7 @@ public static class LegacyPluginAdapter
         {
             PluginHostActionKind.CopyToClipboard => $"plugin:copy:{action.Value}",
             PluginHostActionKind.OpenUri => $"plugin:open:{action.Value}",
+            PluginHostActionKind.AddFilesToBoard => "plugin:message:Adicionar arquivos à mesa requer um plugin v2.",
             _ => $"plugin:message:{action.Value}"
         }));
 
