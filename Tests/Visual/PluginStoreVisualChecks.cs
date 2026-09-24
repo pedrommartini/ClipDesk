@@ -101,11 +101,12 @@ internal static class PluginStoreVisualChecks
         var allEntries = PluginDeliveryService.AddRemoteEntries(officialFeed, entries, Version.Parse(UpdateService.CurrentVersion));
         view.Bind(allEntries);
         Layout(view, app, 1280, 760);
-        if (catalogCards.Children.Count != 6
+        SavePng(view, 1280, 760, Path.Combine(AppContext.BaseDirectory, "plugin-store-all.png"));
+        if (catalogCards.Children.Count != entries.Count + officialFeed.Packages.Count
             || allEntries.Count(entry => entry.IsInstalled) != 4
-            || !allEntries.Any(entry => entry.Manifest.Id == "clipdesk.qrcode" && !entry.IsInstalled)
-            || !allEntries.Any(entry => entry.Manifest.Id == "clipdesk.audiorecorder" && !entry.IsInstalled))
-            throw new Exception("The store must show both optional plugins alongside the four bundled plugins.");
+            || !officialFeed.Packages.All(package => allEntries.Any(entry =>
+                entry.Manifest.Id == package.Id && !entry.IsInstalled && entry.RemotePackage is not null)))
+            throw new Exception("The store must show every published optional plugin alongside the four bundled plugins.");
         Console.WriteLine("PASS: plugin store shows a summary, a separate installed-only list, responsive cards and working actions.");
         Console.WriteLine(path);
     }

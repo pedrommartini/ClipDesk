@@ -94,15 +94,26 @@ public partial class MainWindow
         try
         {
             var delivery = new PluginDeliveryService(_pluginCatalogService);
-            var officialFeed = await delivery.FetchFeedAsync();
+            PluginFeed? officialFeed = null;
+            try { officialFeed = await delivery.FetchFeedAsync(); }
+            catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException)
+            {
+                _pluginFeedLastError = ex.Message;
+                Trace.WriteLine($"Catálogo oficial de plugins indisponível: {ex.Message}");
+            }
             PluginFeed? marketplaceFeed = null;
             try { marketplaceFeed = await delivery.FetchMarketplaceFeedAsync(); }
-            catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException) { Trace.WriteLine($"Loja de plugins indisponível: {ex.Message}"); }
+            catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException)
+            {
+                _pluginFeedLastError = ex.Message;
+                Trace.WriteLine($"Loja de plugins indisponível: {ex.Message}");
+            }
             var feed = PluginDeliveryService.MergeFeeds(officialFeed, marketplaceFeed, _remotePluginFeed);
-            if (feed is null || !IsLoaded) return;
-            var updated = await delivery.UpdateInstalledAsync(feed);
+            if (!IsLoaded) return;
             _remotePluginFeed = feed;
             ReloadPluginCatalog();
+            var updated = await delivery.UpdateInstalledAsync(feed);
+            if (updated.Count > 0) ReloadPluginCatalog();
             if (updated.Count == 0) return;
             var versions = updated.ToDictionary(item => item.Manifest.Id, item => item.Manifest.Version);
             foreach (var pluginId in versions.Keys) Views.BoardObjectView.InvalidateExternalPlugin(pluginId);
@@ -223,7 +234,7 @@ public partial class MainWindow
             _lastPluginFeedCheck = DateTimeOffset.MinValue;
             await CheckForPluginUpdatesAsync();
             ReloadPluginCatalog();
-            ShowToast(_pluginFeedLastError is null ? "Loja de plugins atualizada" : "Não foi possível atualizar a loja agora");
+            ShowToast(_pluginFeedLastError is null ? "Loja de plugins atualizada" : "Loja atualizada parcialmente; alguns catálogos estão indisponíveis");
         }
         finally { PluginStore.SetRefreshInProgress(false); }
     }
@@ -293,9 +304,16 @@ public partial class MainWindow
             item.Manifest.Id.Equals(pluginId, StringComparison.OrdinalIgnoreCase));
         if (entry is not null) return entry;
 
-        var feed = await new PluginDeliveryService(_pluginCatalogService).FetchFeedAsync();
-        if (feed is null) return null;
-        _remotePluginFeed = feed;
+        var delivery = new PluginDeliveryService(_pluginCatalogService);
+        PluginFeed? official = null;
+        PluginFeed? marketplace = null;
+        try { official = await delivery.FetchFeedAsync(); }
+        catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException)
+        { Trace.WriteLine($"Catálogo oficial de plugins indisponível: {ex.Message}"); }
+        try { marketplace = await delivery.FetchMarketplaceFeedAsync(); }
+        catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException)
+        { Trace.WriteLine($"Loja de plugins indisponível: {ex.Message}"); }
+        _remotePluginFeed = PluginDeliveryService.MergeFeeds(official, marketplace, _remotePluginFeed);
         _lastPluginFeedCheck = DateTimeOffset.UtcNow;
         ReloadPluginCatalog();
         return _pluginCatalogEntries.FirstOrDefault(item =>

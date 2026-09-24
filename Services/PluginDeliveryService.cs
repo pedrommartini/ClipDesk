@@ -231,6 +231,7 @@ public sealed class PluginDeliveryService
         var packages = (feed.Packages ?? [])
                      .Where(package => !string.IsNullOrWhiteSpace(package.Id)
                          && !string.IsNullOrWhiteSpace(package.Name)
+                         && Version.TryParse(package.Version, out _)
                          && package.Sha256 is not null && Sha256Pattern.IsMatch(package.Sha256)
                          && PluginCompatibility.Supports(package.CompatibilityManifest(), hostVersion,
                              PluginCompatibility.WindowsApiVersion, "windows"))

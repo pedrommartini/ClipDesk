@@ -23,8 +23,8 @@ internal static class PluginDeliveryChecks
             File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "production-feed.json")), Json)
             ?? throw new Exception("Production plugin feed could not be read.");
         var optional = PluginDeliveryService.AddRemoteEntries(officialFeed, [], Version.Parse(UpdateService.CurrentVersion));
-        if (!new[] { "clipdesk.qrcode", "clipdesk.audiorecorder" }
-                .All(id => optional.Any(entry => entry.Manifest.Id == id && entry.RemotePackage is not null)))
+        if (officialFeed.Packages.Count < 9 || !officialFeed.Packages.All(package =>
+                optional.Any(entry => entry.Manifest.Id == package.Id && entry.RemotePackage is not null)))
             throw new Exception("Production plugin feed hides an approved optional plugin.");
         var bundledFeed = PluginDeliveryService.LoadBundledFeed();
         if (bundledFeed is null || bundledFeed.Packages.Count != officialFeed.Packages.Count)

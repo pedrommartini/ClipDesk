@@ -8,4 +8,5 @@
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="..\..\ClipDesk.csproj" /><ProjectReference Include="..\..\Installer\ClipDesk.Installer.csproj" /><ProjectReference Include="..\..\PluginPackages\Modules\Calculator\ClipDesk.Plugin.Calculator.csproj" /><ProjectReference Include="..\..\PluginPackages\Modules\Checklist\ClipDesk.Plugin.Checklist.csproj" /><ProjectReference Include="..\..\PluginPackages\Modules\Translator\ClipDesk.Plugin.Translator.csproj" /><ProjectReference Include="..\..\PluginPackages\Modules\CurrencyConverter\ClipDesk.Plugin.CurrencyConverter.csproj" /></ItemGroup>
   <ItemGroup><Content Include="..\..\PluginPackages\feed.json" Link="production-feed.json" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+  <ItemGroup><Content Include="Fixtures\CollaboratorPlugins\*.zip" Link="collaborator-fixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
 </Project>
