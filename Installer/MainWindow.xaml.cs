@@ -129,10 +129,12 @@ public partial class MainWindow : Window
     {
         if (_result is not null)
         {
-            var launch = InstallerBrand.IsDevelopment
-                ? new ProcessStartInfo(_result.ExecutablePath) { UseShellExecute = true, WorkingDirectory = _result.InstallPath }
-                : new ProcessStartInfo("explorer.exe") { UseShellExecute = true };
-            if (!InstallerBrand.IsDevelopment) launch.ArgumentList.Add(_result.ExecutablePath);
+#if CLIPDESK_DEV
+            var launch = new ProcessStartInfo(_result.ExecutablePath) { UseShellExecute = true, WorkingDirectory = _result.InstallPath };
+#else
+            var launch = new ProcessStartInfo("explorer.exe") { UseShellExecute = true };
+            launch.ArgumentList.Add(_result.ExecutablePath);
+#endif
             Process.Start(launch);
         }
         Close();

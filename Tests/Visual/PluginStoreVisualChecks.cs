@@ -96,6 +96,16 @@ internal static class PluginStoreVisualChecks
         Layout(lightView, app, 1280, 760);
         SavePng(lightView, 1280, 760, Path.Combine(AppContext.BaseDirectory, "plugin-store-light.png"));
         ThemeService.Apply(true);
+        var officialFeed = PluginDeliveryService.LoadBundledFeed()
+            ?? throw new Exception("The application did not bundle the optional plugin feed.");
+        var allEntries = PluginDeliveryService.AddRemoteEntries(officialFeed, entries, Version.Parse(UpdateService.CurrentVersion));
+        view.Bind(allEntries);
+        Layout(view, app, 1280, 760);
+        if (catalogCards.Children.Count != 6
+            || allEntries.Count(entry => entry.IsInstalled) != 4
+            || !allEntries.Any(entry => entry.Manifest.Id == "clipdesk.qrcode" && !entry.IsInstalled)
+            || !allEntries.Any(entry => entry.Manifest.Id == "clipdesk.audiorecorder" && !entry.IsInstalled))
+            throw new Exception("The store must show both optional plugins alongside the four bundled plugins.");
         Console.WriteLine("PASS: plugin store shows a summary, a separate installed-only list, responsive cards and working actions.");
         Console.WriteLine(path);
     }

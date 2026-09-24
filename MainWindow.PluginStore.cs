@@ -18,6 +18,7 @@ public partial class MainWindow
     private Point _pluginStoreCanvasPoint;
     private int _pluginStoreAnimationVersion;
     private string? _pluginCatalogLoadError;
+    private string? _pluginFeedLastError;
     private PluginFeed? _remotePluginFeed;
     private bool _pluginFeedCheckInProgress;
     private DateTimeOffset _lastPluginFeedCheck;
@@ -29,6 +30,17 @@ public partial class MainWindow
         try
         {
             _pluginCatalogEntries = _pluginCatalogService.LoadCatalog();
+            try
+            {
+                _remotePluginFeed = PluginDeliveryService.LoadBundledFeed();
+                if (_remotePluginFeed is not null)
+                    _pluginCatalogEntries = PluginDeliveryService.AddRemoteEntries(_remotePluginFeed,
+                        _pluginCatalogEntries, Version.Parse(UpdateService.CurrentVersion));
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException)
+            {
+                _pluginCatalogLoadError = ex.Message;
+            }
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
         {
@@ -78,6 +90,7 @@ public partial class MainWindow
             || DateTimeOffset.UtcNow - _lastPluginFeedCheck < TimeSpan.FromMinutes(15)) return;
         _pluginFeedCheckInProgress = true;
         _lastPluginFeedCheck = DateTimeOffset.UtcNow;
+        _pluginFeedLastError = null;
         try
         {
             var delivery = new PluginDeliveryService(_pluginCatalogService);
@@ -85,7 +98,7 @@ public partial class MainWindow
             PluginFeed? marketplaceFeed = null;
             try { marketplaceFeed = await delivery.FetchMarketplaceFeedAsync(); }
             catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException) { Trace.WriteLine($"Loja de plugins indisponível: {ex.Message}"); }
-            var feed = PluginDeliveryService.MergeFeeds(officialFeed, marketplaceFeed);
+            var feed = PluginDeliveryService.MergeFeeds(officialFeed, marketplaceFeed, _remotePluginFeed);
             if (feed is null || !IsLoaded) return;
             var updated = await delivery.UpdateInstalledAsync(feed);
             _remotePluginFeed = feed;
@@ -111,7 +124,11 @@ public partial class MainWindow
         }
         catch (Exception ex)
         {
+            _lastPluginFeedCheck = DateTimeOffset.MinValue;
+            _pluginFeedLastError = ex.Message;
             Trace.WriteLine($"Verificação de plugins falhou: {ex}");
+            if (PluginStoreOverlay.Visibility == Visibility.Visible)
+                ShowToast("Atualização da loja indisponível. Exibindo plugins conhecidos.");
         }
         finally { _pluginFeedCheckInProgress = false; }
     }
@@ -206,7 +223,7 @@ public partial class MainWindow
             _lastPluginFeedCheck = DateTimeOffset.MinValue;
             await CheckForPluginUpdatesAsync();
             ReloadPluginCatalog();
-            ShowToast("Loja de plugins atualizada");
+            ShowToast(_pluginFeedLastError is null ? "Loja de plugins atualizada" : "Não foi possível atualizar a loja agora");
         }
         finally { PluginStore.SetRefreshInProgress(false); }
     }
