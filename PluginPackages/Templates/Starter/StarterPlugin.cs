@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
 using ClipDesk.PluginSdk;
@@ -31,31 +32,30 @@ public sealed class StarterPlugin : IWindowsPluginRenderer
             }
         };
         var foreground = GetBrush(context.IsDarkMode ? "#F3F6FA" : "#182230");
-        var muted = GetBrush(context.IsDarkMode ? "#A9B4C3" : "#66758A");
         var surface = GetBrush(context.IsDarkMode ? "#202936" : "#F5F7FA");
         var accent = GetBrush(context.AccentColor, "#7C5CFC");
-        var accentForeground = GetContrastBrush(context.AccentColor);
 
-        var body = new Grid { Margin = new Thickness(14, 10, 14, 13) };
-        body.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        var body = new Grid();
         body.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        body.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-        body.Children.Add(new TextBlock
+        if (context.IsEditing)
+            body.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        void UpdateSpacing()
         {
-            Text = "Conteúdo · solte um arquivo .txt aqui",
-            Foreground = muted,
-            FontSize = Math.Clamp(12 * context.Scale, 11, 24),
-            Margin = new Thickness(0, 0, 0, 7)
-        });
+            body.Margin = context.Width < 280 || body.ActualWidth is > 0 and < 280
+                ? new Thickness(8, 7, 8, 8)
+                : new Thickness(12, 9, 12, 10);
+        }
+        body.SizeChanged += (_, _) => UpdateSpacing();
+        context.LayoutChanged += UpdateSpacing;
+        UpdateSpacing();
 
         if (context.IsEditing)
         {
-            AddEditor(context, body, foreground, surface, accent, accentForeground);
+            AddEditor(context, body, foreground, surface, accent);
         }
         else
         {
-            AddViewer(context, body, foreground, accent, accentForeground);
+            AddViewer(context, body, foreground);
         }
 
         return body;
@@ -66,8 +66,7 @@ public sealed class StarterPlugin : IWindowsPluginRenderer
         Grid body,
         Brush foreground,
         Brush surface,
-        Brush accent,
-        Brush accentForeground)
+        Brush accent)
     {
         var input = new TextBox
         {
@@ -80,10 +79,11 @@ public sealed class StarterPlugin : IWindowsPluginRenderer
             Background = surface,
             BorderBrush = accent,
             BorderThickness = new Thickness(1),
-            FontSize = Math.Clamp(14 * context.Scale, 12, 30),
+            FontSize = Math.Clamp(17 * context.Scale, 15, 32),
             Tag = "plugin-interactive"
         };
-        Grid.SetRow(input, 1);
+        context.LayoutChanged += () => input.FontSize = Math.Clamp(17 * context.Scale, 15, 32);
+        Grid.SetRow(input, 0);
         body.Children.Add(input);
 
         var actions = new StackPanel
@@ -112,18 +112,19 @@ public sealed class StarterPlugin : IWindowsPluginRenderer
 
         actions.Children.Add(clear);
         actions.Children.Add(save);
-        Grid.SetRow(actions, 2);
+        Grid.SetRow(actions, 1);
         body.Children.Add(actions);
     }
 
     private static void AddViewer(
         WindowsPluginViewContext context,
         Grid body,
-        Brush foreground,
-        Brush accent,
-        Brush accentForeground)
+        Brush foreground)
     {
         var text = context.State.GetString("text") ?? "";
+        var result = new Grid();
+        result.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        result.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var scroll = new ScrollViewer
         {
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
@@ -133,22 +134,37 @@ public sealed class StarterPlugin : IWindowsPluginRenderer
                 Text = string.IsNullOrWhiteSpace(text) ? "Sem conteúdo" : text,
                 TextWrapping = TextWrapping.Wrap,
                 Foreground = foreground,
-                FontSize = Math.Clamp(15 * context.Scale, 13, 32)
+                FontSize = Math.Clamp(19 * context.Scale, 16, 36)
             }
         };
-        Grid.SetRow(scroll, 1);
-        body.Children.Add(scroll);
+        var output = (TextBlock)scroll.Content;
+        context.LayoutChanged += () => output.FontSize = Math.Clamp(19 * context.Scale, 16, 36);
+        result.Children.Add(scroll);
 
-        var copy = PluginButtons.Create(context, "Copiar", true);
-        copy.HorizontalAlignment = HorizontalAlignment.Right;
-        copy.Margin = new Thickness(0, 9, 0, 0);
+        var copy = PluginButtons.Create(context, "Copiar");
+        copy.Content = new TextBlock
+        {
+            Text = "\uE8C8",
+            FontFamily = new FontFamily("Segoe MDL2 Assets"),
+            FontSize = Math.Clamp(17 * context.Scale, 16, 30)
+        };
+        copy.MinWidth = 36;
+        copy.MinHeight = 36;
+        copy.ToolTip = "Copiar conteúdo";
+        AutomationProperties.SetName(copy, "Copiar conteúdo");
+        copy.IsEnabled = !string.IsNullOrWhiteSpace(text);
+        copy.VerticalAlignment = VerticalAlignment.Top;
+        copy.Margin = new Thickness(6, 0, 0, 0);
         copy.Click += (_, e) =>
         {
             e.Handled = true;
-            context.RequestHostAction(new(PluginHostActionKind.CopyToClipboard, text));
+            var value = context.Module.GetClipboardText(context.State);
+            if (!string.IsNullOrWhiteSpace(value))
+                context.RequestHostAction(new(PluginHostActionKind.CopyToClipboard, value));
         };
-        Grid.SetRow(copy, 2);
-        body.Children.Add(copy);
+        Grid.SetColumn(copy, 1);
+        result.Children.Add(copy);
+        body.Children.Add(result);
     }
 
     private static Brush GetBrush(string color, string fallback = "#000000")
@@ -157,14 +173,4 @@ public sealed class StarterPlugin : IWindowsPluginRenderer
         catch { return new SolidColorBrush((Color)ColorConverter.ConvertFromString(fallback)); }
     }
 
-    private static Brush GetContrastBrush(string color)
-    {
-        try
-        {
-            var parsed = (Color)ColorConverter.ConvertFromString(color);
-            var luminance = (0.299 * parsed.R) + (0.587 * parsed.G) + (0.114 * parsed.B);
-            return GetBrush(luminance > 160 ? "#152033" : "#FFFFFF");
-        }
-        catch { return Brushes.White; }
-    }
 }
