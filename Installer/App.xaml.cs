@@ -37,6 +37,23 @@ public partial class App : Application
             return;
         }
 
+        if (InstallerBrand.IsDevelopment && e.Args.FirstOrDefault() == "--update-existing-dev")
+        {
+            var existingPath = InstallerEngine.FindExistingInstallPath();
+            if (existingPath is null) { Shutdown(1); return; }
+            try
+            {
+                await InstallerEngine.InstallAsync(existingPath, testMode: false, progress: null, preserveData: true);
+                Shutdown(0);
+            }
+            catch (Exception ex)
+            {
+                try { await File.WriteAllTextAsync(Path.Combine(Path.GetTempPath(), "ClipDesk-DEV-update-error.txt"), ex.ToString()); } catch { }
+                Shutdown(1);
+            }
+            return;
+        }
+
         if (!InstallerBrand.IsDevelopment && !new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator))
         {
             try

@@ -18,7 +18,8 @@ public static class UpdateService
 
     public static async Task<AvailableUpdate?> CheckForUpdateAsync(CancellationToken cancellationToken = default)
     {
-        if (AppEnvironment.IsTestClient) return null;
+        // Development builds use a separate installer and must never consume a Production release.
+        if (AppEnvironment.IsDevelopment || AppEnvironment.IsTestClient) return null;
         AvailableUpdate? newest = null;
         for (var page = 1; page <= 10; page++)
         {
@@ -50,7 +51,8 @@ public static class UpdateService
 
     public static async Task DownloadAndStartAsync(AvailableUpdate update, CancellationToken cancellationToken = default)
     {
-        if (AppEnvironment.IsTestClient) throw new InvalidOperationException("As instâncias de teste são atualizadas junto com o pacote do ClipDesk.");
+        if (AppEnvironment.IsDevelopment || AppEnvironment.IsTestClient)
+            throw new InvalidOperationException("Esta edição é atualizada pelo instalador próprio do ClipDesk DEV.");
         var applicationDirectory = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
         var updaterSource = Path.Combine(applicationDirectory, "ClipDesk.Updater.exe");
         if (!File.Exists(updaterSource)) throw new FileNotFoundException("O componente de atualização não está instalado.", updaterSource);
