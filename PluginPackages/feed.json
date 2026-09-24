@@ -54,9 +54,9 @@
       "id": "clipdesk.audiorecorder",
       "name": "Gravador de Áudio",
       "description": "Grave áudio do microfone e do sistema com controle de volume independente e adicione diretamente à mesa.",
-      "version": "1.0.3",
-      "url": "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-1.0.3/clipdesk.audiorecorder-1.0.3.zip",
-      "sha256": "2e0cde32c95aeeed06829d98c8981cd368e2388c799840d9d1e7e58e68cacfac",
+      "version": "1.0.4",
+      "url": "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-1.0.4/clipdesk.audiorecorder-1.0.4.zip",
+      "sha256": "acaf4a44c802cf85a8678876e705104f0de0ea9c4abfecec88e89491b31a4ee2",
       "runtime": "portable-v2",
       "pluginApiVersion": 2,
       "minimumHostVersion": "0.3.3",
@@ -67,11 +67,12 @@
       "accentColor": "#EF4444",
       "sortOrder": 120,
       "defaultSize": {
-        "width": 530,
-        "height": 165
+        "width": 540,
+        "height": 180
       },
       "defaultContent": {
         "$schema": "1",
+        "channelMode": "stereo",
         "micEnabled": "true",
         "micVolume": "100",
         "systemEnabled": "true",
