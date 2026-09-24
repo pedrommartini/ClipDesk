@@ -56,6 +56,7 @@ public sealed partial class BoardObjectView : Canvas
     public event Action<BoardObjectView, int>? BreakRequested;
     public event Action<BoardObjectView, string>? WidgetActionRequested;
     public event Action<BoardObjectView, PluginHostAction>? PluginHostActionRequested;
+    public event Action<BoardObjectView>? PluginInstallRequested;
     public event EventHandler? ContextActionsRequested;
 
     private bool UsesFloatingVisual => Object.Kind is BoardObjectKind.Text or BoardObjectKind.Shape or BoardObjectKind.StickyNote

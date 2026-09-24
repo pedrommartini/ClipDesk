@@ -123,7 +123,7 @@ public sealed partial class BoardObjectView
 
         var pluginId = Object.PluginId ?? BoardPluginIdentity.FromKind(Object.Kind);
         var activeVersion = pluginId is null ? null : ExternalPlugins.ActiveVersion(pluginId);
-        var signature = $"{Object.Kind}|{activeVersion}|{IsDarkMode}|{_pluginEditing}|{_currencyChoices.Count}|{PluginAccentColor()}|" +
+        var signature = $"{Object.Kind}|{Object.PluginName}|{activeVersion}|{IsDarkMode}|{_pluginEditing}|{_currencyChoices.Count}|{PluginAccentColor()}|" +
                         string.Join('|', Object.Content.OrderBy(entry => entry.Key).Select(entry => $"{entry.Key}={entry.Value}"));
         if (_pluginSurface is null || !string.Equals(signature, _pluginSignature, StringComparison.Ordinal))
         {
@@ -179,9 +179,11 @@ public sealed partial class BoardObjectView
             var headerRow = _pluginHeaderRow = new RowDefinition { Height = new GridLength(Math.Clamp(48 * scale, 38, 76)) };
             root.RowDefinitions.Add(headerRow);
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            root.Children.Add(BuildPluginHeader());
             var pluginId = Object.PluginId ?? BoardPluginIdentity.FromKind(Object.Kind);
-            var externalBody = pluginId is null ? null : ExternalPlugins.CreateBody(pluginId,
+            var pluginManifest = pluginId is null ? null : ExternalPlugins.Manifest(pluginId);
+            var pluginAvailable = pluginManifest is not null;
+            root.Children.Add(BuildPluginHeader(pluginAvailable));
+            var externalBody = !pluginAvailable || pluginId is null ? null : ExternalPlugins.CreateBody(pluginId,
                 new PluginState(Object.Content), IsDarkMode, _pluginEditing, Object.Width, Object.Height, scale, PluginAccentColor(),
                 () => WidgetActionRequested?.Invoke(this, "plugin:before-change"),
                 (state, rebuild) =>
@@ -191,7 +193,7 @@ public sealed partial class BoardObjectView
                     MarkPluginChanged();
                     if (rebuild) { _pluginSignature = null; RefreshPluginSurface(); }
                 }, HandlePluginHostAction);
-            externalBody ??= pluginId is null ? null : ExternalPlugins.CreateBody(pluginId,
+            externalBody ??= !pluginAvailable || pluginId is null ? null : ExternalPlugins.CreateBody(pluginId,
                 new PluginViewContext(Object.Content, IsDarkMode, _pluginEditing, Object.Width, Object.Height, scale,
                     rebuild =>
                     {
@@ -199,14 +201,17 @@ public sealed partial class BoardObjectView
                         MarkPluginChanged();
                         if (rebuild) { _pluginSignature = null; RefreshPluginSurface(); }
                     }, action => WidgetActionRequested?.Invoke(this, action)));
-            var body = externalBody ?? (Object.Kind switch
+            var legacyFallback = pluginManifest?.Runtime == PluginRuntimes.LegacyWpf;
+            var body = !pluginAvailable && pluginId is not null
+                ? BuildMissingPluginBody()
+                : externalBody ?? (legacyFallback ? Object.Kind switch
             {
                 BoardObjectKind.Checklist => BuildChecklistBody(),
                 BoardObjectKind.Calculator => BuildCalculatorBody(),
                 BoardObjectKind.Translator => BuildTranslatorBody(),
                 BoardObjectKind.CurrencyConverter => BuildCurrencyBody(),
                 _ => BuildUnavailableBody()
-            });
+            } : BuildUnavailableBody());
             Grid.SetRow(body, 1);
             root.Children.Add(body);
             shell.Child = root;
@@ -235,15 +240,17 @@ public sealed partial class BoardObjectView
         }
     }
 
-    private Grid BuildPluginHeader()
+    private Grid BuildPluginHeader(bool pluginAvailable)
     {
-        var (glyph, title) = Object.Kind switch
+        var (glyph, title) = !pluginAvailable
+            ? ("◈", PluginDisplayName())
+            : Object.Kind switch
         {
             BoardObjectKind.Checklist => ("✓", Object.Content.GetValueOrDefault("title", "Checklist")),
             BoardObjectKind.Calculator => ("∑", "Calculadora"),
             BoardObjectKind.Translator => ("A", "Tradutor"),
             BoardObjectKind.CurrencyConverter => ("$", "Conversor de moeda"),
-            _ => ("◈", ExternalPlugins.Manifest(Object.PluginId ?? "")?.Name ?? "Plugin")
+            _ => ("◈", PluginDisplayName())
         };
         var accent = PluginAccentColor();
         var header = new Grid { Background = ColorBrush("#12FFFFFF"), Tag = "plugin-header" };
@@ -256,7 +263,7 @@ public sealed partial class BoardObjectView
         label.VerticalAlignment = VerticalAlignment.Center; label.TextTrimming = TextTrimming.CharacterEllipsis;
         Grid.SetColumn(label, 1);
         header.Children.Add(icon); header.Children.Add(label);
-        if (Object.Kind == BoardObjectKind.Checklist)
+        if (pluginAvailable && Object.Kind == BoardObjectKind.Checklist)
         {
             var edit = _pluginEditButton = FlatButton(_pluginEditing ? "✓" : "✎", false);
             edit.Tag = "plugin-interactive";
@@ -426,11 +433,51 @@ public sealed partial class BoardObjectView
         return body;
     }
 
+    private string PluginDisplayName() =>
+        Object.PluginName
+        ?? ExternalPlugins.Manifest(Object.PluginId ?? "")?.Name
+        ?? BoardPluginIdentity.NameFromKind(Object.Kind)
+        ?? Object.PluginId
+        ?? "Plugin";
+
+    private FrameworkElement BuildMissingPluginBody()
+    {
+        var content = new StackPanel
+        {
+            Margin = new Thickness(18, 12, 18, 16),
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        var name = ResponsiveText(PluginDisplayName(), 16, IsDarkMode ? "#F4F7FF" : "#243147", FontWeights.SemiBold);
+        name.HorizontalAlignment = HorizontalAlignment.Center;
+        name.TextAlignment = TextAlignment.Center;
+        name.TextWrapping = TextWrapping.Wrap;
+        var explanation = ResponsiveText("Este plugin não está instalado neste dispositivo. Instale-o para visualizar e editar o estado compartilhado da mesa.",
+            12.5, IsDarkMode ? "#A9B3C7" : "#626C82");
+        explanation.Margin = new Thickness(0, 7, 0, 14);
+        explanation.HorizontalAlignment = HorizontalAlignment.Center;
+        explanation.TextAlignment = TextAlignment.Center;
+        explanation.TextWrapping = TextWrapping.Wrap;
+        var install = FlatButton("Instalar", true);
+        install.Tag = "plugin-interactive";
+        install.MinWidth = 112;
+        install.MinHeight = 34;
+        install.HorizontalAlignment = HorizontalAlignment.Center;
+        install.ToolTip = $"Instalar {PluginDisplayName()}";
+        install.Click += (_, args) =>
+        {
+            args.Handled = true;
+            PluginInstallRequested?.Invoke(this);
+        };
+        content.Children.Add(name);
+        content.Children.Add(explanation);
+        content.Children.Add(install);
+        return content;
+    }
+
     private FrameworkElement BuildUnavailableBody() => new TextBlock
     {
-        Text = Object.Kind == BoardObjectKind.Plugin
-            ? "Este plugin ainda não está instalado neste dispositivo. Abra Mais plug-ins para instalá-lo e usar este objeto da mesa."
-            : "Este plugin não está disponível nesta versão do ClipDesk.",
+        Text = "Não foi possível carregar este plugin. Use Reparar na loja de plugins e tente novamente.",
         Margin = new Thickness(16), TextWrapping = TextWrapping.Wrap,
         Foreground = ColorBrush(IsDarkMode ? "#A9B3C7" : "#626C82")
     };

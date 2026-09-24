@@ -12,6 +12,7 @@ public sealed class BoardObject
     public BoardObjectKind Kind { get; set; } = BoardObjectKind.Card;
     public int SchemaVersion { get; set; } = 1;
     public string? PluginId { get; set; }
+    public string? PluginName { get; set; }
     public string? PluginVersion { get; set; }
     public double X { get; set; }
     public double Y { get; set; }

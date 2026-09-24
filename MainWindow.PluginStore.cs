@@ -144,13 +144,8 @@ public partial class MainWindow
         {
             try
             {
-                if (entry.RemotePackage is { } remote)
-                    await new PluginDeliveryService(_pluginCatalogService).InstallRemoteAsync(remote);
-                else _pluginCatalogService.Enable(entry.Manifest.Id);
-                Views.BoardObjectView.InvalidateExternalPlugin(entry.Manifest.Id);
-                ReloadPluginCatalog();
-                entry = _pluginCatalogEntries.Single(item => item.Manifest.Id == entry.Manifest.Id);
-                foreach (var view in waitingViews) view.RefreshFromObject();
+                entry = await EnsurePluginInstalledAsync(entry);
+                RefreshPluginObjects(entry, synchronizeMissingName: true);
                 ShowToast($"{entry.Manifest.Name} instalado");
             }
             catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or HttpRequestException)
@@ -174,6 +169,79 @@ public partial class MainWindow
             return;
         }
         ShowToast($"{entry.Manifest.Name} adicionado à mesa");
+    }
+
+    private async void BoardObjectPluginInstallRequested(Views.BoardObjectView view)
+    {
+        if (_pluginMaintenanceInProgress || string.IsNullOrWhiteSpace(view.Object.PluginId)) return;
+        _pluginMaintenanceInProgress = true;
+        try
+        {
+            var entry = await FindPluginForInstallationAsync(view.Object.PluginId);
+            if (entry is null)
+                throw new InvalidDataException("Este plugin não foi encontrado no catálogo atual.");
+            entry = await EnsurePluginInstalledAsync(entry);
+            RefreshPluginObjects(entry, synchronizeMissingName: true);
+            SelectBoardObject(view);
+            ShowToast($"{entry.Manifest.Name} instalado · estado compartilhado carregado");
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or HttpRequestException)
+        {
+            ShowToast($"Não foi possível instalar: {ex.Message}");
+        }
+        finally { _pluginMaintenanceInProgress = false; }
+    }
+
+    private async Task<PluginCatalogEntry?> FindPluginForInstallationAsync(string pluginId)
+    {
+        ReloadPluginCatalog();
+        var entry = _pluginCatalogEntries.FirstOrDefault(item =>
+            item.Manifest.Id.Equals(pluginId, StringComparison.OrdinalIgnoreCase));
+        if (entry is not null) return entry;
+
+        var feed = await new PluginDeliveryService(_pluginCatalogService).FetchFeedAsync();
+        if (feed is null) return null;
+        _remotePluginFeed = feed;
+        _lastPluginFeedCheck = DateTimeOffset.UtcNow;
+        ReloadPluginCatalog();
+        return _pluginCatalogEntries.FirstOrDefault(item =>
+            item.Manifest.Id.Equals(pluginId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task<PluginCatalogEntry> EnsurePluginInstalledAsync(PluginCatalogEntry entry)
+    {
+        if (!entry.IsInstalled)
+        {
+            if (entry.RemotePackage is { } remote)
+                await new PluginDeliveryService(_pluginCatalogService).InstallRemoteAsync(remote);
+            else _pluginCatalogService.Enable(entry.Manifest.Id);
+        }
+        Views.BoardObjectView.InvalidateExternalPlugin(entry.Manifest.Id);
+        ReloadPluginCatalog();
+        return _pluginCatalogEntries.Single(item =>
+            item.Manifest.Id.Equals(entry.Manifest.Id, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void RefreshPluginObjects(PluginCatalogEntry entry, bool synchronizeMissingName)
+    {
+        var metadataChanged = false;
+        foreach (var board in _workspaces)
+        foreach (var obj in board.Objects.Where(obj =>
+                     obj.PluginId?.Equals(entry.Manifest.Id, StringComparison.OrdinalIgnoreCase) == true))
+        {
+            if (!synchronizeMissingName || !string.IsNullOrWhiteSpace(obj.PluginName)) continue;
+            obj.PluginName = entry.Manifest.Name;
+            obj.UpdatedAt = DateTimeOffset.UtcNow;
+            metadataChanged = true;
+        }
+        foreach (var pluginView in WorkspaceCanvas.Children.OfType<Views.BoardObjectView>()
+                     .Where(pluginView => pluginView.Object.PluginId?.Equals(entry.Manifest.Id,
+                         StringComparison.OrdinalIgnoreCase) == true))
+        {
+            pluginView.RefreshFromObject();
+            if (metadataChanged) QueueBoardObjectRealtime(pluginView.Object);
+        }
+        if (metadataChanged) Save();
     }
 
     private async void PluginStoreRepairRequested(PluginCatalogEntry entry)
@@ -260,7 +328,7 @@ public partial class MainWindow
         var obj = NewObject(kind, point.X, point.Y, width, height,
             style: new Dictionary<string, string> { ["accent"] = entry.Manifest.AccentColor },
             content: new Dictionary<string, string>(entry.Manifest.DefaultContent ?? []));
-        obj.PluginId = entry.Manifest.Id; obj.PluginVersion = entry.Manifest.Version;
+        obj.PluginId = entry.Manifest.Id; obj.PluginName = entry.Manifest.Name; obj.PluginVersion = entry.Manifest.Version;
         _activeWorkspace.Objects.Add(obj);
         var view = AddBoardObjectView(obj); view.PlayPopIn(); SelectBoardObject(view); Save();
         return true;

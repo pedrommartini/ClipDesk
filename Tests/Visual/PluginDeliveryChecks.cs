@@ -197,20 +197,55 @@ internal static class PluginDeliveryChecks
             var boardView = new BoardObjectView(new BoardObject
             {
                 Kind = BoardObjectKind.Plugin, PluginId = newPluginManifest.Id,
-                PluginVersion = newPluginManifest.Version, Width = 300, Height = 390,
+                PluginName = newPluginManifest.Name, PluginVersion = newPluginManifest.Version, Width = 300, Height = 390,
                 Content = new Dictionary<string, string>(newPluginManifest.DefaultContent)
             });
-            if (!Descendants<TextBlock>(boardView).Any(text => text.Text.Contains("não está instalado", StringComparison.OrdinalIgnoreCase)))
-                throw new Exception("A shared-board plugin missing locally did not show the installation guidance.");
+            var installRequests = 0;
+            boardView.PluginInstallRequested += _ => installRequests++;
+            var installButton = Descendants<Button>(boardView).SingleOrDefault(button =>
+                (button.Content as TextBlock)?.Text == "Instalar");
+            if (installButton is null
+                || !Descendants<TextBlock>(boardView).Any(text => text.Text == newPluginManifest.Name)
+                || Descendants<UniformGrid>(boardView).Any())
+                throw new Exception("A shared-board plugin missing locally did not show its safe installation placeholder.");
+            installButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            if (installRequests != 1 || boardView.Object.Content["display"] != "0")
+                throw new Exception("The missing-plugin action changed synchronized state or did not request installation.");
             new PluginCatalogService().Install(newPluginManifest, newPluginSource);
             BoardObjectView.InvalidateExternalPlugin(newPluginManifest.Id);
             boardView.RefreshFromObject();
             if (!Descendants<UniformGrid>(boardView).Any() || boardView.Object.Content["display"] != "0")
                 throw new Exception("An existing shared-board plugin did not activate without losing state after local installation.");
+            VerifyMissingBuiltInDoesNotUseFallback();
             VerifyIndependentModules(root, catalog, loader);
             Console.WriteLine("PASS: compatible remote package installs separately and its WPF code runs from user data.");
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
+    }
+
+    private static void VerifyMissingBuiltInDoesNotUseFallback()
+    {
+        var catalog = new PluginCatalogService();
+        if (!catalog.Uninstall(BuiltInPluginIds.Calculator))
+            throw new Exception("The bundled calculator could not be disabled for the missing-plugin check.");
+        try
+        {
+            BoardObjectView.InvalidateExternalPlugin(BuiltInPluginIds.Calculator);
+            var view = new BoardObjectView(new BoardObject
+            {
+                Kind = BoardObjectKind.Calculator, PluginId = BuiltInPluginIds.Calculator,
+                PluginName = "Calculadora", PluginVersion = "1.0.0", Width = 300, Height = 390,
+                Content = new() { ["expression"] = "6*7", ["display"] = "42" }
+            });
+            if (Descendants<UniformGrid>(view).Any()
+                || !Descendants<Button>(view).Any(button => (button.Content as TextBlock)?.Text == "Instalar"))
+                throw new Exception("A missing standard plugin executed the legacy fallback instead of the safe placeholder.");
+        }
+        finally
+        {
+            catalog.Enable(BuiltInPluginIds.Calculator);
+            BoardObjectView.InvalidateExternalPlugin(BuiltInPluginIds.Calculator);
+        }
     }
 
     private static void VerifyLegacyOptionalMigration(string root, string source, PluginManifest manifest)

@@ -10,6 +10,7 @@ public partial class MainWindow
     private static bool BoardObjectVisualChanged(BoardObject local,BoardObject incoming) =>
         local.Kind!=incoming.Kind || local.Width!=incoming.Width || local.Height!=incoming.Height
         || local.Rotation!=incoming.Rotation || local.Locked!=incoming.Locked
+        || local.PluginId!=incoming.PluginId || local.PluginName!=incoming.PluginName || local.PluginVersion!=incoming.PluginVersion
         || CloudRules.Serialize(local.Style)!=CloudRules.Serialize(incoming.Style)
         || CloudRules.Serialize(local.Content)!=CloudRules.Serialize(incoming.Content);
 
@@ -64,6 +65,7 @@ public partial class MainWindow
             var local=view.Object;
             var visualChanged=BoardObjectVisualChanged(local,obj);
             local.WorkspaceId=obj.WorkspaceId;local.SchemaVersion=obj.SchemaVersion;local.Kind=obj.Kind;
+            local.PluginId=obj.PluginId;local.PluginName=obj.PluginName;local.PluginVersion=obj.PluginVersion;
             local.X=obj.X;local.Y=obj.Y;local.Width=obj.Width;local.Height=obj.Height;local.Rotation=obj.Rotation;
             local.ZIndex=obj.ZIndex;local.Locked=obj.Locked;local.CreatedBy=obj.CreatedBy;
             local.CreatedAt=obj.CreatedAt;local.UpdatedAt=obj.UpdatedAt;local.Style=obj.Style;local.Content=obj.Content;

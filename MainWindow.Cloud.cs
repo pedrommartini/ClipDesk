@@ -207,6 +207,7 @@ public partial class MainWindow
         }
         var visualChanged=BoardObjectVisualChanged(existing,incoming);
         existing.Kind=incoming.Kind;existing.X=incoming.X;existing.Y=incoming.Y;existing.Width=incoming.Width;existing.Height=incoming.Height;
+        existing.PluginId=incoming.PluginId;existing.PluginName=incoming.PluginName;existing.PluginVersion=incoming.PluginVersion;
         existing.Rotation=incoming.Rotation;existing.ZIndex=incoming.ZIndex;existing.Locked=incoming.Locked;existing.CreatedBy=incoming.CreatedBy;
         existing.CreatedAt=incoming.CreatedAt;existing.UpdatedAt=incoming.UpdatedAt;existing.Style=incoming.Style;existing.Content=incoming.Content;
         if(existingView is null) AddBoardObjectView(existing);

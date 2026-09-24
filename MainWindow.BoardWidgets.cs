@@ -124,7 +124,11 @@ public partial class MainWindow
         var point = ClampObjectPosition(_canvasContextPoint, width, height);
         var obj = NewObject(kind, point.X, point.Y, width, height, style, content);
         if (obj.PluginId is { } pluginId)
-            obj.PluginVersion = _pluginCatalogService.GetInstalledPackage(pluginId)?.Manifest.Version ?? BoardPluginIdentity.InitialVersion;
+        {
+            var manifest = _pluginCatalogService.GetInstalledPackage(pluginId)?.Manifest;
+            obj.PluginName = manifest?.Name ?? BoardPluginIdentity.NameFromKind(kind);
+            obj.PluginVersion = manifest?.Version ?? BoardPluginIdentity.InitialVersion;
+        }
         _activeWorkspace.Objects.Add(obj);
         var view = AddBoardObjectView(obj); view.PlayPopIn();
         SelectBoardObject(view);
@@ -626,6 +630,7 @@ public partial class MainWindow
             source.Width, source.Height, new(source.Style), new(source.Content));
         copy.Rotation = source.Rotation;
         copy.PluginId = source.PluginId;
+        copy.PluginName = source.PluginName;
         copy.PluginVersion = source.PluginVersion;
         _activeWorkspace.Objects.Add(copy);
         var copyView = AddBoardObjectView(copy);

@@ -88,7 +88,8 @@ Check(BoardMigration.Normalize(legacyBoard) && legacyBoard.WorldWidth == BoardSp
     "Mesa antiga migra para coordenadas limitadas compartilhadas");
 var legacyPlugin = new BoardObject { Kind = BoardObjectKind.Checklist };
 var legacyPluginBoard = new WorkspaceBoard { Objects = [legacyPlugin] };
-Check(BoardMigration.Normalize(legacyPluginBoard) && legacyPlugin.PluginId == "clipdesk.checklist" && legacyPlugin.PluginVersion == "1.0.0",
+Check(BoardMigration.Normalize(legacyPluginBoard) && legacyPlugin.PluginId == "clipdesk.checklist"
+    && legacyPlugin.PluginName == "Checklist" && legacyPlugin.PluginVersion == "1.0.0",
     "Plugin antigo recebe identificador e versão estáveis sem perder o tipo original");
 Check(!BoardMigration.Normalize(legacyPluginBoard), "Migração de identidade do plugin é estável ao reabrir");
 var duplicateBoard = new WorkspaceBoard
@@ -133,7 +134,7 @@ creativeBoard.Objects.Add(new BoardObject
 creativeBoard.Objects.Add(new BoardObject
 {
     Id = Guid.NewGuid().ToString("N"), WorkspaceId = creativeBoard.Id.ToString("N"), Kind = BoardObjectKind.Calculator,
-    PluginId = "clipdesk.calculator", PluginVersion = "1.0.0", X = 60, Y = 80, Width = 300, Height = 390,
+    PluginId = "clipdesk.calculator", PluginName = "Calculadora", PluginVersion = "1.0.0", X = 60, Y = 80, Width = 300, Height = 390,
     Content = new() { ["expression"] = "6*7", ["display"] = "42" }
 });
 var creativeProjection = CloudProjection.Project([creativeBoard], [], "owner", false).ToList();
@@ -143,6 +144,7 @@ Check(creativeProjection.Any(entity => entity.Kind == "boardObject") && creative
 Check(creativeRoundTrip.Objects.Single(o => o.Kind == BoardObjectKind.Connector).Content["nodeIds"] == "card:card-a;object:text-a;card:card-c",
     "Conexões mistas preservam cards e objetos criativos na sincronização");
 Check(creativeRoundTrip.Objects.Single(o => o.Kind == BoardObjectKind.Calculator).PluginId == "clipdesk.calculator"
+    && creativeRoundTrip.Objects.Single(o => o.Kind == BoardObjectKind.Calculator).PluginName == "Calculadora"
     && creativeRoundTrip.Objects.Single(o => o.Kind == BoardObjectKind.Calculator).PluginVersion == "1.0.0",
     "Sincronização preserva a identidade e a versão independente do plugin");
 foreach (var mode in new[] { WorkspaceSyncMode.Local, WorkspaceSyncMode.PersonalCloud, WorkspaceSyncMode.Shared })
@@ -151,11 +153,12 @@ foreach (var mode in new[] { WorkspaceSyncMode.Local, WorkspaceSyncMode.Personal
     board.Objects.Add(new BoardObject
     {
         WorkspaceId = board.Id.ToString("N"), Kind = BoardObjectKind.Plugin,
-        PluginId = "clipdesk.example", PluginVersion = "1.1.0",
+        PluginId = "clipdesk.example", PluginName = "Plugin de exemplo", PluginVersion = "1.1.0",
         Content = new() { ["value"] = "estado editado", ["completed"] = "true" }
     });
     var locallyRestored = JsonSerializer.Deserialize<WorkspaceBoard>(JsonSerializer.Serialize(board))!;
     Check(locallyRestored.Objects.Single().PluginId == "clipdesk.example"
+        && locallyRestored.Objects.Single().PluginName == "Plugin de exemplo"
         && locallyRestored.Objects.Single().Content["value"] == "estado editado",
         $"Plugin preserva seu estado na mesa {mode} ao salvar localmente");
     var projection = CloudProjection.Project([board], [], "owner", false).ToList();
@@ -166,6 +169,7 @@ foreach (var mode in new[] { WorkspaceSyncMode.Local, WorkspaceSyncMode.Personal
         var received = CloudProjection.Materialize(projection, new Dictionary<string, string>()).Single();
         var plugin = received.Objects.Single();
         Check(received.SyncMode == mode && plugin.PluginId == "clipdesk.example"
+            && plugin.PluginName == "Plugin de exemplo"
             && plugin.PluginVersion == "1.1.0" && plugin.Content["value"] == "estado editado"
             && plugin.Content["completed"] == "true",
             $"Plugin preserva identidade, versão e estado na mesa {mode} após sincronização");

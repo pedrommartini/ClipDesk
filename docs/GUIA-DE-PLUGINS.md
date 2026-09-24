@@ -76,6 +76,8 @@ Regras importantes:
 - Propague `CancellationToken`. Não mantenha timers, views ou contexto de plataforma no módulo.
 - Não armazene tokens, segredos, caminhos locais ou respostas grandes no estado sincronizado.
 
+Em mesas compartilhadas, o pacote executável não é sincronizado. O host grava uma cópia do `manifest.name` junto da identidade do objeto e, em dispositivos sem o plugin, exibe o nome e **Instalar** sem executar o renderizador nem interpretar o estado. Depois da instalação, a mesma instância é aberta com o estado sincronizado existente. Por isso, mantenha `id` e `name` estáveis, publique o pacote no catálogo correto e trate todo estado recebido como potencialmente criado por outra versão do plugin.
+
 ## 2. Escreva o renderizador WPF
 
 Implemente `IWindowsPluginRenderer`. A view envia comandos e apresenta o estado retornado.

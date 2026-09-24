@@ -73,6 +73,12 @@ Os nomes de montagem devem ser nomes simples, sem diretórios. `platforms` anunc
 
 O host persiste somente estado e identidade. DLLs não são sincronizadas. A checklist v2 demonstra a migração de índices frágeis para itens com IDs estáveis e mantém espelhos legados durante a janela de compatibilidade.
 
+### Plugin ausente em mesa compartilhada
+
+Cada objeto sincroniza `PluginId`, `PluginName`, `PluginVersion` e `PluginState`, mas nunca a DLL. `PluginName` é um retrato de apresentação do manifesto e permite identificar o objeto mesmo quando o catálogo está offline. O ID continua sendo a identidade canônica.
+
+Se um participante abrir uma mesa sem ter o pacote instalado, o host não executa fallback, comandos nem interpreta o estado do plugin. No lugar do conteúdo aparece um placeholder com o nome e **Instalar**. A instalação é local ao dispositivo; depois de validar e ativar o pacote do catálogo, o host reidrata a mesma instância com o estado já sincronizado. Não cria outro objeto, não substitui o estado e não altera a mesa antes de a instalação terminar. Se o pacote não existir no catálogo compatível, o placeholder permanece e o estado continua preservado.
+
 ## Execução e efeitos externos
 
 Renderizadores enviam comandos nomeados e argumentos simples. O módulo valida o comando e retorna `PluginCommandResult`, incluindo estado, status, mensagem e dados transitórios. Cancelamento é obrigatório em operações assíncronas.
@@ -92,7 +98,7 @@ Permissões reduzem a superfície acidental, mas plugins Windows ainda executam 
 
 O host continua lendo `manifestVersion: 1`, `legacy-wpf` e `wpf-v1`. `IWindowsPlugin` e `PluginViewContext` permanecem no SDK Windows. O carregador escolhe v2 primeiro e tenta v1 em seguida. Isso permite atualizar o ClipDesk sem invalidar pacotes existentes.
 
-Novos plugins devem usar v2. O suporte v1 é uma ponte de migração e não receberá novas capacidades. Os quatro plugins padrão são v2; as implementações antigas dentro de `BoardObjectView` ficam temporariamente como fallback para mesas antigas ou pacotes ausentes.
+Novos plugins devem usar v2. O suporte v1 é uma ponte de migração e não receberá novas capacidades. Os quatro plugins padrão são v2; as implementações antigas dentro de `BoardObjectView` ficam temporariamente apenas como compatibilidade de renderização quando um pacote instalado usa o caminho legado. Elas nunca são executadas para um pacote ausente.
 
 ## Carregamento, entrega e atualização
 

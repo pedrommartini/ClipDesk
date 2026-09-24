@@ -82,6 +82,8 @@ Regras de estado:
 - Não misture aparência ao estado. A cor escolhida pelo usuário pertence ao host.
 - Propague `CancellationToken` e não mantenha views ou contexto de plataforma no módulo.
 
+O executável do plugin não é sincronizado com mesas compartilhadas. O host preserva ID, nome, versão e estado; se o pacote estiver ausente no outro dispositivo, mostra o nome e **Instalar** sem executar nenhum fallback. Depois da instalação, reabre a mesma instância com o estado recebido. Portanto, mantenha `manifest.id` e `manifest.name` estáveis e faça `NormalizeState` aceitar dados produzidos por versões anteriores ou posteriores.
+
 ### Renderizador Windows
 
 Implemente `IWindowsPluginRenderer.CreateBody(WindowsPluginViewContext context)` e retorne um `FrameworkElement`. O contexto fornece:

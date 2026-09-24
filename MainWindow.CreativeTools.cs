@@ -323,7 +323,8 @@ public partial class MainWindow
         Dictionary<string, string>? style = null, Dictionary<string, string>? content = null) => new()
     {
         WorkspaceId = _activeWorkspace.Id.ToString("N"), Kind = kind, X = x, Y = y, Width = width, Height = height,
-        PluginId = BoardPluginIdentity.FromKind(kind), PluginVersion = BoardPluginIdentity.FromKind(kind) is null ? null : BoardPluginIdentity.InitialVersion,
+        PluginId = BoardPluginIdentity.FromKind(kind), PluginName = BoardPluginIdentity.NameFromKind(kind),
+        PluginVersion = BoardPluginIdentity.FromKind(kind) is null ? null : BoardPluginIdentity.InitialVersion,
         CreatedBy = _cloud?.User?.Id, Style = style ?? [], Content = content ?? [], ZIndex = NextBoardZIndex(), UpdatedAt = DateTimeOffset.UtcNow
     };
 
@@ -338,6 +339,7 @@ public partial class MainWindow
         view.EditRequested += (_, _) => BeginBoardObjectEdit(view);
         view.WidgetActionRequested += BoardObjectWidgetActionRequested;
         view.PluginHostActionRequested += BoardObjectPluginHostActionRequested;
+        view.PluginInstallRequested += BoardObjectPluginInstallRequested;
         view.ContextActionsRequested += (_, _) => ShowBoardObjectContextMenu(view);
         view.BreakRequested += (_, segment) => { ClearSelection(); BreakConnector(obj, segment); };
         view.DragStarted += (_, _) => BeginBoardObjectTransform(view);
