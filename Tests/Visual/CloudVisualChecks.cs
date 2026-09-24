@@ -34,7 +34,23 @@ internal static class CloudVisualChecks
         fileCard.SetCloudPresentation("collaborator",true);
         if(((Grid)fileCard.FindName("Root")).Opacity!=1 || !((string)((Button)fileCard.FindName("CloudFileAction")).ToolTip).Contains("Baixar")) throw new Exception("Uploaded collaborator card does not show download action.");
         fileCard.Item.Attachments[0].LocalPath=fixture;fileCard.SetCloudPresentation("owner",true);
-        if(((Button)fileCard.FindName("CloudFileAction")).Visibility!=Visibility.Collapsed) throw new Exception("Owner unexpectedly has collaborator download action.");
+        if(((Button)fileCard.FindName("CloudFileAction")).Visibility!=Visibility.Visible
+            || !((string)((Button)fileCard.FindName("CloudFileAction")).ToolTip).Contains("pasta",StringComparison.OrdinalIgnoreCase))
+            throw new Exception("A local cloud file does not expose its folder action.");
+        var localOnly=new ClipboardItem {Type=ClipboardItemType.File,DisplayName="Arquivo local.bin",FilePaths=[fixture]};
+        var localOnlyCard=new ItemCard(localOnly,new FileIconService(),storage);
+        localOnlyCard.SetCloudPresentation(null,false);
+        if(((Button)localOnlyCard.FindName("CloudFileAction")).Visibility!=Visibility.Visible
+            || !((string)((Button)localOnlyCard.FindName("CloudFileAction")).ToolTip).Contains("pasta",StringComparison.OrdinalIgnoreCase))
+            throw new Exception("A local-only file does not expose its folder action.");
+        var storageAttachment=new CloudAttachment {OwnerId="owner",Name="small.bin",Uploaded=true,StoragePath="board/small.bin"};
+        var cloudOnlyCard=new ItemCard(new ClipboardItem {Type=ClipboardItemType.File,DisplayName="small.bin",Attachments=[storageAttachment]},new FileIconService(),storage);
+        cloudOnlyCard.SetCloudPresentation("collaborator",true);
+        if(!((string)((Button)cloudOnlyCard.FindName("CloudFileAction")).ToolTip).Contains("Baixar",StringComparison.OrdinalIgnoreCase))
+            throw new Exception("A non-Drive cloud file does not expose its download action.");
+        storageAttachment.LocalPath=fixture;cloudOnlyCard.SetCloudPresentation("collaborator",true);
+        if(!((string)((Button)cloudOnlyCard.FindName("CloudFileAction")).ToolTip).Contains("pasta",StringComparison.OrdinalIgnoreCase))
+            throw new Exception("The action does not change after a non-Drive cloud download.");
         fileCard.Item.Attachments[0].Uploaded=false;fileCard.SetCloudPresentation("owner",true);
         void Layout(double width)
         {

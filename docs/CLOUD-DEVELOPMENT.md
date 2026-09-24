@@ -2,7 +2,7 @@
 
 > Registro histórico de 15/09/2026. DEV e Production agora usam Supabase. Os comandos de servidor, túnel e OAuth Desktop abaixo documentam a implementação anterior e não fazem parte do aplicativo ou dos pacotes atuais. Use `.\scripts\Start-ClipDeskDev.ps1 -OpenApp` para o DEV e `.\Installer\build-installer.ps1 -Development` para seu pacote. Consulte [a arquitetura atual](SUPABASE-PRODUCTION.md).
 
-Atualizado em 15/09/2026. Esta entrega prepara e testa a estrutura local. O projeto Google Cloud **ClipDesk Development** (`alien-iterator-508518-h6`) está configurado com a Google Drive API, consentimento OAuth externo disponível para todas as contas Google, cliente Desktop e os escopos de identidade e `drive.file`. O login real, a validação da identidade pelo servidor e a criação da pasta particular **ClipDesk DEV** no Drive foram concluídos. O status “Em produção” refere-se somente ao consentimento OAuth do Google; nenhuma versão diária do ClipDesk foi publicada.
+Atualizado em 23/09/2026. Esta entrega prepara e testa a estrutura local. O projeto Google Cloud **ClipDesk Development** (`alien-iterator-508518-h6`) está configurado com a Google Drive API, consentimento OAuth externo disponível para todas as contas Google, cliente Desktop e os escopos de identidade e `drive.file`. O login real, a validação da identidade pelo servidor e a criação da pasta particular **ClipDesk DEV** no Drive foram concluídos. O status “Em produção” refere-se somente ao consentimento OAuth do Google; nenhuma versão diária do ClipDesk foi publicada.
 
 Revisão de desempenho e instaladores em 14/09/2026: [mudanças, testes e limites atuais](PERFORMANCE-INSTALLER.md). Os relatos de validação Google real abaixo se referem à rodada anterior; os testes adicionais desta revisão usam contas sintéticas isoladas.
 
@@ -85,8 +85,9 @@ O painel de conflitos cria uma mesa local de recuperação com o texto e um arqu
 - Até **30.000.000 bytes**, inclusive: conteúdo no banco do app; cópia local gerenciada e envio automático quando a mesa/histórico estiver sincronizando.
 - Acima desse limite: conteúdo no Drive do proprietário, organizado na pasta particular do ClipDesk e em subpastas por mesa. O banco do app mantém somente metadados e permissões da mesa.
 - Arquivo grande pendente: card menos opaco e uma seta para cima sem cor. O dono clica para enviar diretamente à pasta correspondente; não precisa escolher a pasta no navegador.
-- Após o envio: card volta à opacidade normal. Colaboradores veem a seta de baixar no mesmo lugar. Duplo clique do colaborador abre o link no Drive; duplo clique do dono abre o arquivo local. Em outro computador do dono, a seta de baixar permite obter a cópia local primeiro.
-- Downloads são opcionais para os arquivos grandes. Arquivos pequenos são recuperados automaticamente para o cache local. Tamanho e SHA-256 são verificados.
+- A ação de arquivo fica sempre no canto inferior direito do card. Se este computador possui uma cópia local válida, ela mostra uma pasta e abre o Explorador com o arquivo selecionado (ou abre a própria pasta). Se existe apenas a cópia na nuvem, ela mostra a ação de baixar no mesmo lugar.
+- Ao concluir e validar um download, inclusive de arquivo pertencente a um colaborador, o card troca imediatamente de **Baixar arquivo** para **Mostrar na pasta**, sem exigir reabertura da mesa. Essa regra vale para anexos no armazenamento do ClipDesk e no Google Drive.
+- Arquivos pequenos são recuperados automaticamente para o cache local; arquivos grandes podem ser baixados sob demanda. Em ambos os casos, tamanho e SHA-256 são verificados antes de a cópia ser considerada local.
 - O compartilhamento no Drive é concedido aos e-mails dos colaboradores por arquivo individual, como leitor. A pasta não é pública e o app não cria permissão “qualquer pessoa com o link”.
 
 A concessão de acesso aos arquivos de um dono é reconciliada pelo dispositivo autenticado dele. Se ele estiver offline quando um convite for aceito, o acesso a esses arquivos no Drive pode aguardar sua reconexão. A mesa continua sincronizando pelo servidor.

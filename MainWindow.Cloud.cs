@@ -636,29 +636,55 @@ public partial class MainWindow
     private async void Card_CloudFileAction(object? sender,EventArgs e)
     {
         if(sender is not ItemCard card) return;
-        var downloaded=card.Item.Attachments.FirstOrDefault(attachment=>attachment.IsDrive && attachment.Uploaded && File.Exists(attachment.LocalPath)
-            && StorageService.IsUserDownload(attachment.LocalPath));
-        if(downloaded?.LocalPath is { } downloadedPath)
+        var localPath=card.ExistingLocalPath();
+        if(localPath is not null)
         {
-            var explorer=new ProcessStartInfo("explorer.exe") {UseShellExecute=true};
-            explorer.ArgumentList.Add("/select,");explorer.ArgumentList.Add(downloadedPath);
-            Process.Start(explorer);return;
+            if(Directory.Exists(localPath)) Process.Start(new ProcessStartInfo(localPath) {UseShellExecute=true});
+            else
+            {
+                var explorer=new ProcessStartInfo("explorer.exe") {UseShellExecute=true};
+                explorer.ArgumentList.Add("/select,");explorer.ArgumentList.Add(localPath);
+                Process.Start(explorer);
+            }
+            return;
         }
         if(_cloud?.Connected!=true) {CloudAccount_Click(this,new RoutedEventArgs());return;}
+        var uploadedCount=0;var downloadedCount=0;
+        card.SetCloudFileActionBusy(true);
         try
         {
-            foreach(var attachment in card.Item.Attachments.Where(a=>a.IsDrive))
+            foreach(var attachment in card.Item.Attachments)
             {
                 if(!attachment.Uploaded && attachment.OwnerId==_cloud.User!.Id)
                 {
+                    if(!attachment.IsDrive || string.IsNullOrWhiteSpace(attachment.LocalPath) || !File.Exists(attachment.LocalPath)) continue;
                     await _cloud.UploadDriveAsync(attachment,_activeWorkspace,new Progress<double>(progress=>{CloudStatusIcon.Text="↑";CloudStatusText.Text=$"{progress:P0}";}));
+                    uploadedCount++;
                 }
-                else if(attachment.Uploaded && (!File.Exists(attachment.LocalPath) || attachment.OwnerId!=_cloud.User!.Id && !StorageService.IsUserDownload(attachment.LocalPath)))
+                else if(attachment.Uploaded && (string.IsNullOrWhiteSpace(attachment.LocalPath) || !File.Exists(attachment.LocalPath)))
+                {
                     await _cloud.DownloadAsync(attachment,saveForUser:true);
+                    downloadedCount++;
+                }
             }
-            card.SetCloudPresentation(_cloud.User!.Id,true); Save(); QueueCloudSync(); ShowToast($"Arquivo salvo em Documentos\\ClipDesk\\Downloads");
+            ApplyDownloadedPaths(card.Item);
+            card.Refresh(_storageService);
+            Save();QueueCloudSync();
+            if(downloadedCount>0) ShowToast(downloadedCount==1?"Arquivo baixado. Agora você pode mostrá-lo na pasta.":$"{downloadedCount} arquivos baixados. Agora você pode mostrá-los na pasta.");
+            else if(uploadedCount>0) ShowToast("Arquivo enviado para a nuvem.");
         }
         catch(Exception ex) when(ex is IOException or HttpRequestException or InvalidOperationException) {ShowToast(ex.Message);}
+        finally {card.SetCloudPresentation(_cloud.User!.Id,true);}
+    }
+
+    private static void ApplyDownloadedPaths(ClipboardItem item)
+    {
+        var localPaths=item.Attachments.Select(attachment=>attachment.LocalPath)
+            .Where(path=>!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+            .Cast<string>().Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if(localPaths.Count==0) return;
+        if(item.Type==ClipboardItemType.Image) item.StoredFilePath=localPaths[0];
+        else if(item.IsFileBacked) item.FilePaths=localPaths;
     }
     private bool TryOpenCloudFile(ClipboardItem item)
     {
