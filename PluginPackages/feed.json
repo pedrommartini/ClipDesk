@@ -1,4 +1,112 @@
 {
   "schemaVersion": 1,
-  "packages": []
+  "packages": [
+    {
+      "manifestVersion": 2,
+      "id": "clipdesk.qrcode",
+      "name": "Gerador de QR Code",
+      "description": "Gera e exibe códigos QR a partir de links ou textos diretamente no seu quadro.",
+      "version": "1.0.1",
+      "url": "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-1.0.1/clipdesk.qrcode-1.0.1.zip",
+      "sha256": "fb585029170c26a80cc3320e7d243ab8a204a2fbf5b142d17e6acc224407db68",
+      "runtime": "portable-v2",
+      "pluginApiVersion": 2,
+      "minimumHostVersion": "0.3.3",
+      "maximumHostVersion": null,
+      "entryAssembly": null,
+      "entryType": null,
+      "iconGlyph": "\ue977",
+      "accentColor": "#10B981",
+      "sortOrder": 110,
+      "defaultSize": {
+        "width": 300,
+        "height": 340
+      },
+      "defaultContent": {
+        "$schema": "1",
+        "text": "https://github.com/pedrommartini/ClipDesk",
+        "ecc": "M"
+      },
+      "platforms": [
+        "windows"
+      ],
+      "stateVersion": 1,
+      "module": {
+        "assembly": "ClipDesk.Plugin.QrCode.Core.dll",
+        "type": "ClipDesk.Plugin.QrCode.QrCodeModule"
+      },
+      "renderers": [
+        {
+          "platform": "windows",
+          "runtime": "wpf-v2",
+          "assembly": "ClipDesk.Plugin.QrCode.dll",
+          "type": "ClipDesk.Plugin.QrCode.QrCodePlugin"
+        }
+      ],
+      "permissions": [],
+      "capabilities": [
+        "board-widget"
+      ],
+      "networkHosts": []
+    },
+    {
+      "manifestVersion": 2,
+      "id": "clipdesk.audiorecorder",
+      "name": "Gravador de Áudio",
+      "description": "Grave áudio do microfone e do sistema com controle de volume independente e adicione diretamente à mesa.",
+      "version": "1.0.6",
+      "url": "https://github.com/pedrommartini/ClipDesk/releases/download/plugins-1.0.6/clipdesk.audiorecorder-1.0.6.zip",
+      "sha256": "97b4e988c3b0ea7e1fc8578533433f62c35518e2cb68f3039efcd970fbcbf914",
+      "runtime": "portable-v2",
+      "pluginApiVersion": 2,
+      "minimumHostVersion": "0.3.3",
+      "maximumHostVersion": null,
+      "entryAssembly": null,
+      "entryType": null,
+      "iconGlyph": "\ue720",
+      "accentColor": "#EF4444",
+      "sortOrder": 120,
+      "defaultSize": {
+        "width": 540,
+        "height": 180
+      },
+      "defaultContent": {
+        "$schema": "1",
+        "micChannelMode": "mono",
+        "sysChannelMode": "stereo",
+        "micEnabled": "true",
+        "micVolume": "100",
+        "systemEnabled": "true",
+        "systemVolume": "100",
+        "status": "idle",
+        "duration": "0",
+        "lastFile": ""
+      },
+      "platforms": [
+        "windows"
+      ],
+      "stateVersion": 1,
+      "module": {
+        "assembly": "ClipDesk.Plugin.AudioRecorder.Core.dll",
+        "type": "ClipDesk.Plugin.AudioRecorder.AudioRecorderModule"
+      },
+      "renderers": [
+        {
+          "platform": "windows",
+          "runtime": "wpf-v2",
+          "assembly": "ClipDesk.Plugin.AudioRecorder.dll",
+          "type": "ClipDesk.Plugin.AudioRecorder.AudioRecorderPlugin"
+        }
+      ],
+      "permissions": [
+        "file.read",
+        "file.write"
+      ],
+      "capabilities": [
+        "board-widget",
+        "board-files"
+      ],
+      "networkHosts": []
+    }
+  ]
 }
