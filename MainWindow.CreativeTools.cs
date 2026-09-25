@@ -332,6 +332,7 @@ public partial class MainWindow
     {
         if (obj.Kind == BoardObjectKind.Connector) UpdateConnectorGeometry(obj);
         var view = new BoardObjectView(obj) { IsDarkMode = _isDarkMode, IsInteractive = obj.Kind != BoardObjectKind.Connector && _activeCreativeTool == CreativeTool.Select };
+        view.SetViewportZoom(_workspaceZoom);
         view.SetSelectionColor(LocalPresenceColor());
         if (_availableCurrencyChoices.Count > 0) view.SetCurrencyChoices(_availableCurrencyChoices);
         PositionBoardObjectView(view); Panel.SetZIndex(view, obj.Kind == BoardObjectKind.Connector ? -2 : obj.ZIndex);
@@ -369,6 +370,12 @@ public partial class MainWindow
         };
         WorkspaceCanvas.Children.Add(view);
         return view;
+    }
+
+    private void UpdatePluginViewportZoom()
+    {
+        foreach (var view in WorkspaceCanvas.Children.OfType<BoardObjectView>())
+            view.SetViewportZoom(_workspaceZoom);
     }
 
     private void RenderCreativeObjects(bool animate = false, bool isFirstVisit = false)

@@ -21,7 +21,7 @@ public sealed class PluginSlider : Grid
         Minimum = minimum;
         Maximum = Math.Max(minimum, maximum);
         Step = Math.Max(0, step);
-        Height = Math.Clamp(28 * context.Scale, 26, 56);
+        Height = 34;
         MinWidth = 72;
         Background = Brushes.Transparent;
         Cursor = Cursors.Hand;
@@ -30,11 +30,11 @@ public sealed class PluginSlider : Grid
 
         var track = new Border
         {
-            Height = Math.Clamp(4 * context.Scale, 3, 8),
+            Height = 4,
             CornerRadius = new CornerRadius(99),
             Background = PluginControlBrushes.From(context.IsDarkMode ? "#2C3647" : "#E6EAF0"),
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(3, 0, 3, 0)
+            Margin = new Thickness(0)
         };
         _fill = new Border
         {
@@ -47,15 +47,15 @@ public sealed class PluginSlider : Grid
         };
         _thumb = new Border
         {
-            Width = Math.Clamp(14 * context.Scale, 12, 25),
-            Height = Math.Clamp(14 * context.Scale, 12, 25),
+            Width = 14,
+            Height = 14,
             CornerRadius = new CornerRadius(99),
             Background = Brushes.White,
             BorderBrush = PluginControlBrushes.From(context.AccentColor, "#FF4B55"),
-            BorderThickness = new Thickness(Math.Clamp(2 * context.Scale, 1.5, 3)),
+            BorderThickness = new Thickness(2),
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Center,
-            Effect = new DropShadowEffect { BlurRadius = 3, ShadowDepth = 0, Opacity = .18, Color = Colors.Black }
+            Effect = new DropShadowEffect { BlurRadius = 4, ShadowDepth = 0, Opacity = .25, Color = Colors.Black }
         };
         Children.Add(track);
         Children.Add(_fill);
@@ -95,15 +95,22 @@ public sealed class PluginSlider : Grid
             else return;
             e.Handled = true;
         };
-        context.LayoutChanged += () =>
+        void UpdateMetrics()
         {
-            Height = Math.Clamp(28 * context.Scale, 26, 56);
-            _thumb.Width = _thumb.Height = Math.Clamp(14 * context.Scale, 12, 25);
-            _thumb.BorderThickness = new Thickness(Math.Clamp(2 * context.Scale, 1.5, 3));
-            track.Height = _fill.Height = Math.Clamp(4 * context.Scale, 3, 8);
+            // The board's render transform scales the entire plugin. Compensate here so
+            // the Minimal track, thumb and 34px hit area match the HTML at normal zoom.
+            var inverseZoom = 1 / context.ViewportZoom;
+            Height = 34 * inverseZoom;
+            _thumb.Width = _thumb.Height = 14 * inverseZoom;
+            _thumb.BorderThickness = new Thickness(2 * inverseZoom);
+            track.Height = _fill.Height = 4 * inverseZoom;
+            if (_thumb.Effect is DropShadowEffect shadow) shadow.BlurRadius = 4 * inverseZoom;
             UpdateVisual();
-        };
+        }
+        context.LayoutChanged += UpdateMetrics;
+        context.ViewportZoomChanged += UpdateMetrics;
         _value = Coerce(value);
+        UpdateMetrics();
     }
 
     public double Minimum { get; }

@@ -48,6 +48,7 @@ public sealed partial class BoardObjectView
 
     private Border? _pluginSurface;
     private WindowsPluginViewContext? _fileDropContext;
+    private double _viewportZoom = 1;
     private string? _pluginSignature;
     private bool _pluginEditing;
     private bool _buildingPlugin;
@@ -62,6 +63,11 @@ public sealed partial class BoardObjectView
     private bool _utilityLoading;
     private static readonly WindowsPluginLoader ExternalPlugins = new();
     public static void InvalidateExternalPlugin(string pluginId) => ExternalPlugins.Invalidate(pluginId);
+    public void SetViewportZoom(double zoom)
+    {
+        _viewportZoom = zoom;
+        _fileDropContext?.UpdateViewportZoom(zoom);
+    }
 
     private bool IsPluginKind => Object.Kind is BoardObjectKind.Checklist or BoardObjectKind.Calculator or BoardObjectKind.Translator
         or BoardObjectKind.CurrencyConverter || Object.Kind == BoardObjectKind.Plugin && !string.IsNullOrWhiteSpace(Object.PluginId);
@@ -196,7 +202,7 @@ public sealed partial class BoardObjectView
                     Object.Content = state.ToDictionary();
                     MarkPluginChanged();
                     if (rebuild) { _pluginSignature = null; RefreshPluginSurface(); }
-                }, HandlePluginHostAction, context => _fileDropContext = context);
+                }, HandlePluginHostAction, context => _fileDropContext = context, _viewportZoom);
             externalBody ??= !pluginAvailable || pluginId is null ? null : ExternalPlugins.CreateBody(pluginId,
                 new PluginViewContext(Object.Content, IsDarkMode, _pluginEditing, Object.Width, Object.Height, scale,
                     rebuild =>
