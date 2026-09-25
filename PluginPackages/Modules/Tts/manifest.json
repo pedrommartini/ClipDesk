@@ -1,0 +1,59 @@
+﻿{
+  "manifestVersion": 2,
+  "id": "clipdesk.tts",
+  "name": "Texto para Fala",
+  "description": "Síntese de voz com suporte híbrido online e local, detecção de idioma e exportação de áudio.",
+  "version": "1.0.0",
+  "publisher": "ClipDesk",
+  "iconGlyph": "\ue8d6",
+  "accentColor": "#2563EB",
+  "runtime": "portable-v2",
+  "pluginApiVersion": 2,
+  "stateVersion": 1,
+  "module": {
+    "assembly": "ClipDesk.Plugin.Tts.Core.dll",
+    "type": "ClipDesk.Plugin.Tts.TtsModule"
+  },
+  "renderers": [
+    {
+      "platform": "windows",
+      "runtime": "wpf-v2",
+      "assembly": "ClipDesk.Plugin.Tts.dll",
+      "type": "ClipDesk.Plugin.Tts.TtsPlugin"
+    }
+  ],
+  "minimumHostVersion": "0.3.3",
+  "maximumHostVersion": null,
+  "installByDefault": false,
+  "sortOrder": 100,
+  "defaultSize": {
+    "width": 360,
+    "height": 300
+  },
+  "minimumSize": {
+    "width": 240,
+    "height": 240
+  },
+  "defaultContent": {
+    "$schema": "1",
+    "text": "",
+    "language": "pt",
+    "voice_id": "pt-BR-FranciscaNeural",
+    "volume": "100",
+    "rate": "0"
+  },
+  "platforms": [
+    "windows"
+  ],
+  "permissions": [
+    "network",
+    "file.write"
+  ],
+  "capabilities": [
+    "board-widget",
+    "board-files"
+  ],
+  "networkHosts": [
+    "speech.platform.bing.com"
+  ]
+}
