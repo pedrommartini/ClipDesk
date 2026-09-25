@@ -1,4 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
-  <ItemGroup><ProjectReference Include="..\..\PluginSdk\ClipDesk.PluginSdk.csproj" /><ProjectReference Include="..\..\PluginPackages\Examples\AudioNotes\Core\ClipDesk.Plugin.AudioNotes.Core.csproj" /><ProjectReference Include="..\..\PluginPackages\Examples\ImageCompressor\Core\ClipDesk.Plugin.ImageCompressor.Core.csproj" /></ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\PluginSdk\ClipDesk.PluginSdk.csproj" />
+    <ProjectReference Include="..\..\PluginPackages\Examples\AudioNotes\Core\ClipDesk.Plugin.AudioNotes.Core.csproj" />
+    <ProjectReference Include="..\..\PluginPackages\Examples\ImageCompressor\Core\ClipDesk.Plugin.ImageCompressor.Core.csproj" />
+    <ProjectReference Include="..\..\PluginPackages\Modules\Calculator\Core\ClipDesk.Plugin.Calculator.Core.csproj" />
+    <ProjectReference Include="..\..\PluginPackages\Modules\Checklist\Core\ClipDesk.Plugin.Checklist.Core.csproj" />
+    <ProjectReference Include="..\..\PluginPackages\Modules\Translator\Core\ClipDesk.Plugin.Translator.Core.csproj" />
+    <ProjectReference Include="..\..\PluginPackages\Modules\CurrencyConverter\Core\ClipDesk.Plugin.CurrencyConverter.Core.csproj" />
+  </ItemGroup>
 </Project>

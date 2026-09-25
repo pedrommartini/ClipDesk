@@ -284,6 +284,9 @@ public sealed class PluginCatalogService
 
     private static void Validate(PluginManifest manifest)
     {
+        var contractIssues = PluginManifestValidator.Validate(manifest);
+        if (contractIssues.Count > 0)
+            throw new InvalidDataException($"Manifesto inválido ({contractIssues[0].Code}): {contractIssues[0].Message}");
         if (string.IsNullOrWhiteSpace(manifest.Id) || !SafeId.IsMatch(manifest.Id))
             throw new InvalidDataException("Identificador de plugin inválido.");
         if (string.IsNullOrWhiteSpace(manifest.Name)) throw new InvalidDataException($"O plugin {manifest.Id} não possui nome.");

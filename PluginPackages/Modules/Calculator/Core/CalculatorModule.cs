@@ -3,7 +3,7 @@ using ClipDesk.PluginSdk;
 
 namespace ClipDesk.Plugin.Calculator;
 
-public sealed class CalculatorModule : IClipDeskPluginModule
+public sealed class CalculatorModule : IClipDeskPluginModule, IClipDeskPluginModuleV3
 {
     public string Id => BuiltInPluginIds.Calculator;
     public int StateVersion => 1;
@@ -20,6 +20,14 @@ public sealed class CalculatorModule : IClipDeskPluginModule
     }
     public ValueTask<PluginCommandResult> ExecuteAsync(PluginState state, PluginCommand command,
         IPluginExecutionContext context, CancellationToken cancellationToken = default)
+        => ExecuteCore(state, command, cancellationToken);
+
+    public ValueTask<PluginCommandResult> ExecuteAsync(PluginState state, PluginCommand command,
+        IPluginCapabilityProvider capabilities, CancellationToken cancellationToken = default)
+        => ExecuteCore(state, command, cancellationToken);
+
+    private ValueTask<PluginCommandResult> ExecuteCore(PluginState state, PluginCommand command,
+        CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested(); state = NormalizeState(state);
         if (command.Name != "press") return ValueTask.FromResult(PluginCommandResult.Invalid(state, "Comando desconhecido."));

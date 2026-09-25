@@ -8,7 +8,7 @@ namespace ClipDesk.Plugin.Checklist;
 
 public sealed record ChecklistItem(string Id, string Text, bool IsCompleted);
 
-public sealed class ChecklistModule : IClipDeskPluginModule
+public sealed class ChecklistModule : IClipDeskPluginModule, IClipDeskPluginModuleV3
 {
     public string Id => BuiltInPluginIds.Checklist;
     public int StateVersion => 2;
@@ -29,6 +29,14 @@ public sealed class ChecklistModule : IClipDeskPluginModule
 
     public ValueTask<PluginCommandResult> ExecuteAsync(PluginState state, PluginCommand command,
         IPluginExecutionContext context, CancellationToken cancellationToken = default)
+        => ExecuteCore(state, command, cancellationToken);
+
+    public ValueTask<PluginCommandResult> ExecuteAsync(PluginState state, PluginCommand command,
+        IPluginCapabilityProvider capabilities, CancellationToken cancellationToken = default)
+        => ExecuteCore(state, command, cancellationToken);
+
+    private ValueTask<PluginCommandResult> ExecuteCore(PluginState state, PluginCommand command,
+        CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         state = NormalizeState(state);

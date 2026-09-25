@@ -116,7 +116,7 @@ public sealed record PluginBoardFileRequest(IReadOnlyList<PluginBoardFile> Files
 /// Plugins must use Documents\ClipDesk\{pluginFolderName} by default. A different
 /// output directory is allowed only after the user explicitly chooses it in the plugin UI.
 /// </summary>
-[Obsolete("Windows document paths are not portable. Use IPluginFileService for new plugins.")]
+[Obsolete("Windows document paths are not portable. Use IPluginFileRead/IPluginFileWrite for new plugins.")]
 public static class PluginStoragePaths
 {
     public static string GetDefaultDirectory(string pluginFolderName)

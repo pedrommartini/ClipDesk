@@ -12,6 +12,8 @@ Este é o ponto de entrada para criar plugins. As regras executáveis em `Plugin
 
 O SDK é único: módulos v2 continuam válidos para hosts que anunciam API 2; hosts futuros anunciam API 3 e capabilities implementadas. O contrato v3 não exige DLL nem carregamento dinâmico. Um manifesto com `registration` descreve entradas que o build/host registra estaticamente. Declarar uma plataforma ou registration não cria o renderer nem a implementação de host correspondente.
 
+`PluginHostRegistry<TView>` liga IDs de registration a factories compiladas no host. Ele confere plataforma, manifesto e presença do renderer antes de criar a sessão. `IPluginRendererAdapter<TView>` recebe estado, viewport e uma função de despacho de comandos; o tipo da view pertence ao host. O mesmo módulo pode ser registrado em Windows, Web e Mobile com renderers distintos. A execução v3 permanece planejada nos aplicativos atuais até que eles incluam esses registros e serviços.
+
 ## Comece pelo alvo real
 
 - **Plugin executável no Windows atual:** copie `PluginPackages/Templates/Starter`, renomeie projeto, namespace, tipo, ID e manifesto; mantenha `manifestVersion: 2`. O [guia v2](PLUGIN-AI-DEVKIT.md) explica o renderer WPF e o empacotador atual.
@@ -59,4 +61,4 @@ A ferramenta rejeita campos desconhecidos, entradas incompletas, versões incorr
 
 ## Exemplos e verificação
 
-`Calculator` demonstra comandos; `Checklist`, estado e migração; `Translator` e `CurrencyConverter`, rede mediada pelo host na v2; `AudioNotes`, microfone e arquivos via capabilities na v3; `ImageCompressor`, leitura, escrita e codec com permissões separadas. O TTS e plugins colaboradores continuam casos de migração Windows, não provas de suporte Web/Mobile. Execute `Tests/PluginDevKit` e os testes v2 ao modificar o contrato.
+Os quatro módulos padrão (`Calculator`, `Checklist`, `Translator`, `CurrencyConverter`) implementam v2 e v3 sobre a mesma lógica/estado. Seus renderers e pacotes atuais continuam v2 no Windows; novos hosts precisam registrar renderers v3. `AudioNotes` demonstra microfone e arquivos via capabilities; `ImageCompressor`, leitura, escrita e codec com permissões separadas. O TTS e plugins colaboradores continuam casos de migração Windows, não provas de suporte Web/Mobile. Execute `Tests/PluginDevKit` e os testes v2 ao modificar o contrato.

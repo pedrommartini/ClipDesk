@@ -94,6 +94,10 @@ public sealed class PluginModuleSession : IAsyncDisposable
                     ? new(State, PluginCommandStatus.Unavailable, "O plugin foi suspenso ou encerrado.")
                     : new(State, PluginCommandStatus.Failed, "O comando excedeu o limite de tempo do host.");
             }
+            catch (Exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                return new(State, PluginCommandStatus.Failed, "O plugin falhou ao executar o comando.");
+            }
             finally { Volatile.Write(ref _running, null); }
         }
         finally { _gate.Release(); }
@@ -125,8 +129,11 @@ public sealed class PluginModuleSession : IAsyncDisposable
         try
         {
             if (Status == PluginSessionStatus.Disposed) return;
-            if (_module is IClipDeskPluginLifecycle lifecycle) await lifecycle.DisposeAsync();
-            Status = PluginSessionStatus.Disposed;
+            try
+            {
+                if (_module is IClipDeskPluginLifecycle lifecycle) await lifecycle.DisposeAsync();
+            }
+            finally { Status = PluginSessionStatus.Disposed; }
         }
         finally { _gate.Release(); }
     }

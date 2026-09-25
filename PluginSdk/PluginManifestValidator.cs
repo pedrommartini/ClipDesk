@@ -15,13 +15,20 @@ public static class PluginManifestValidator
         PropertyNameCaseInsensitive = true,
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
     };
+    private static readonly JsonSerializerOptions LegacyJson = new(JsonSerializerDefaults.Web)
+    {
+        PropertyNameCaseInsensitive = true
+    };
 
     public static IReadOnlyList<PluginDiagnostic> ValidateJson(string json)
     {
         try
         {
             using var document = JsonDocument.Parse(json);
-            var manifest = JsonSerializer.Deserialize<PluginManifest>(json, StrictJson);
+            var isV3 = document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty("manifestVersion", out var version)
+                && version.ValueKind == JsonValueKind.Number && version.TryGetInt32(out var number) && number == 3;
+            var manifest = JsonSerializer.Deserialize<PluginManifest>(json, isV3 ? StrictJson : LegacyJson);
             return manifest is null
                 ? [new("CDK001", "Manifesto vazio. Forneça um objeto JSON.")]
                 : Validate(manifest);
@@ -37,7 +44,11 @@ public static class PluginManifestValidator
         var issues = new List<PluginDiagnostic>();
         if (!Identifier.IsMatch(manifest.Id)) issues.Add(new("CDK002", "id deve usar letras minúsculas, dígitos, pontos ou hífens, sem separadores repetidos."));
         if (string.IsNullOrWhiteSpace(manifest.Name)) issues.Add(new("CDK003", "name é obrigatório."));
-        if (!PluginSemanticVersion.TryParse(manifest.Version, out _)) issues.Add(new("CDK004", "version deve ser MAJOR.MINOR.PATCH."));
+        if (manifest.ManifestVersion == 3
+            ? !PluginSemanticVersion.TryParse(manifest.Version, out _)
+            : !Version.TryParse(manifest.Version, out _))
+            issues.Add(new("CDK004", "version deve ser MAJOR.MINOR.PATCH na v3 ou uma versão numérica nas versões legadas."));
+        if (manifest.ManifestVersion is < 1 or > 3) issues.Add(new("CDK031", "manifestVersion deve ser 1, 2 ou 3."));
         if (manifest.ManifestVersion != 3) return issues;
 
         if (manifest.Runtime != PluginRuntimes.PortableV3 || manifest.PluginApiVersion != 3
