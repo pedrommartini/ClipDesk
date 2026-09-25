@@ -8,7 +8,7 @@ namespace ClipDesk.Plugin.Tts;
 /// Manages state versioning, normalization, and typed command execution.
 /// Platform-agnostic: zero references to WPF, Win32, or OS APIs.
 /// </summary>
-public sealed class TtsModule : IClipDeskPluginModule
+public sealed class TtsModule : IClipDeskPluginModule, IClipDeskPluginModuleV3
 {
     public const string ModuleId = "clipdesk.tts";
     public const int SchemaStateVersion = 1;
@@ -25,6 +25,19 @@ public sealed class TtsModule : IClipDeskPluginModule
         PluginCommand command,
         IPluginExecutionContext context,
         CancellationToken cancellationToken = default)
+        => ExecuteCore(state, command, cancellationToken);
+
+    public ValueTask<PluginCommandResult> ExecuteAsync(
+        PluginState state,
+        PluginCommand command,
+        IPluginCapabilityProvider capabilities,
+        CancellationToken cancellationToken = default)
+        => ExecuteCore(state, command, cancellationToken);
+
+    private ValueTask<PluginCommandResult> ExecuteCore(
+        PluginState state,
+        PluginCommand command,
+        CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         state = NormalizeState(state);
