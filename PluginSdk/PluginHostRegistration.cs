@@ -13,6 +13,15 @@ public sealed class PluginHostRegistry<TView>
 {
     private readonly Dictionary<string, Func<IClipDeskPluginModuleV3>> _modules = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Func<IPluginRendererAdapter<TView>>> _renderers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly PluginSemanticVersion _contractVersion;
+    private readonly Version _hostVersion;
+
+    public PluginHostRegistry(PluginSemanticVersion contractVersion, Version hostVersion)
+    {
+        if (contractVersion.Major != 3) throw new ArgumentOutOfRangeException(nameof(contractVersion), "O host v3 exige contrato 3.x.y.");
+        _contractVersion = contractVersion;
+        _hostVersion = hostVersion ?? throw new ArgumentNullException(nameof(hostVersion));
+    }
 
     public void RegisterModule(string registration, Func<IClipDeskPluginModuleV3> factory) =>
         _modules.Add(Required(registration), factory ?? throw new ArgumentNullException(nameof(factory)));
@@ -26,8 +35,8 @@ public sealed class PluginHostRegistry<TView>
     {
         if (PluginManifestValidator.Validate(manifest).Count > 0 || manifest.ManifestVersion != 3)
             throw new ArgumentException("Manifesto v3 inválido.", nameof(manifest));
-        if (!(manifest.Platforms ?? []).Contains(platform, StringComparer.OrdinalIgnoreCase))
-            throw new InvalidOperationException($"O plugin não anuncia a plataforma '{platform}'.");
+        if (!PluginCompatibility.Supports(manifest, _hostVersion, _contractVersion, platform, capabilities))
+            throw new InvalidOperationException($"O plugin não é compatível com a plataforma '{platform}', o host {_hostVersion}, o contrato {_contractVersion} ou suas capabilities obrigatórias.");
         if (manifest.Module?.Registration is not { Length: > 0 } moduleId || !_modules.TryGetValue(moduleId, out var module))
             throw new InvalidOperationException($"Módulo '{manifest.Module?.Registration}' não está registrado neste host.");
         var rendererId = manifest.RendererFor(platform)?.Registration;

@@ -12,7 +12,7 @@ Este é o ponto de entrada para criar plugins. As regras executáveis em `Plugin
 
 O SDK é único: módulos v2 continuam válidos para hosts que anunciam API 2; hosts futuros anunciam API 3 e capabilities implementadas. O contrato v3 não exige DLL nem carregamento dinâmico. Um manifesto com `registration` descreve entradas que o build/host registra estaticamente. Declarar uma plataforma ou registration não cria o renderer nem a implementação de host correspondente.
 
-`PluginHostRegistry<TView>` liga IDs de registration a factories compiladas no host. Ele confere plataforma, manifesto e presença do renderer antes de criar a sessão. `IPluginRendererAdapter<TView>` recebe estado, viewport e uma função de despacho de comandos; o tipo da view pertence ao host. O mesmo módulo pode ser registrado em Windows, Web e Mobile com renderers distintos. A execução v3 permanece planejada nos aplicativos atuais até que eles incluam esses registros e serviços.
+`PluginHostRegistry<TView>` liga IDs de registration a factories compiladas no host. O host informa sua versão do aplicativo e do contrato ao criar o registro; o SDK confere plataforma, versões, capabilities obrigatórias, manifesto e presença do renderer antes de criar a sessão. `IPluginRendererAdapter<TView>` recebe estado, viewport e uma função de despacho de comandos; o tipo da view pertence ao host. O mesmo módulo pode ser registrado em Windows, Web e Mobile com renderers distintos. A execução v3 permanece planejada nos aplicativos atuais até que eles incluam esses registros e serviços.
 
 ## Comece pelo alvo real
 

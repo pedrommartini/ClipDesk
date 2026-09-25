@@ -104,6 +104,18 @@ public static class PluginCompatibility
     public const int WindowsApiVersion = 2;
     public const int CurrentPortableApiVersion = 3;
 
+    public static bool Supports(PluginManifest manifest, Version hostVersion,
+        PluginSemanticVersion hostContractVersion, string platform, IPluginCapabilityProvider capabilities)
+    {
+        if (manifest.ManifestVersion != 3
+            || !PluginSemanticVersion.TryParse(manifest.ContractVersion, out var required)
+            || required.Major != hostContractVersion.Major
+            || required.CompareTo(hostContractVersion) > 0
+            || !Supports(manifest, hostVersion, CurrentPortableApiVersion, platform)) return false;
+        return PluginCapabilityNegotiation.CanActivate(manifest,
+            new ManifestBoundCapabilityProvider(manifest, capabilities));
+    }
+
     public static bool Supports(PluginManifest manifest, Version hostVersion, int apiVersion, string platform)
     {
         if (manifest.ManifestVersion is < 1 or > 3 || manifest.PluginApiVersion > apiVersion
