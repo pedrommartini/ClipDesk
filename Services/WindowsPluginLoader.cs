@@ -62,7 +62,7 @@ public sealed class WindowsPluginLoader
 
     public FrameworkElement? CreateBody(string pluginId, PluginState state, bool isDarkMode, bool isEditing,
         double width, double height, double scale, string accentColor, Action beforeChange, Action<PluginState, bool> changed,
-        Action<PluginHostAction> hostAction, Action<WindowsPluginViewContext>? contextReady = null)
+        Action<PluginHostAction> hostAction, Action<WindowsPluginViewContext>? contextReady = null, double viewportZoom = 1)
     {
         try
         {
@@ -93,6 +93,7 @@ public sealed class WindowsPluginLoader
             var execution = new PluginExecutionContext(new PluginNetworkClient(package.Manifest.NetworkHosts ?? []), package.Manifest.Permissions ?? []);
             var viewContext = new WindowsPluginViewContext(loaded.Module, state, execution, isDarkMode, isEditing,
                 width, height, scale, accentColor, beforeChange, changed, hostAction);
+            viewContext.UpdateViewportZoom(viewportZoom);
             var body = loaded.Renderer.CreateBody(viewContext);
             contextReady?.Invoke(viewContext);
             return body;

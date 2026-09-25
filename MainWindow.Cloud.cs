@@ -872,6 +872,7 @@ public partial class MainWindow
         {
             var zoomChanged=Math.Abs(_workspaceZoom-zoom)>.00005;
             _workspaceZoom=zoom;
+            if(zoomChanged)UpdatePluginViewportZoom();
             if(Math.Abs(ZoomSlider.Value-zoom*100)>.005)ZoomSlider.Value=zoom*100;
             if(zoomChanged)
             {

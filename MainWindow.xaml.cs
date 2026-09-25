@@ -2873,6 +2873,7 @@ public partial class MainWindow : Window
         _workspaceZoom = state is null
             ? Math.Clamp(_appearanceSettings.WorkspaceZoom, BoardViewport.MinimumZoom, BoardViewport.MaximumZoom)
             : Math.Clamp(state.Zoom, BoardViewport.MinimumZoom, BoardViewport.MaximumZoom);
+        UpdatePluginViewportZoom();
         ZoomSlider.Value = _workspaceZoom * 100;
         Dispatcher.BeginInvoke(() =>
         {
@@ -3030,6 +3031,7 @@ public partial class MainWindow : Window
                 (WorkspaceScroll.VerticalOffset + _zoomAnimationScreenAnchor.Y) / displayed);
         }
         _workspaceZoom = Math.Clamp(e.NewValue / 100d, BoardViewport.MinimumZoom, 1d);
+        UpdatePluginViewportZoom();
         if (IsLoaded)
         {
             var currentExtentScale = WorkspaceExtentHost.Width > 0

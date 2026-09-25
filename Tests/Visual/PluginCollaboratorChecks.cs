@@ -117,6 +117,15 @@ internal static class PluginCollaboratorChecks
         context.UpdateLayout(context.Width * 2, context.Height * 2, 3.2);
         if (track.Height > 4 || thumb.Width > 14 || slider.Height < 28)
             throw new Exception("The Minimal slider loses its compact visuals or pointer target at large scales.");
+        context.UpdateViewportZoom(.54);
+        if (Math.Abs(track.Height * context.ViewportZoom - 4) > .01
+            || Math.Abs(thumb.Width * context.ViewportZoom - 14) > .01
+            || Math.Abs(thumb.BorderThickness.Left * context.ViewportZoom - 2) > .01
+            || Math.Abs(slider.Height * context.ViewportZoom - 34) > .01)
+            throw new Exception("The Minimal slider no longer matches its HTML dimensions at 54% board zoom.");
+        context.UpdateViewportZoom(1);
+        if (Math.Abs(track.Height - 4) > .01 || Math.Abs(thumb.Width - 14) > .01)
+            throw new Exception("The Minimal slider did not return to its HTML dimensions at 100% board zoom.");
     }
 
     private static void AwaitWithDispatcher(Task task)
