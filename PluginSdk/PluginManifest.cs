@@ -40,7 +40,8 @@ public sealed class PluginManifest
     public IReadOnlyList<PluginPlatformExtension> PlatformExtensions { get; init; } = [];
 
     public PluginRendererEntryPoint? RendererFor(string platform) =>
-        (Renderers ?? []).FirstOrDefault(renderer => renderer.Platform.Equals(platform, StringComparison.OrdinalIgnoreCase));
+        (Renderers ?? []).FirstOrDefault(renderer => renderer is not null
+            && string.Equals(renderer.Platform, platform, StringComparison.OrdinalIgnoreCase));
 }
 
 public class PluginEntryPoint

@@ -116,11 +116,22 @@ public sealed class PluginCapabilityRegistry : IPluginCapabilityProvider
     public void Register<T>(PluginCapabilityDescriptor descriptor, T service) where T : class
     {
         if (string.IsNullOrWhiteSpace(descriptor.Id)) throw new ArgumentException("Capability ID is required.", nameof(descriptor));
+        ArgumentNullException.ThrowIfNull(service);
+        var requiredPermission = PluginHostCapabilityIds.RequiredPermission(descriptor.Id);
+        if (requiredPermission is not null
+            && !string.Equals(requiredPermission, descriptor.Permission, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"Capability '{descriptor.Id}' exige permission '{requiredPermission}' no registro do host.", nameof(descriptor));
+        var serviceType = PluginHostCapabilityIds.ServiceType(descriptor.Id);
+        if (serviceType is not null && !serviceType.IsInstanceOfType(service))
+            throw new ArgumentException($"Capability '{descriptor.Id}' requer serviço {serviceType.Name}.", nameof(service));
         _services.Add(descriptor.Id, (descriptor, service));
     }
 
     public PluginCapabilityResult<T> Resolve<T>(string id, PluginSemanticVersion minimumVersion) where T : class
     {
+        var serviceType = PluginHostCapabilityIds.ServiceType(id);
+        if (serviceType is not null && typeof(T) != serviceType)
+            return new(PluginCapabilityStatus.TypeMismatch, null);
         var status = Inspect(id, minimumVersion);
         if (status != PluginCapabilityStatus.Available) return new(status, null);
         var entry = _services[id];
@@ -194,9 +205,28 @@ public sealed class ManifestBoundCapabilityProvider : IPluginCapabilityProvider
 
     public PluginCapabilityResult<T> Resolve<T>(string id, PluginSemanticVersion minimumVersion) where T : class
     {
+        var serviceType = PluginHostCapabilityIds.ServiceType(id);
+        if (serviceType is not null && typeof(T) != serviceType)
+            return new(PluginCapabilityStatus.TypeMismatch, null);
         var status = Inspect(id, minimumVersion);
-        return status == PluginCapabilityStatus.Available
-            ? _host.Resolve<T>(id, minimumVersion)
-            : new(status, null);
+        if (status != PluginCapabilityStatus.Available) return new(status, null);
+        var resolved = _host.Resolve<T>(id, minimumVersion);
+        if (resolved.Available && typeof(T) == typeof(IPluginHttp))
+            return new(PluginCapabilityStatus.Available,
+                (T)(object)new ManifestBoundHttp((IPluginHttp)(object)resolved.Value!, _manifest.NetworkHosts ?? []));
+        return resolved;
+    }
+
+    private sealed class ManifestBoundHttp(IPluginHttp inner, IEnumerable<string> hosts) : IPluginHttp
+    {
+        private readonly HashSet<string> _allowed = new(hosts, StringComparer.OrdinalIgnoreCase);
+
+        public ValueTask<PluginHttpResponse> SendAsync(PluginHttpRequest request, CancellationToken cancellationToken = default)
+        {
+            if (!request.Uri.IsAbsoluteUri || request.Uri.Scheme != Uri.UriSchemeHttps
+                || !_allowed.Contains(request.Uri.IdnHost))
+                throw new UnauthorizedAccessException("O domínio HTTPS não foi declarado em networkHosts.");
+            return inner.SendAsync(request, cancellationToken);
+        }
     }
 }

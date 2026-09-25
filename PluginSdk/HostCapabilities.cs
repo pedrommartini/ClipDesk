@@ -11,9 +11,40 @@ public static class PluginHostCapabilityIds
     public const string AudioOutput = "host.audio-output";
     public const string ImageProcessing = "host.image-processing";
     public const string SystemAudio = "host.system-audio";
-    public const string Clipboard = "host.clipboard";
+    public const string ClipboardRead = "host.clipboard-read";
+    public const string ClipboardWrite = "host.clipboard-write";
     public const string Notifications = "host.notifications";
     public const string BackgroundTasks = "host.background-tasks";
+
+    public static string? RequiredPermission(string? id) => id?.ToLowerInvariant() switch
+    {
+        Http => PluginPermissions.Network,
+        FileRead => PluginPermissions.FileRead,
+        FileWrite => PluginPermissions.FileWrite,
+        AudioInput => PluginPermissions.Microphone,
+        SystemAudio => PluginPermissions.SystemAudio,
+        ClipboardRead => PluginPermissions.ClipboardRead,
+        ClipboardWrite => PluginPermissions.ClipboardWrite,
+        Notifications => PluginPermissions.Notifications,
+        _ => null
+    };
+
+    public static Type? ServiceType(string? id) => id?.ToLowerInvariant() switch
+    {
+        Http => typeof(IPluginHttp),
+        FileRead => typeof(IPluginFileRead),
+        FileWrite => typeof(IPluginFileWrite),
+        Storage => typeof(IPluginStorage),
+        AudioInput => typeof(IPluginAudioInput),
+        AudioOutput => typeof(IPluginAudioOutput),
+        SystemAudio => typeof(IPluginAudioInput),
+        ImageProcessing => typeof(IPluginImageProcessing),
+        ClipboardRead => typeof(IPluginClipboardRead),
+        ClipboardWrite => typeof(IPluginClipboardWrite),
+        Notifications => typeof(IPluginNotifications),
+        BackgroundTasks => typeof(IPluginBackgroundTasks),
+        _ => null
+    };
 }
 
 /// <summary>Opaque file handle. A web or mobile host need not expose filesystem paths.</summary>
@@ -74,9 +105,13 @@ public interface IPluginImageProcessing
         IReadOnlyDictionary<string, string> options, CancellationToken cancellationToken = default);
 }
 
-public interface IPluginClipboard
+public interface IPluginClipboardRead
 {
     ValueTask<string?> ReadTextAsync(CancellationToken cancellationToken = default);
+}
+
+public interface IPluginClipboardWrite
+{
     ValueTask WriteTextAsync(string text, CancellationToken cancellationToken = default);
 }
 

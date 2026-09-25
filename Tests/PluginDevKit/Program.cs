@@ -16,6 +16,8 @@ foreach (var platform in new[] { PluginPlatforms.Windows, PluginPlatforms.Web, P
 Check(!PluginCompatibility.Supports(manifest, new Version(1, 0), 2, PluginPlatforms.Windows), "legacy host rejects v3");
 Check(PluginManifestValidator.ValidateJson(manifestJson.Replace("\"minimumVersion\"", "\"minVersion\"")).Any(x => x.Code == "CDK001"), "unknown field");
 Check(PluginManifestValidator.ValidateJson(manifestJson.Replace("\"microphone\", \"file.write\"", "\"file.write\"")).Any(x => x.Code == "CDK015"), "permission declaration");
+Check(PluginManifestValidator.ValidateJson(manifestJson.Replace("\"id\": \"clipdesk.audio-notes\"", "\"id\": null")).Any(x => x.Code == "CDK002"), "null manifest field");
+Check(PluginManifestValidator.ValidateJson(manifestJson.Replace("\"requirements\": [", "\"requirements\": [null,")).Any(x => x.Code == "CDK001"), "null requirement");
 
 var denied = new PluginCapabilityRegistry([], []);
 denied.Register(new PluginCapabilityDescriptor(PluginHostCapabilityIds.AudioInput, new(1, 0, 0), PluginPermissions.Microphone), new FakeAudio());
@@ -24,9 +26,16 @@ var declared = new PluginCapabilityRegistry([PluginPermissions.Microphone], []);
 declared.Register(new PluginCapabilityDescriptor(PluginHostCapabilityIds.AudioInput, new(1, 0, 0), PluginPermissions.Microphone), new FakeAudio());
 Check(declared.Resolve<IPluginAudioInput>(PluginHostCapabilityIds.AudioInput, new(1, 0, 0)).Status == PluginCapabilityStatus.PermissionDenied, "denied permission");
 var granted = new PluginCapabilityRegistry([PluginPermissions.Microphone, PluginPermissions.FileWrite], [PluginPermissions.Microphone, PluginPermissions.FileWrite]);
+try
+{
+    granted.Register(new PluginCapabilityDescriptor(PluginHostCapabilityIds.AudioInput, new(1, 0, 0)), new FakeAudio());
+    throw new Exception("Sensitive capability without descriptor permission accepted.");
+}
+catch (ArgumentException) { }
 granted.Register(new PluginCapabilityDescriptor(PluginHostCapabilityIds.AudioInput, new(1, 0, 0), PluginPermissions.Microphone), new FakeAudio());
 granted.Register(new PluginCapabilityDescriptor(PluginHostCapabilityIds.FileWrite, new(1, 0, 0), PluginPermissions.FileWrite), new FakeFiles());
 Check(granted.Resolve<IPluginAudioInput>(PluginHostCapabilityIds.AudioInput, new(2, 0, 0)).Status == PluginCapabilityStatus.VersionUnsupported, "major version");
+Check(granted.Resolve<object>(PluginHostCapabilityIds.AudioInput, new(1, 0, 0)).Status == PluginCapabilityStatus.TypeMismatch, "capability type erasure blocked");
 Check(PluginCapabilityNegotiation.CanActivate(manifest, denied), "optional capability fallback");
 Check(new ManifestBoundCapabilityProvider(manifest, granted).Inspect(PluginHostCapabilityIds.Http, new(1, 0, 0))
     == PluginCapabilityStatus.PermissionNotDeclared, "undeclared capability");
@@ -103,6 +112,23 @@ var checklistResult = await checklist.ExecuteAsync(checklist.CreateDefaultState(
 Check(ChecklistModule.ReadItems(checklistResult.State).Count == 4, "checklist v3");
 var networkCapabilities = new PluginCapabilityRegistry([PluginPermissions.Network], [PluginPermissions.Network]);
 networkCapabilities.Register(new PluginCapabilityDescriptor(PluginHostCapabilityIds.Http, new(1, 0, 0), PluginPermissions.Network), new FakeHttp());
+var networkManifest = new PluginManifest
+{
+    Requirements = [new PluginCapabilityRequirement
+    { Id = PluginHostCapabilityIds.Http, MinimumVersion = "1.0.0", Permission = PluginPermissions.Network }],
+    Permissions = [PluginPermissions.Network], NetworkHosts = ["api.frankfurter.dev"]
+};
+var boundedHttp = new ManifestBoundCapabilityProvider(networkManifest, networkCapabilities)
+    .Resolve<IPluginHttp>(PluginHostCapabilityIds.Http, new(1, 0, 0));
+Check(boundedHttp.Available, "bounded HTTP capability");
+Check((await boundedHttp.Value!.SendAsync(new PluginHttpRequest(new Uri("https://api.frankfurter.dev/v2/rates")))).StatusCode == 200,
+    "declared HTTP host");
+try
+{
+    await boundedHttp.Value!.SendAsync(new PluginHttpRequest(new Uri("https://unlisted.example/path")));
+    throw new Exception("Undeclared HTTP host accepted.");
+}
+catch (UnauthorizedAccessException) { }
 var translator = (IClipDeskPluginModuleV3)new TranslatorModule();
 var translatorState = translator.CreateDefaultState().With("input", "Hello");
 var translated = await translator.ExecuteAsync(translatorState, new PluginCommand("translate"), networkCapabilities);
