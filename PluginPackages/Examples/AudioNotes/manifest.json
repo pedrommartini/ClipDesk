@@ -1,0 +1,31 @@
+{
+  "manifestVersion": 3,
+  "id": "clipdesk.audio-notes",
+  "name": "Notas de áudio",
+  "description": "Exemplo portátil de gravação com fallback quando o microfone não está disponível.",
+  "version": "1.0.0",
+  "runtime": "portable-v3",
+  "pluginApiVersion": 3,
+  "contractVersion": "3.0.0",
+  "stateVersion": 1,
+  "module": { "registration": "clipdesk.audio-notes.module" },
+  "platforms": ["windows", "web", "android", "ios"],
+  "renderers": [
+    { "platform": "windows", "runtime": "host-ui", "registration": "clipdesk.audio-notes.windows" },
+    { "platform": "web", "runtime": "host-ui", "registration": "clipdesk.audio-notes.web" },
+    { "platform": "android", "runtime": "host-ui", "registration": "clipdesk.audio-notes.android" },
+    { "platform": "ios", "runtime": "host-ui", "registration": "clipdesk.audio-notes.ios" }
+  ],
+  "permissions": ["microphone", "file.write"],
+  "requirements": [
+    { "id": "host.audio-input", "minimumVersion": "1.0.0", "permission": "microphone", "optional": true },
+    { "id": "host.file-write", "minimumVersion": "1.0.0", "permission": "file.write", "optional": true }
+  ],
+  "layout": {
+    "minimum": { "width": 160, "height": 120 },
+    "preferred": { "width": 320, "height": 260 },
+    "compactBelowWidth": 220,
+    "allowScroll": true
+  },
+  "networkHosts": []
+}

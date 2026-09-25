@@ -1,4 +1,6 @@
-# ClipDesk Plugin AI DevKit — especificação autossuficiente
+# ClipDesk Plugin AI DevKit — especificação Windows v2
+
+Este arquivo preserva o caminho compatível com o host Windows atual. Para o contrato comum v3 e o estado de suporte Web/Mobile, consulte [Dev Kit oficial](PLUGIN-DEVKIT.md).
 
 Use este arquivo junto com `ClipDesk-Plugin-AI-DevKit.zip`. Ele é a especificação completa para criar um plugin ClipDesk v2 sem analisar a codebase do aplicativo.
 

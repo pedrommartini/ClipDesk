@@ -6,6 +6,10 @@ param(
 $ErrorActionPreference = 'Stop'
 $moduleDirectory = (Resolve-Path -LiteralPath $PluginDirectory).Path
 $manifestPath = Join-Path $moduleDirectory 'manifest.json'
+$kitRoot = Split-Path $PSScriptRoot -Parent
+$validatorProject = Join-Path $kitRoot 'PluginDevKit.Tool\ClipDesk.PluginDevKit.Tool.csproj'
+dotnet run --project $validatorProject -- $manifestPath $moduleDirectory
+if ($LASTEXITCODE -ne 0) { throw 'Validação do Dev Kit falhou. Corrija os erros CDK acima antes de empacotar.' }
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 $projects = @(Get-ChildItem -LiteralPath $moduleDirectory -Filter '*.csproj' -File)
 if ($projects.Count -ne 1) { throw 'O diretório do plugin deve conter exatamente um projeto .csproj.' }
@@ -82,5 +86,12 @@ try {
     } | ConvertTo-Json -Depth 5
 }
 finally {
-    if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
+    if (Test-Path -LiteralPath $staging) {
+        $resolvedStaging = [IO.Path]::GetFullPath($staging)
+        $outputPrefix = $output.TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+        if (-not $resolvedStaging.StartsWith($outputPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Diretório temporário fora do destino esperado: $resolvedStaging"
+        }
+        Remove-Item -LiteralPath $resolvedStaging -Recurse -Force
+    }
 }

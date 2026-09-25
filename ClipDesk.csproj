@@ -21,7 +21,7 @@
   <ItemGroup>
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
-    <Compile Remove="Core\**\*.cs;PluginSdk\**\*.cs;PluginSdk.Windows\**\*.cs;PluginPackages\**\*.cs;Tests\**\*.cs;Server\**\*.cs;Updater\**\*.cs;Installer\**\*.cs;tmp\**\*.cs;Models\Clipboard*.cs;Models\WorkspaceBoard.cs" />
+    <Compile Remove="Core\**\*.cs;PluginSdk\**\*.cs;PluginSdk.Windows\**\*.cs;PluginDevKit.Tool\**\*.cs;PluginPackages\**\*.cs;Tests\**\*.cs;Server\**\*.cs;Updater\**\*.cs;Installer\**\*.cs;tmp\**\*.cs;Models\Clipboard*.cs;Models\WorkspaceBoard.cs" />
     <Page Remove="Installer\**\*.xaml" />
     <ApplicationDefinition Remove="Installer\App.xaml" />
     <EmbeddedResource Remove="Installer\**\*" />
