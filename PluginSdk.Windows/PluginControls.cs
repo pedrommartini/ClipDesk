@@ -28,9 +28,13 @@ public sealed class PluginSlider : Grid
         Focusable = true;
         Tag = "plugin-interactive";
 
+        // Keep the Minimal visuals compact even when a large board card raises context.Scale.
+        // The Grid height still scales to retain a generous pointer and touch target.
+        static double VisualScale(double scale) => Math.Min(scale, 1);
+
         var track = new Border
         {
-            Height = Math.Clamp(4 * context.Scale, 3, 8),
+            Height = Math.Clamp(4 * VisualScale(context.Scale), 3, 4),
             CornerRadius = new CornerRadius(99),
             Background = PluginControlBrushes.From(context.IsDarkMode ? "#2C3647" : "#E6EAF0"),
             VerticalAlignment = VerticalAlignment.Center,
@@ -47,12 +51,12 @@ public sealed class PluginSlider : Grid
         };
         _thumb = new Border
         {
-            Width = Math.Clamp(14 * context.Scale, 12, 25),
-            Height = Math.Clamp(14 * context.Scale, 12, 25),
+            Width = Math.Clamp(14 * VisualScale(context.Scale), 12, 14),
+            Height = Math.Clamp(14 * VisualScale(context.Scale), 12, 14),
             CornerRadius = new CornerRadius(99),
             Background = Brushes.White,
             BorderBrush = PluginControlBrushes.From(context.AccentColor, "#FF4B55"),
-            BorderThickness = new Thickness(Math.Clamp(2 * context.Scale, 1.5, 3)),
+            BorderThickness = new Thickness(Math.Clamp(2 * VisualScale(context.Scale), 1.5, 2)),
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Center,
             Effect = new DropShadowEffect { BlurRadius = 3, ShadowDepth = 0, Opacity = .18, Color = Colors.Black }
@@ -98,9 +102,9 @@ public sealed class PluginSlider : Grid
         context.LayoutChanged += () =>
         {
             Height = Math.Clamp(28 * context.Scale, 26, 56);
-            _thumb.Width = _thumb.Height = Math.Clamp(14 * context.Scale, 12, 25);
-            _thumb.BorderThickness = new Thickness(Math.Clamp(2 * context.Scale, 1.5, 3));
-            track.Height = _fill.Height = Math.Clamp(4 * context.Scale, 3, 8);
+            _thumb.Width = _thumb.Height = Math.Clamp(14 * VisualScale(context.Scale), 12, 14);
+            _thumb.BorderThickness = new Thickness(Math.Clamp(2 * VisualScale(context.Scale), 1.5, 2));
+            track.Height = _fill.Height = Math.Clamp(4 * VisualScale(context.Scale), 3, 4);
             UpdateVisual();
         };
         _value = Coerce(value);
