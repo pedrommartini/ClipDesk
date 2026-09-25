@@ -20,6 +20,7 @@ public partial class MainWindow : Window
     public MainWindow(string? uninstallPath)
     {
         InitializeComponent();
+        VersionText.Text = $"Versão {typeof(MainWindow).Assembly.GetName().Version?.ToString(3)}";
         BrandTitle.Text = InstallerBrand.AppName;
         ExistingTitle.Text = $"{InstallerBrand.AppName} já está instalado";
         _uninstallPath = uninstallPath;

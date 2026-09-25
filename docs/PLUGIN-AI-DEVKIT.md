@@ -132,6 +132,8 @@ Use os controles do SDK em vez de criar estilos isolados em cada plugin. Todos r
 
 `PluginSliders.Create` cria um slider moderno com trilho preenchido, marcador circular, teclado e clique em qualquer ponto do trilho. O usuário pode clicar ou arrastar sem precisar acertar o marcador.
 
+No Windows, o visual **Minimal** mantém trilho de 4 px, marcador de 14 px, borda de 2 px e área de interação de 34 px na tela mesmo quando a mesa está com zoom reduzido. A cor de destaque vem do contexto do plugin.
+
 ```csharp
 var volume = PluginSliders.Create(
     context, minimum: 0, maximum: 100,
