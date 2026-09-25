@@ -195,6 +195,11 @@ public partial class MainWindow
 
     private async void DeployPluginFromStore()
     {
+        if (PluginPublishingService.ResolveStoreUri() is null)
+        {
+            ShowToast("Publicação direta indisponível. Publique o pacote no feed oficial da main.");
+            return;
+        }
         var username = _cloud?.User?.Username;
         if (_cloud?.Connected != true || string.IsNullOrWhiteSpace(username))
         {

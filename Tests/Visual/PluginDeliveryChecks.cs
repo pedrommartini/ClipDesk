@@ -19,6 +19,8 @@ internal static class PluginDeliveryChecks
 
     public static void Run(Application app)
     {
+        if (PluginDeliveryService.DefaultFeedUrl != PluginDeliveryService.ProductionFeedUrl)
+            throw new Exception("DEV and Production must use the same official plugin feed.");
         var officialFeed = JsonSerializer.Deserialize<PluginFeed>(
             File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "production-feed.json")), Json)
             ?? throw new Exception("Production plugin feed could not be read.");

@@ -246,24 +246,24 @@ O empacotador publica o projeto Windows, confirma as montagens Core e WPF, exclu
 
 Publique o ZIP como asset de pré-lançamento `plugins-<versão>` no repositório oficial. Nunca substitua um ZIP sob a mesma versão; publique uma versão maior.
 
-### Fazer o plugin aparecer no ClipDesk DEV e no ClipDesk New
+### Fazer o plugin aparecer em todos os ClipDesk
 
-DEV e New usam o mesmo catálogo de desenvolvimento, sem alterar o canal do ClipDesk principal:
+As edições DEV, principal e New usam o catálogo oficial da `main`:
 
 | Cliente | Feed padrão | Finalidade |
 | --- | --- | --- |
-| ClipDesk principal | `main/PluginPackages/feed.json` | Produção; não recebe pacotes desta migração |
-| ClipDesk DEV | `codex/clipdesk-dev/PluginPackages/feed.json` | Validação WPF e desenvolvimento diário |
-| ClipDesk New | Mesmo feed de `codex/clipdesk-dev` | Catálogo compartilhado durante a migração |
+| ClipDesk principal | `main/PluginPackages/feed.json` | Catálogo oficial |
+| ClipDesk DEV | `main/PluginPackages/feed.json` | Mesmo catálogo oficial |
+| ClipDesk New | `main/PluginPackages/feed.json` | Mesmo catálogo oficial, quando a loja estiver disponível |
 
-Fluxo de deploy de desenvolvimento:
+Fluxo de publicação:
 
 1. Aumente a versão no projeto e no manifesto, execute os testes e gere o ZIP.
 2. Publique o ZIP como asset do pré-lançamento `plugins-<versão>`. O binário pode ser compartilhado pelos clientes Windows DEV e New enquanto ambos usarem o renderizador WPF. Quando o renderizador MAUI existir, o pacote deverá incluir também sua entrada.
-3. Copie a entrada produzida pelo empacotador para `PluginPackages/feed.json` na branch `codex/clipdesk-dev`, preservando as outras versões desejadas.
-4. Faça commit e push **somente da branch de desenvolvimento**. Confirme que o feed abre em `https://raw.githubusercontent.com/pedrommartini/ClipDesk/refs/heads/codex/clipdesk-dev/PluginPackages/feed.json` e que o SHA-256 corresponde ao asset.
+3. Copie a entrada produzida pelo empacotador para `PluginPackages/feed.json` na branch `main`, preservando as outras versões desejadas.
+4. Faça commit e push da atualização do feed na `main`. Confirme que o feed abre em `https://raw.githubusercontent.com/pedrommartini/ClipDesk/main/PluginPackages/feed.json` e que o SHA-256 corresponde ao asset.
 5. Reinicie o cliente, abra **Mais plug-ins** ou aguarde a verificação periódica. Um plugin novo aparece para instalação; uma versão maior de plugin instalado é atualizada automaticamente. O cliente consulta o feed ao iniciar, ao abrir a loja e a cada 30 minutos, respeitando um intervalo mínimo de 15 minutos e sem executar verificações sobrepostas.
-6. Valide primeiro no DEV. Depois valide no ClipDesk New quando a loja MAUI estiver disponível. Não copie a entrada para `main` enquanto a promoção para produção não tiver aprovação explícita.
+6. Valide o pacote antes da publicação com um feed local de teste. Depois confirme a instalação no ClipDesk DEV e no principal. O deploy de uma nova versão do aplicativo não é necessário para atualizar o catálogo.
 
 Os quatro plugins padrão são incluídos no build e aparecem como instalados mesmo com o feed vazio. O feed é necessário para plugins opcionais e atualizações independentes.
 
@@ -273,18 +273,18 @@ O ClipDesk principal lê `main/PluginPackages/feed.json` sem uma lista fixa de I
 
 Antes do deploy, confirme que o manifesto dentro do ZIP declara o mesmo ID e versão do feed, não inclui DLLs do SDK do host, e carrega no ClipDesk atual. Para plugins que usam controles Windows adicionados após uma versão anterior do aplicativo, aumente `minimumHostVersion` no feed para impedir que uma edição incompatível ofereça a instalação. Depois de publicar, confira a URL do asset e abra a loja no pacote Production. Os próximos plugins entram pelo mesmo feed; não é necessário alterar uma lista de nomes no código da loja.
 
-### Gate de promoção do ClipDesk DEV para o principal
+### Verificações antes de lançar o plugin
 
-O isolamento do feed não significa entregar o ClipDesk principal sem loja. Quando uma versão do DEV for promovida para `main`, a própria loja e o sistema v2 fazem parte da entrega. Antes da promoção:
+Antes de atualizar o feed da `main`:
 
 1. confirme que os quatro plugins padrão estão presentes em `Plugins/Bundled`, com módulo Core, renderizador e manifesto compatíveis;
-2. promova para `main/PluginPackages/feed.json` todas as entradas opcionais aprovadas que devem aparecer na produção — nunca aponte o cliente principal para o feed DEV;
+2. inclua em `main/PluginPackages/feed.json` as entradas opcionais aprovadas que devem aparecer para todos;
 3. confirme que todos os assets anunciados no feed estão publicados, acessíveis e com SHA-256 correto;
-4. compile explicitamente com `-p:ClipDeskEnvironment=Production` e abra **Mais plug-ins**;
+4. teste com um build DEV e um feed local temporário; depois da publicação, abra **Mais plug-ins** no Production;
 5. valide a lista completa: incluídos aparecem como instalados, opcionais aparecem para instalação e atualizações preservam estado;
-6. execute `--plugin-v2`, `--plugin-delivery` e `--plugin-store` antes de concluir o merge/release.
+6. execute `--plugin-v2`, `--plugin-delivery` e `--plugin-store` antes de atualizar o feed oficial.
 
-Uma promoção está incompleta se a interface principal chegar a `main` mas o catálogo aprovado não estiver visível ou instalável.
+Uma publicação está incompleta se o catálogo aprovado não estiver visível ou instalável no aplicativo principal.
 
 Para testar outro feed sem publicar, defina `CLIPDESK_PLUGIN_FEED_URL` antes de abrir um build DEV/New. São aceitos HTTPS ou HTTP em loopback durante desenvolvimento. Exemplo:
 
@@ -293,7 +293,7 @@ $env:CLIPDESK_PLUGIN_FEED_URL = "http://localhost:8080/feed.json"
 dotnet run --project .\ClipDesk.csproj
 ```
 
-Remova a variável ao terminar. Builds de produção continuam usando o feed de `main`; o override não deve ser configurado em instalações de usuário.
+Remova a variável ao terminar. DEV e Production usam o feed de `main` por padrão; o override não deve ser configurado em instalações de usuário. O botão de publicação via servidor exige `CLIPDESK_PLUGIN_STORE_URL` apontando explicitamente para um serviço compartilhado. Sem esse serviço, publique ZIP e entrada do feed diretamente no GitHub conforme os passos acima.
 
 Os limites são 25 MiB compactado, 80 MiB extraído e 256 arquivos. O hash evita troca/corrupção relativa ao feed, mas não transforma código de terceiros em código confiável.
 

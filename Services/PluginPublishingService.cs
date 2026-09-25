@@ -26,11 +26,7 @@ public sealed class PluginPublishingService
         if (Uri.TryCreate(configured, UriKind.Absolute, out var uri)
             && (uri.Scheme == Uri.UriSchemeHttps || AppEnvironment.IsDevelopment && uri.IsLoopback && uri.Scheme == Uri.UriSchemeHttp))
             return uri;
-#if CLIPDESK_DEV
-        return new Uri("http://127.0.0.1:5278/");
-#else
         return null;
-#endif
     }
 
     public async Task<PluginPublishResult> PublishAsync(string archivePath, string username, string deployPassword,

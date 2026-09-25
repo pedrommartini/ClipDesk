@@ -106,7 +106,7 @@ Cada versão ocupa um diretório imutável. O catálogo valida manifesto, compat
 
 O ZIP remoto mantém os limites atuais: 25 MiB compactado, 80 MiB extraído e 256 entradas. O SHA-256 é validado antes da instalação e caminhos que escapam do pacote são rejeitados. O feed v1 aceita metadados de manifesto v1 ou v2; para v2 ele inclui `module`, `renderers`, `stateVersion`, permissões, capacidades e hosts.
 
-Existem canais independentes. Produção consulta o feed de `main`; builds DEV e ClipDesk New consultam o feed de `codex/clipdesk-dev`. Dessa forma, testar ou atualizar plugins durante a migração não os publica para o ClipDesk principal. `CLIPDESK_PLUGIN_FEED_URL` permite um feed local apenas para desenvolvimento.
+O catálogo oficial é único: DEV, Production e ClipDesk New consultam `main/PluginPackages/feed.json`. Publicar um ZIP no GitHub não basta: sua entrada com URL e SHA-256 precisa entrar nesse feed para aparecer a todos, sem esperar uma nova versão do aplicativo. `CLIPDESK_PLUGIN_FEED_URL` permite apontar um build de teste para um feed temporário. A loja adicional por servidor só é usada quando `CLIPDESK_PLUGIN_STORE_URL` estiver configurada explicitamente para um endereço compartilhado; não há servidor local implícito no DEV.
 
 Plugins incluídos ficam em `Plugins/Bundled`. O build compila e copia os dois binários de cada plugin padrão para sua pasta. Plugins opcionais ficam em Documentos; atualizações dos incluídos ficam no cache privado, preservando a versão embarcada como fallback.
 
