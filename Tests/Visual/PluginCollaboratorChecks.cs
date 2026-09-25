@@ -111,6 +111,8 @@ internal static class PluginCollaboratorChecks
         var slider = Find(body) ?? throw new Exception("A collaborator plugin no longer uses the global SDK slider.");
         var track = (Border)slider.Children[0];
         var thumb = (Border)slider.Children[2];
+        var defaultWidth = context.Width;
+        var defaultHeight = context.Height;
         context.UpdateLayout(context.Width * 1.6, context.Height * 1.6, 1.6);
         if (track.Height > 4 || thumb.Width > 14 || thumb.Height > 14 || thumb.BorderThickness.Left > 2)
             throw new Exception("The Minimal slider grows back to the old design on an enlarged plugin card.");
@@ -118,6 +120,10 @@ internal static class PluginCollaboratorChecks
         if (track.Height > 4 || thumb.Width > 14 || slider.Height < 28)
             throw new Exception("The Minimal slider loses its compact visuals or pointer target at large scales.");
         context.UpdateViewportZoom(.54);
+        context.UpdateLayout(defaultWidth, defaultHeight, 1);
+        body.Measure(new Size(defaultWidth, defaultHeight));
+        body.Arrange(new Rect(0, 0, defaultWidth, defaultHeight));
+        body.UpdateLayout();
         if (Math.Abs(track.Height * context.ViewportZoom - 4) > .01
             || Math.Abs(thumb.Width * context.ViewportZoom - 14) > .01
             || Math.Abs(thumb.BorderThickness.Left * context.ViewportZoom - 2) > .01
