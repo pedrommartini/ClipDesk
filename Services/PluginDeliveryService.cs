@@ -62,12 +62,7 @@ public sealed class PluginFeedPackage
 public sealed class PluginDeliveryService
 {
     public const string ProductionFeedUrl = "https://raw.githubusercontent.com/pedrommartini/ClipDesk/main/PluginPackages/feed.json";
-    public const string DevelopmentFeedUrl = "https://raw.githubusercontent.com/pedrommartini/ClipDesk/refs/heads/codex/clipdesk-dev/PluginPackages/feed.json";
-#if CLIPDESK_DEV
-    public const string DefaultFeedUrl = DevelopmentFeedUrl;
-#else
     public const string DefaultFeedUrl = ProductionFeedUrl;
-#endif
     private const long MaximumZipBytes = 25L * 1024 * 1024;
     private const long MaximumExtractedBytes = 80L * 1024 * 1024;
     private static readonly Regex Sha256Pattern = new("^[a-fA-F0-9]{64}$", RegexOptions.Compiled);

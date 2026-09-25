@@ -298,11 +298,10 @@ O modelo que cria o plugin **não deve publicar nem editar o feed** salvo ordem 
 
 1. revisar código e pacote;
 2. publicar o ZIP como asset do pré-lançamento `plugins-<versão>`;
-3. adicionar a entrada gerada a `PluginPackages/feed.json` na branch `codex/clipdesk-dev`;
-4. validar na loja do ClipDesk DEV e, quando disponível, ClipDesk New;
-5. manter `main` intacta até aprovação de produção.
+3. adicionar a entrada gerada a `PluginPackages/feed.json` na branch `main` do repositório oficial;
+4. validar na loja do ClipDesk DEV e Production e, quando disponível, ClipDesk New;
 
-Na futura promoção DEV → Main, a loja deve ir funcional: plugins padrão aparecem instalados, opcionais aprovados entram no feed de `main`, assets e SHA-256 são verificados e os testes de loja/entrega precisam passar.
+O feed da `main` publica plugins independentemente do deploy de uma nova versão do aplicativo. Plugins padrão aparecem instalados; os opcionais aprovados entram no feed depois da verificação dos assets, do SHA-256 e dos testes de loja/entrega.
 
 O host é responsável pelo ciclo de vida do pacote. A loja oferece **Adicionar**, **Reparar** e **Desinstalar**, e verifica automaticamente versões maiores no feed. Reparar troca somente os arquivos executáveis por uma cópia limpa; desinstalar não apaga o `PluginState` das instâncias. Portanto, toda versão publicada deve continuar normalizando estados antigos, e o plugin nunca deve implementar limpeza de pacote ou atualização por conta própria.
 
