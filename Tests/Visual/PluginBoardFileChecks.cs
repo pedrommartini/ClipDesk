@@ -39,7 +39,7 @@ internal static class PluginBoardFileChecks
             sourceView.PluginHostActionRequested += (_, action) =>
                 forwarded = action.Kind == PluginHostActionKind.AddFilesToBoard && action.BoardFiles?.Files.Count == 2;
             var request = new PluginBoardFileRequest([
-                PluginBoardFile.FromPath(sourcePath, "Referência.txt"),
+                WindowsPluginFiles.FromPath(sourcePath, "Referência.txt"),
                 PluginBoardFile.FromContent("Relatório.csv", "nome,valor\nClipDesk,1"u8.ToArray())
             ]);
             var action = PluginHostAction.AddFiles(request);
@@ -78,7 +78,7 @@ internal static class PluginBoardFileChecks
             try
             {
                 AwaitWithDispatcher((Task<int>)add.Invoke(window, [sourceView, denied, new PluginBoardFileRequest([
-                    PluginBoardFile.FromPath(sourcePath)
+                    WindowsPluginFiles.FromPath(sourcePath)
                 ])])!);
                 throw new Exception("A plugin without file permissions added a local file.");
             }

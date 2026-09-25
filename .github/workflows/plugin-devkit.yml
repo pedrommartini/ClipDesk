@@ -1,0 +1,53 @@
+name: Validar Dev Kit de plugins
+
+on:
+  push:
+    paths:
+      - "PluginSdk/**"
+      - "PluginDevKit.Tool/**"
+      - "PluginPackages/Examples/**"
+      - "PluginPackages/Modules/**"
+      - "PluginPackages/Templates/**"
+      - "Tests/PluginDevKit/**"
+      - ".github/workflows/plugin-devkit.yml"
+  pull_request:
+    paths:
+      - "PluginSdk/**"
+      - "PluginDevKit.Tool/**"
+      - "PluginPackages/Examples/**"
+      - "PluginPackages/Modules/**"
+      - "PluginPackages/Templates/**"
+      - "Tests/PluginDevKit/**"
+      - ".github/workflows/plugin-devkit.yml"
+
+jobs:
+  portable-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Compilar e exercitar contrato
+        run: dotnet run --project Tests/PluginDevKit/ClipDesk.PluginDevKit.Checks.csproj -c Release
+      - name: Compilar validador
+        run: dotnet build PluginDevKit.Tool/ClipDesk.PluginDevKit.Tool.csproj -c Release
+      - name: Validar exemplos, template e plugins padrão
+        shell: bash
+        run: |
+          for manifest in PluginPackages/Examples/*/manifest.json PluginPackages/Templates/*/manifest.json PluginPackages/Modules/*/manifest.json; do
+            dotnet run --project PluginDevKit.Tool/ClipDesk.PluginDevKit.Tool.csproj -c Release --no-build -- "$manifest" "$(dirname "$manifest")"
+          done
+      - name: Confirmar bloqueio de WPF no Core
+        shell: bash
+        run: |
+          fixture="$(mktemp -d)"
+          trap 'rm -rf "$fixture"' EXIT
+          mkdir "$fixture/Core"
+          cp PluginPackages/Examples/AudioNotes/manifest.json "$fixture/manifest.json"
+          printf '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup></Project>' > "$fixture/Core/Probe.csproj"
+          printf 'using System.Windows;\n' > "$fixture/Core/Probe.cs"
+          if dotnet run --project PluginDevKit.Tool/ClipDesk.PluginDevKit.Tool.csproj -c Release --no-build -- "$fixture/manifest.json" "$fixture" > "$fixture/result.txt" 2>&1; then
+            echo "Core WPF was accepted"; exit 1
+          fi
+          grep -q CDK024 "$fixture/result.txt"

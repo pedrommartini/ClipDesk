@@ -1,0 +1,31 @@
+{
+  "manifestVersion": 3,
+  "id": "clipdesk.image-compressor-example",
+  "name": "Compressor de imagem",
+  "description": "Exemplo de fluxo portátil com arquivos e codec do host.",
+  "version": "1.0.0",
+  "runtime": "portable-v3",
+  "pluginApiVersion": 3,
+  "contractVersion": "3.0.0",
+  "stateVersion": 1,
+  "module": { "registration": "clipdesk.image-compressor-example.module" },
+  "platforms": ["windows", "web", "android", "ios"],
+  "renderers": [
+    { "platform": "windows", "runtime": "host-ui", "registration": "clipdesk.image-compressor-example.windows" },
+    { "platform": "web", "runtime": "host-ui", "registration": "clipdesk.image-compressor-example.web" },
+    { "platform": "android", "runtime": "host-ui", "registration": "clipdesk.image-compressor-example.android" },
+    { "platform": "ios", "runtime": "host-ui", "registration": "clipdesk.image-compressor-example.ios" }
+  ],
+  "permissions": ["file.read", "file.write"],
+  "requirements": [
+    { "id": "host.file-read", "minimumVersion": "1.0.0", "permission": "file.read", "optional": true },
+    { "id": "host.file-write", "minimumVersion": "1.0.0", "permission": "file.write", "optional": true },
+    { "id": "host.image-processing", "minimumVersion": "1.0.0", "optional": true }
+  ],
+  "layout": {
+    "minimum": { "width": 180, "height": 140 },
+    "preferred": { "width": 360, "height": 280 },
+    "compactBelowWidth": 240,
+    "allowScroll": true
+  }
+}

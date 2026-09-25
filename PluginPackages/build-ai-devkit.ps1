@@ -9,16 +9,28 @@ $kitRoot = Join-Path $stagingRoot 'ClipDesk-Plugin-AI-DevKit'
 
 try {
     New-Item -ItemType Directory -Path $kitRoot | Out-Null
-    Copy-Item -LiteralPath (Join-Path $repositoryRoot 'docs\PLUGIN-AI-DEVKIT.md') -Destination (Join-Path $kitRoot 'README-AI.md')
+    Copy-Item -LiteralPath (Join-Path $repositoryRoot 'docs\PLUGIN-DEVKIT.md') -Destination (Join-Path $kitRoot 'README.md')
     Copy-Item -LiteralPath (Join-Path $repositoryRoot 'PluginSdk') -Destination $kitRoot -Recurse
     Copy-Item -LiteralPath (Join-Path $repositoryRoot 'PluginSdk.Windows') -Destination $kitRoot -Recurse
+    Copy-Item -LiteralPath (Join-Path $repositoryRoot 'PluginDevKit.Tool') -Destination $kitRoot -Recurse
+    $kitDocs = $kitRoot
+    Copy-Item -LiteralPath (Join-Path $repositoryRoot 'docs\PLUGIN-ARCHITECTURE.md') -Destination $kitDocs
+    Copy-Item -LiteralPath (Join-Path $repositoryRoot 'docs\PLUGIN-DEVKIT-PLAN.md') -Destination $kitDocs
+    Copy-Item -LiteralPath (Join-Path $repositoryRoot 'docs\PLUGIN-MIGRATION.md') -Destination $kitDocs
+    Copy-Item -LiteralPath (Join-Path $repositoryRoot 'docs\PLUGIN-AI-DEVKIT.md') -Destination $kitDocs
 
     $modules = Join-Path $kitRoot 'PluginPackages\Modules'
     New-Item -ItemType Directory -Path $modules -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Templates\Starter') -Destination $modules -Recurse
+    $examples = Join-Path $kitRoot 'PluginPackages\Examples'
+    New-Item -ItemType Directory -Path $examples -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Examples\AudioNotes') -Destination $examples -Recurse
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Examples\ImageCompressor') -Destination $examples -Recurse
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'pack-plugin.ps1') -Destination (Join-Path $kitRoot 'PluginPackages')
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'pack-reviewed-plugin.ps1') -Destination (Join-Path $kitRoot 'PluginPackages')
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'create-feed-draft.ps1') -Destination (Join-Path $kitRoot 'PluginPackages')
+    dotnet run --project (Join-Path $repositoryRoot 'PluginDevKit.Tool\ClipDesk.PluginDevKit.Tool.csproj') -- --schema (Join-Path $kitRoot 'manifest-v3.schema.json')
+    if ($LASTEXITCODE -ne 0) { throw 'Não foi possível gerar o schema do manifesto.' }
 
     Get-ChildItem -LiteralPath $kitRoot -Directory -Recurse |
         Where-Object { $_.Name -in @('bin', 'obj') } |

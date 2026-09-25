@@ -163,7 +163,7 @@ public sealed class TtsView : Grid, IDisposable
         var existingAudio = context.State.GetAudioFileName();
         if (!string.IsNullOrWhiteSpace(existingAudio))
         {
-            var defaultDir = PluginStoragePaths.GetDefaultDirectory("clipdesk.tts");
+            var defaultDir = WindowsPluginFiles.DefaultDocumentDirectory("clipdesk.tts");
             var existingPath = Path.Combine(defaultDir, existingAudio);
             if (File.Exists(existingPath))
             {
@@ -551,7 +551,7 @@ public sealed class TtsView : Grid, IDisposable
             var audioFile = _context.State.GetAudioFileName();
             if (!string.IsNullOrWhiteSpace(audioFile))
             {
-                var dir = PluginStoragePaths.GetDefaultDirectory("clipdesk.tts");
+                var dir = WindowsPluginFiles.DefaultDocumentDirectory("clipdesk.tts");
                 targetPath = Path.Combine(dir, audioFile);
                 targetName = audioFile;
             }
@@ -563,7 +563,7 @@ public sealed class TtsView : Grid, IDisposable
             return;
         }
 
-        var boardFile = PluginBoardFile.FromPath(targetPath, targetName);
+        var boardFile = WindowsPluginFiles.FromPath(targetPath, targetName);
         var request = new PluginBoardFileRequest(new[] { boardFile });
         _context.RequestHostAction(PluginHostAction.AddFiles(request));
 

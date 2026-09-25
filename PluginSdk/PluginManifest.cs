@@ -33,6 +33,11 @@ public sealed class PluginManifest
     public int StateVersion { get; init; } = 1;
     public IReadOnlyList<string> Capabilities { get; init; } = [PluginCapabilities.BoardWidget];
     public IReadOnlyList<string> NetworkHosts { get; init; } = [];
+    /// <summary>SemVer of the portable contract. Required for manifest v3.</summary>
+    public string? ContractVersion { get; init; }
+    public IReadOnlyList<PluginCapabilityRequirement> Requirements { get; init; } = [];
+    public PluginLayoutSpec? Layout { get; init; }
+    public IReadOnlyList<PluginPlatformExtension> PlatformExtensions { get; init; } = [];
 
     public PluginRendererEntryPoint? RendererFor(string platform) =>
         (Renderers ?? []).FirstOrDefault(renderer => renderer.Platform.Equals(platform, StringComparison.OrdinalIgnoreCase));
@@ -42,6 +47,8 @@ public class PluginEntryPoint
 {
     public string Assembly { get; init; } = "";
     public string Type { get; init; } = "";
+    /// <summary>Static host registration ID for hosts that cannot load assemblies dynamically.</summary>
+    public string? Registration { get; init; }
 }
 
 public sealed class PluginRendererEntryPoint : PluginEntryPoint
@@ -54,6 +61,8 @@ public static class PluginPlatforms
 {
     public const string Windows = "windows";
     public const string Android = "android";
+    public const string Web = "web";
+    public const string Ios = "ios";
 }
 
 public static class PluginRuntimes
@@ -63,6 +72,7 @@ public static class PluginRuntimes
     public const string PortableV2 = "portable-v2";
     public const string WpfV2 = "wpf-v2";
     public const string MauiV1 = "maui-v1";
+    public const string PortableV3 = "portable-v3";
 }
 
 public static class PluginPermissions
@@ -72,6 +82,10 @@ public static class PluginPermissions
     public const string ClipboardWrite = "clipboard.write";
     public const string FileRead = "file.read";
     public const string FileWrite = "file.write";
+    public const string Microphone = "microphone";
+    public const string Camera = "camera";
+    public const string SystemAudio = "system-audio";
+    public const string Notifications = "notifications";
 }
 
 public static class PluginCapabilities
@@ -88,10 +102,11 @@ public static class PluginCompatibility
     public const int LegacyWindowsApiVersion = 1;
     public const int PortableApiVersion = 2;
     public const int WindowsApiVersion = 2;
+    public const int CurrentPortableApiVersion = 3;
 
     public static bool Supports(PluginManifest manifest, Version hostVersion, int apiVersion, string platform)
     {
-        if (manifest.ManifestVersion is < 1 or > 2 || manifest.PluginApiVersion > apiVersion
+        if (manifest.ManifestVersion is < 1 or > 3 || manifest.PluginApiVersion > apiVersion
             || manifest.PluginApiVersion < 0 || manifest.Platforms is null
             || !manifest.Platforms.Contains(platform, StringComparer.OrdinalIgnoreCase)
             || !Version.TryParse(manifest.Version, out _)
@@ -112,6 +127,18 @@ public static class PluginCompatibility
                 && !string.IsNullOrWhiteSpace(manifest.EntryType),
                 _ => false
             };
+        }
+
+        if (manifest.ManifestVersion == 3)
+        {
+            if (manifest.PluginApiVersion != CurrentPortableApiVersion
+                || manifest.Runtime != PluginRuntimes.PortableV3
+                || !PluginSemanticVersion.TryParse(manifest.ContractVersion, out var contract)
+                || contract.Major != 3 || manifest.StateVersion < 1
+                || !IsValidPortableEntry(manifest.Module)
+                || PluginManifestValidator.Validate(manifest).Count != 0) return false;
+            var entry = manifest.RendererFor(platform);
+            return entry is not null && IsValidPortableEntry(entry);
         }
 
         if (manifest.PluginApiVersion != PortableApiVersion
@@ -141,6 +168,11 @@ public static class PluginCompatibility
         && !string.IsNullOrWhiteSpace(entryPoint.Assembly)
         && Path.GetFileName(entryPoint.Assembly).Equals(entryPoint.Assembly, StringComparison.Ordinal)
         && !string.IsNullOrWhiteSpace(entryPoint.Type);
+
+    private static bool IsValidPortableEntry(PluginEntryPoint? entryPoint) =>
+        entryPoint is not null &&
+        (!string.IsNullOrWhiteSpace(entryPoint.Registration)
+         || IsValidEntryPoint(entryPoint));
 }
 
 public sealed class PluginSize

@@ -1,5 +1,7 @@
 # Arquitetura de plugins v2
 
+Documento histórico da implementação Windows/Android planejada na v2. A especificação atual está no [Dev Kit oficial](PLUGIN-DEVKIT.md).
+
 O sistema v2 separa comportamento, apresentação e serviços de plataforma. O objetivo é usar o mesmo módulo, os mesmos comandos e o mesmo estado no WPF atual, no futuro host MAUI para Windows e no Android.
 
 ```text
