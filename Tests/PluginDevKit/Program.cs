@@ -30,6 +30,17 @@ Check(granted.Resolve<IPluginAudioInput>(PluginHostCapabilityIds.AudioInput, new
 Check(PluginCapabilityNegotiation.CanActivate(manifest, denied), "optional capability fallback");
 Check(new ManifestBoundCapabilityProvider(manifest, granted).Inspect(PluginHostCapabilityIds.Http, new(1, 0, 0))
     == PluginCapabilityStatus.PermissionNotDeclared, "undeclared capability");
+var higherRequirement = new PluginManifest
+{
+    Permissions = [PluginPermissions.Microphone],
+    Requirements = [new PluginCapabilityRequirement
+    {
+        Id = PluginHostCapabilityIds.AudioInput, MinimumVersion = "1.1.0", Permission = PluginPermissions.Microphone
+    }]
+};
+Check(new ManifestBoundCapabilityProvider(higherRequirement, granted)
+    .Inspect(PluginHostCapabilityIds.AudioInput, new(1, 0, 0)) == PluginCapabilityStatus.VersionUnsupported,
+    "manifest capability minimum cannot be bypassed");
 var result = await new AudioNotesModule().ExecuteAsync(new PluginState(), new PluginCommand("record"), granted);
 Check(result.Succeeded && result.State.GetString("lastRecording") == "audio-note.pcm" && result.Data?["bytes"] == "3", "advanced command");
 await using (var session = new PluginModuleSession(manifest, new AudioNotesModule(), granted, new InlineScheduler()))
@@ -48,7 +59,7 @@ await using (var faulted = new PluginModuleSession(manifest, new ThrowingModule(
     Check((await faulted.ExecuteAsync(new PluginCommand("record"))).Status == PluginCommandStatus.Failed,
         "module exception is contained");
 }
-var registry = new PluginHostRegistry<string>();
+var registry = new PluginHostRegistry<string>(new(3, 0, 0), new Version(1, 0));
 registry.RegisterModule("clipdesk.audio-notes.module", () => new AudioNotesModule());
 registry.RegisterRenderer("clipdesk.audio-notes.windows", () => new FakeRenderer());
 var viewport = new PluginViewport(320, 260, 1, 1, PluginOrientation.Landscape, PluginInputMode.Mixed);
@@ -65,6 +76,11 @@ try
     throw new Exception("Missing web renderer accepted.");
 }
 catch (InvalidOperationException) { }
+Check(PluginCompatibility.Supports(manifest, new Version(1, 0), new(3, 0, 0), PluginPlatforms.Windows, granted), "contract 3.0");
+var newerManifest = System.Text.Json.JsonSerializer.Deserialize<PluginManifest>(
+    manifestJson.Replace("\"contractVersion\": \"3.0.0\"", "\"contractVersion\": \"3.1.0\""),
+    new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+Check(!PluginCompatibility.Supports(newerManifest, new Version(1, 0), new(3, 0, 0), PluginPlatforms.Windows, granted), "minor version negotiation");
 var unavailable = await new AudioNotesModule().ExecuteAsync(new PluginState(), new PluginCommand("record"), denied);
 Check(unavailable.Status == PluginCommandStatus.Unavailable, "graceful degradation");
 var imageManifestJson = File.ReadAllText(Path.Combine(root, "PluginPackages", "Examples", "ImageCompressor", "manifest.json"));

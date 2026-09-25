@@ -180,6 +180,10 @@ public sealed class ManifestBoundCapabilityProvider : IPluginCapabilityProvider
     {
         var requirement = (_manifest.Requirements ?? []).FirstOrDefault(x => x.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
         if (requirement is null) return PluginCapabilityStatus.PermissionNotDeclared;
+        if (!PluginSemanticVersion.TryParse(requirement.MinimumVersion, out var declaredVersion)
+            || minimumVersion.Major != declaredVersion.Major)
+            return PluginCapabilityStatus.VersionUnsupported;
+        if (minimumVersion.CompareTo(declaredVersion) < 0) minimumVersion = declaredVersion;
         var descriptor = _host.Available.FirstOrDefault(x => x.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
         if (descriptor?.Permission is { } permission
             && (!( _manifest.Permissions ?? []).Contains(permission, StringComparer.OrdinalIgnoreCase)
