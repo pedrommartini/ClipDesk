@@ -5,7 +5,7 @@ using ClipDesk.PluginSdk;
 
 namespace ClipDesk.Plugin.Translator;
 
-public sealed class TranslatorModule : IClipDeskPluginModule
+public sealed class TranslatorModule : IClipDeskPluginModule, IClipDeskPluginModuleV3
 {
     public static readonly IReadOnlyList<PluginOption> Languages =
     [
@@ -35,6 +35,28 @@ public sealed class TranslatorModule : IClipDeskPluginModule
     }
     public async ValueTask<PluginCommandResult> ExecuteAsync(PluginState state, PluginCommand command,
         IPluginExecutionContext context, CancellationToken cancellationToken = default)
+        => await ExecuteCore(state, command, context.HasPermission(PluginPermissions.Network),
+            PluginCommandStatus.PermissionDenied, context.Network.GetStringAsync, cancellationToken);
+
+    public async ValueTask<PluginCommandResult> ExecuteAsync(PluginState state, PluginCommand command,
+        IPluginCapabilityProvider capabilities, CancellationToken cancellationToken = default)
+    {
+        var http = capabilities.Resolve<IPluginHttp>(PluginHostCapabilityIds.Http, new(1, 0, 0));
+        async Task<string> GetString(Uri uri, CancellationToken token)
+        {
+            var response = await http.Value!.SendAsync(new PluginHttpRequest(uri), token);
+            if (response.StatusCode is < 200 or >= 300) throw new InvalidOperationException($"HTTP {response.StatusCode}");
+            return Encoding.UTF8.GetString(response.Body);
+        }
+        return await ExecuteCore(state, command, http.Available,
+            http.Status is PluginCapabilityStatus.PermissionDenied or PluginCapabilityStatus.PermissionNotDeclared
+                ? PluginCommandStatus.PermissionDenied : PluginCommandStatus.Unavailable,
+            GetString, cancellationToken);
+    }
+
+    private async ValueTask<PluginCommandResult> ExecuteCore(PluginState state, PluginCommand command,
+        bool networkAvailable, PluginCommandStatus networkStatus,
+        Func<Uri, CancellationToken, Task<string>> getString, CancellationToken cancellationToken)
     {
         state = NormalizeState(state);
         if (command.Name == "set")
@@ -54,13 +76,13 @@ public sealed class TranslatorModule : IClipDeskPluginModule
         if (command.Name != "translate") return PluginCommandResult.Invalid(state, "Comando desconhecido.");
         var text = state.GetString("input")!.Trim();
         if (text.Length == 0) return new PluginCommandResult(state.With("output", "A tradução aparece aqui"));
-        if (!context.HasPermission(PluginPermissions.Network)) return new PluginCommandResult(state, PluginCommandStatus.PermissionDenied, "Acesso à rede não autorizado.");
+        if (!networkAvailable) return new PluginCommandResult(state, networkStatus, "Acesso à rede não disponível ou não autorizado.");
         var sourceCode = state.GetString("sourceLanguage") == "auto" ? "autodetect" : state.GetString("sourceLanguage");
         var clipped = ClipUtf8(text, 500);
         var uri = new Uri($"https://api.mymemory.translated.net/get?q={Uri.EscapeDataString(clipped)}&langpair={Uri.EscapeDataString(sourceCode!)}%7C{Uri.EscapeDataString(state.GetString("targetLanguage")!)}");
         try
         {
-            var payload = await context.Network.GetStringAsync(uri, cancellationToken);
+            var payload = await getString(uri, cancellationToken);
             using var json = JsonDocument.Parse(payload);
             var translated = json.RootElement.GetProperty("responseData").GetProperty("translatedText").GetString();
             if (string.IsNullOrWhiteSpace(translated)) throw new InvalidOperationException("Resposta vazia.");
