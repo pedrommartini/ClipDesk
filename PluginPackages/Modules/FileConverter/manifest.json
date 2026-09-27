@@ -1,0 +1,66 @@
+{
+  "manifestVersion": 2,
+  "id": "clipdesk.fileconverter",
+  "name": "Conversor de Arquivos",
+  "description": "Converta arquivos locais entre formatos compatíveis (imagens, áudio, vídeo, dados e documentos) com matriz semântica de regras e adição direta à mesa.",
+  "version": "1.1.0",
+  "publisher": "ClipDesk",
+  "iconGlyph": "",
+  "accentColor": "#6366F1",
+  "runtime": "portable-v2",
+  "pluginApiVersion": 2,
+  "stateVersion": 2,
+  "module": {
+    "assembly": "ClipDesk.Plugin.FileConverter.Core.dll",
+    "type": "ClipDesk.Plugin.FileConverter.FileConverterModule"
+  },
+  "renderers": [
+    {
+      "platform": "windows",
+      "runtime": "wpf-v2",
+      "assembly": "ClipDesk.Plugin.FileConverter.dll",
+      "type": "ClipDesk.Plugin.FileConverter.FileConverterPlugin"
+    }
+  ],
+  "minimumHostVersion": "0.4.4",
+  "installByDefault": false,
+  "sortOrder": 130,
+  "defaultSize": {
+    "width": 680,
+    "height": 360
+  },
+  "minimumSize": {
+    "width": 240,
+    "height": 240
+  },
+  "defaultContent": {
+    "$schema": "2",
+    "sourceFileName": "",
+    "sourceExtension": "",
+    "sourceCategory": "",
+    "sourceSize": "0",
+    "targetFormat": "",
+    "quality": "85",
+    "icoSize": "32",
+    "prettyPrint": "true",
+    "status": "idle",
+    "lastMessage": "Aguardando arquivo...",
+    "sourceAssetId": "",
+    "outputAssetId": "",
+    "outputFileName": ""
+  },
+  "platforms": [
+    "windows"
+  ],
+  "permissions": [
+    "file.read",
+    "file.write",
+    "workspace.assets"
+  ],
+  "capabilities": [
+    "board-widget",
+    "board-files",
+    "file-drop"
+  ],
+  "networkHosts": []
+}

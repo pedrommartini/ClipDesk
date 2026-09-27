@@ -7,6 +7,18 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="..\..\ClipDesk.csproj" /><ProjectReference Include="..\..\Installer\ClipDesk.Installer.csproj" /><ProjectReference Include="..\..\PluginPackages\Modules\Calculator\ClipDesk.Plugin.Calculator.csproj" /><ProjectReference Include="..\..\PluginPackages\Modules\Checklist\ClipDesk.Plugin.Checklist.csproj" /><ProjectReference Include="..\..\PluginPackages\Modules\Translator\ClipDesk.Plugin.Translator.csproj" /><ProjectReference Include="..\..\PluginPackages\Modules\CurrencyConverter\ClipDesk.Plugin.CurrencyConverter.csproj" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="..\..\PluginPackages\Modules\Tts\ClipDesk.Plugin.Tts.csproj" /></ItemGroup>
   <ItemGroup><Content Include="..\..\PluginPackages\feed.json" Link="production-feed.json" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
   <ItemGroup><Content Include="Fixtures\CollaboratorPlugins\*.zip" Link="collaborator-fixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+<ItemGroup><ProjectReference Include="..\..\PluginPackages\Modules\FileConverter\ClipDesk.Plugin.FileConverter.csproj" /></ItemGroup>
+<ItemGroup><ProjectReference Include="..\..\PluginPackages\Modules\ImageUpscaler\ClipDesk.Plugin.ImageUpscaler.csproj" /></ItemGroup>
+<ItemGroup><ProjectReference Include="..\..\PluginPackages\Modules\ImageCompressor\ClipDesk.Plugin.ImageCompressor.csproj" /></ItemGroup>
+<ItemGroup><ProjectReference Include="..\..\PluginPackages\Modules\AudioRecorder\ClipDesk.Plugin.AudioRecorder.csproj" /></ItemGroup>
+<ItemGroup>
+<ProjectReference Include="..\..\PluginPackages\Modules\Clock\ClipDesk.Plugin.Clock.csproj" />
+<ProjectReference Include="..\..\PluginPackages\Modules\Stopwatch\ClipDesk.Plugin.Stopwatch.csproj" />
+<ProjectReference Include="..\..\PluginPackages\Modules\Timer\ClipDesk.Plugin.Timer.csproj" />
+<ProjectReference Include="..\..\PluginPackages\Modules\Timezone\ClipDesk.Plugin.Timezone.csproj" />
+<ProjectReference Include="..\..\PluginPackages\Modules\QrCode\ClipDesk.Plugin.QrCode.csproj" />
+</ItemGroup>
 </Project>

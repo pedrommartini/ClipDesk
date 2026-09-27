@@ -3,13 +3,13 @@
   "id": "clipdesk.tts",
   "name": "Texto para Fala",
   "description": "Síntese de voz com suporte híbrido online e local, detecção de idioma e exportação de áudio.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "publisher": "ClipDesk",
   "iconGlyph": "\ue8d6",
   "accentColor": "#2563EB",
   "runtime": "portable-v2",
   "pluginApiVersion": 2,
-  "stateVersion": 1,
+  "stateVersion": 2,
   "module": {
     "assembly": "ClipDesk.Plugin.Tts.Core.dll",
     "type": "ClipDesk.Plugin.Tts.TtsModule"
@@ -22,7 +22,7 @@
       "type": "ClipDesk.Plugin.Tts.TtsPlugin"
     }
   ],
-  "minimumHostVersion": "0.3.3",
+  "minimumHostVersion": "0.4.4",
   "maximumHostVersion": null,
   "installByDefault": false,
   "sortOrder": 100,
@@ -35,7 +35,8 @@
     "height": 240
   },
   "defaultContent": {
-    "$schema": "1",
+    "$schema": "2",
+    "audio_asset_id": "",
     "text": "",
     "language": "pt",
     "voice_id": "pt-BR-FranciscaNeural",
@@ -47,7 +48,8 @@
   ],
   "permissions": [
     "network",
-    "file.write"
+    "file.write",
+    "workspace.assets"
   ],
   "capabilities": [
     "board-widget",

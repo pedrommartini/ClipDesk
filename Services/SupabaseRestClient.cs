@@ -49,6 +49,30 @@ public sealed class SupabaseRestClient : IDisposable
         return await response.Content.ReadFromJsonAsync<List<T>>(CloudRules.Json, cancellation) ?? [];
     }
 
+    /// <summary>Read a complete, stably ordered table instead of relying on PostgREST's row limit.</summary>
+    public async Task<List<T>> GetAllByIdAsync<T>(string path, Func<T, string> id, CancellationToken cancellation)
+    {
+        const int pageSize = 500;
+        var result = new List<T>();
+        string? lastId = null;
+        while (true)
+        {
+            var pagePath = path + (path.Contains('?') ? "&" : "?")
+                + "order=id.asc&limit=" + pageSize
+                + (lastId is null ? "" : "&id=gt." + Uri.EscapeDataString(lastId));
+            var page = await GetAsync<T>(pagePath, cancellation);
+            if (page.Count > pageSize) throw new InvalidOperationException("Resposta paginada inválida da nuvem.");
+            if (page.Count == 0) return result;
+            var nextId = id(page[^1]);
+            if (string.IsNullOrWhiteSpace(nextId) ||
+                (lastId is not null && string.CompareOrdinal(nextId, lastId) <= 0))
+                throw new InvalidOperationException("Ordem inválida na leitura paginada da nuvem.");
+            result.AddRange(page);
+            lastId = nextId;
+            if (page.Count < pageSize) return result;
+        }
+    }
+
     public async Task<List<T>> PostAsync<T>(string path, object body, CancellationToken cancellation, bool returnRows = true)
     {
         EnsureSession();
@@ -123,12 +147,18 @@ public sealed class SupabaseRestClient : IDisposable
             try
             {
                 var json = JsonNode.Parse(body)?.AsObject();
-                throw new InvalidOperationException(json?["message"]?.GetValue<string>() ?? json?["hint"]?.GetValue<string>() ?? "Operação não autorizada.");
+                throw new SupabaseRequestException(response.StatusCode,
+                    json?["message"]?.GetValue<string>() ?? json?["hint"]?.GetValue<string>() ?? "Operação não autorizada.");
             }
-            catch (JsonException) { throw new InvalidOperationException("Operação não autorizada."); }
+            catch (JsonException) { throw new SupabaseRequestException(response.StatusCode, "Operação não autorizada."); }
         }
         response.EnsureSuccessStatusCode();
     }
 
     public void Dispose() => _http.Dispose();
+}
+
+public sealed class SupabaseRequestException(HttpStatusCode statusCode, string message) : InvalidOperationException(message)
+{
+    public HttpStatusCode StatusCode { get; } = statusCode;
 }

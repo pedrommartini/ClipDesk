@@ -26,6 +26,7 @@ public sealed class BoardObject
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
     public Dictionary<string, string> Style { get; set; } = [];
     public Dictionary<string, string> Content { get; set; } = [];
+    public List<CloudAttachment> Attachments { get; set; } = [];
 }
 
 public enum BoardObjectKind

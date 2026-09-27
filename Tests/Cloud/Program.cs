@@ -21,6 +21,7 @@ var count=0;
 void Check(bool condition,string name) { if(!condition) throw new Exception("FAIL: "+name); Console.WriteLine("PASS: "+name);count++; }
 Environment.SetEnvironmentVariable("CLIPDESK_DEV_DATA_ROOT",Path.Combine(root,"profile-format"));
 var profileStorage=new StorageService();
+await SupabaseResilienceChecks.Run(Check, root);
 var standardSupabaseId=Guid.NewGuid().ToString();
 profileStorage.SwitchProfile(standardSupabaseId);
 Check(profileStorage.Profile==Guid.Parse(standardSupabaseId).ToString("N"),"Standard Supabase UUIDs select a safe local profile without closing the app");
@@ -60,6 +61,15 @@ Check(imageOnSameDevice.StoredFilePath==localImagePath && imageOnOtherDevice.Sto
     && projectedImageJson.Contains(imageStoragePath,StringComparison.Ordinal)
     && !projectedImageJson.Contains(localImagePath,StringComparison.Ordinal),
     "Pasted images publish a private storage reference and restore a device-local copy without leaking Windows paths");
+var pluginObject=new BoardObject {Kind=BoardObjectKind.Plugin,PluginId="clipdesk.imageupscaler",
+    Content=new(){{"sourceAttachmentId",imageAttachmentId}},Attachments=[pastedImage.Attachments[0]]};
+var projectedPlugin=CloudProjection.ProjectBoardObject(pluginObject,imageBoard.Id.ToString("N"));
+var restoredPlugin=CloudProjection.MaterializeBoardObject(projectedPlugin,
+    new Dictionary<string,string>{{imageAttachmentId,downloadedImagePath}});
+Check(restoredPlugin.Attachments.Single().LocalPath==downloadedImagePath
+    && restoredPlugin.Content["sourceAttachmentId"]==imageAttachmentId
+    && !projectedPlugin.Data.ToJsonString().Contains(localImagePath,StringComparison.Ordinal),
+    "Plugin instance attachments use portable IDs and recover a local file on the second device");
 var bid=Guid.NewGuid().ToString("N");
 SyncOperation Create(string kind,string? workspace,JsonObject data)=>new(Guid.NewGuid().ToString("N"),Guid.NewGuid().ToString("N"),kind,workspace,0,new(),data);
 var boardOp=Create("workspace",null,new JsonObject {["name"]="Mesa A",["ownerId"]=b.User.Id}) with {EntityId=bid};
@@ -101,6 +111,13 @@ var spoof=new JsonArray(new JsonObject {["id"]=largeId,["ownerId"]=b.User.Id,["u
 var fileItem=store.Apply(a.User.Id,Create("item",bid,new JsonObject {["name"]="arquivo",["attachments"]=spoof}));
 Check(fileItem.Data["attachments"]![0]!["uploaded"]!.GetValue<bool>()==false && fileItem.Data["attachments"]![0]!["ownerId"]!.GetValue<string>()==a.User.Id,"Server normalizes file ownership and upload state from verified records");
 var journal=new LocalDatabase(Path.Combine(root,"client.db"));
+var revokedJournal=new LocalDatabase(Path.Combine(root,"revoked.db"));
+var revokedWorkspace=Guid.NewGuid().ToString("N");
+var revokedItem=Guid.NewGuid().ToString("N");
+revokedJournal.Stage(new CloudEntity(revokedItem,"boardObject",revokedWorkspace,0,new JsonObject {["text"]="offline edit"}));
+revokedJournal.ForgetWorkspace(revokedWorkspace);
+Check(revokedJournal.Pending().Count==0 && revokedJournal.Conflicts().Any(x=>x.Data["text"]?.GetValue<string>()=="offline edit"),
+    "Removing remote access preserves unsent local edits for recovery");
 journal.Write("sample","local");journal.Stage(item);
 Check(new LocalDatabase(Path.Combine(root,"client.db")).Read("sample")=="local" && journal.Pending().Count==1,"Local documents and pending operations survive process restart");
 var pending=journal.Pending().Single();journal.Accept(item,pending);
@@ -169,6 +186,22 @@ await second.SynchronizeAsync(secondView.Boards,secondView.History);
 var copied=second.Materialize().Boards[0].Items.Single(i=>i.Type==ClipboardItemType.File);
 Check(copied.FilePaths.Count==1 && File.ReadAllBytes(copied.FilePaths[0]).SequenceEqual(new byte[]{3,5,7,11}),"Second desktop downloads the small file into its own local cache");
 Check(firstStorage.BaseDirectory!=secondStorage.BaseDirectory,"Device profiles remain isolated when independent stores coexist");
+firstView=first.Materialize();first.ObservePresentation(firstView.Boards,firstView.History);
+var pluginAssetId=Guid.NewGuid().ToString("N");
+var sharedFilePlugin=new BoardObject {Kind=BoardObjectKind.Plugin,PluginId="clipdesk.fixture",
+    Content=new(){{"inputAsset",pluginAssetId}},Attachments=[new CloudAttachment {Id=pluginAssetId,OwnerId=deviceAccount.User.Id,
+        Name="plugin-input.bin",Size=4,Sha256=Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(binaryPath))),LocalPath=binaryPath}]};
+firstView.Boards[0].Objects.Add(sharedFilePlugin);
+await first.SynchronizeAsync(firstView.Boards,firstView.History);
+Check(first.Status=="Sincronizado","Desktop publishes the file owned by a plugin instance");
+secondView=second.Materialize();second.ObservePresentation(secondView.Boards,secondView.History);
+await second.SynchronizeAsync(secondView.Boards,secondView.History);
+secondView=second.Materialize();second.ObservePresentation(secondView.Boards,secondView.History);
+await second.SynchronizeAsync(secondView.Boards,secondView.History);
+var receivedFilePlugin=second.Materialize().Boards[0].Objects.Single(obj=>obj.Id==sharedFilePlugin.Id);
+Check(receivedFilePlugin.Content["inputAsset"]==pluginAssetId
+    && File.ReadAllBytes(receivedFilePlugin.Attachments.Single().LocalPath!).SequenceEqual(new byte[]{3,5,7,11}),
+    "Second desktop restores a plugin's input without repeating the plugin command");
 var folderSource=Path.Combine(root,"source-folder");Directory.CreateDirectory(Path.Combine(folderSource,"sub"));File.WriteAllText(Path.Combine(folderSource,"sub","note.txt"),"estrutura intacta");
 firstView=first.Materialize();first.ObservePresentation(firstView.Boards,firstView.History);
 var folderBoard=new WorkspaceBoard {Name="Pasta",SyncMode=WorkspaceSyncMode.PersonalCloud,OwnerId=deviceAccount.User.Id,Items=[new ClipboardItem {Type=ClipboardItemType.Folder,DisplayName="Pasta",FilePaths=[folderSource]}]};

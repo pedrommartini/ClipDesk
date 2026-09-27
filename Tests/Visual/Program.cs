@@ -16,6 +16,16 @@ internal static class Program
         if(args.Contains("--presence-protocol")) { PresenceProtocolChecks.Run(); return; }
         Environment.SetEnvironmentVariable("CLIPDESK_DEV_DATA_ROOT",Path.Combine(Path.GetTempPath(),"ClipDesk-Visual-Checks",Guid.NewGuid().ToString("N")));
         var app = new Application();
+        if(args.Contains("--candidate-package-load")) { CandidatePackageChecks.Run(args.Last()); return; }
+        if(args.Contains("--optional-rest-package-load")) { CandidatePackageChecks.RunOptionalArchives(args.Last()); return; }
+        if(args.Contains("--tts-package-load")) { TtsCollaborationChecks.RunPackage(args.Last()); return; }
+        if(args.Contains("--plugin-shared-assets")) { PluginSharedAssetsChecks.Run(app); return; }
+        if(args.Contains("--portable-plugin-collaboration")) { PortablePluginCollaborationChecks.Run(); return; }
+        if(args.Contains("--recorder-collaboration")) { RecorderCollaborationChecks.Run(app); return; }
+        if(args.Contains("--compressor-collaboration")) { CompressorCollaborationChecks.Run(app); return; }
+        if(args.Contains("--upscaler-collaboration")) { UpscalerCollaborationChecks.Run(app); return; }
+        if(args.Contains("--fileconverter-collaboration")) { FileConverterCollaborationChecks.Run(app); return; }
+        if(args.Contains("--tts-collaboration")) { TtsCollaborationChecks.Run(app); return; }
         if(args.Contains("--collaborator-plugins")) { PluginCollaboratorChecks.Run(); return; }
         if(args.Contains("--plugin-store")) { PluginStoreVisualChecks.Run(app); return; }
         if(args.Contains("--plugin-delivery")) { PluginDeliveryChecks.Run(app); return; }

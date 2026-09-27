@@ -83,6 +83,7 @@ public static class PluginPermissions
     public const string ClipboardWrite = "clipboard.write";
     public const string FileRead = "file.read";
     public const string FileWrite = "file.write";
+    public const string SharedAssets = "workspace.assets";
     public const string Microphone = "microphone";
     public const string Camera = "camera";
     public const string SystemAudio = "system-audio";

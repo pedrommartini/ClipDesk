@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -52,6 +53,8 @@ public sealed partial class BoardObjectView
     private string? _pluginSignature;
     private bool _pluginEditing;
     private bool _buildingPlugin;
+    private int _pluginGeneration;
+    private IPluginSharedAssets? _sharedAssets;
     private IReadOnlyList<PluginChoice> _currencyChoices = FallbackCurrencyChoices;
     private double _pluginHeaderHeight = 48;
     private RowDefinition? _pluginHeaderRow;
@@ -63,6 +66,12 @@ public sealed partial class BoardObjectView
     private bool _utilityLoading;
     private static readonly WindowsPluginLoader ExternalPlugins = new();
     public static void InvalidateExternalPlugin(string pluginId) => ExternalPlugins.Invalidate(pluginId);
+    public void ConfigureSharedAssets(IPluginSharedAssets assets)
+    {
+        _sharedAssets = assets;
+        _pluginSignature = null;
+        RefreshPluginSurface();
+    }
     public void SetViewportZoom(double zoom)
     {
         _viewportZoom = zoom;
@@ -131,7 +140,7 @@ public sealed partial class BoardObjectView
 
         var pluginId = Object.PluginId ?? BoardPluginIdentity.FromKind(Object.Kind);
         var activeVersion = pluginId is null ? null : ExternalPlugins.ActiveVersion(pluginId);
-        var signature = $"{Object.Kind}|{Object.PluginName}|{activeVersion}|{IsDarkMode}|{_pluginEditing}|{_currencyChoices.Count}|{PluginAccentColor()}|" +
+        var signature = $"{Object.Kind}|{Object.PluginName}|{activeVersion}|{IsDarkMode}|{_pluginEditing}|{_currencyChoices.Count}|{PluginAccentColor()}|{CloudRules.Serialize(Object.Attachments)}|" +
                         string.Join('|', Object.Content.OrderBy(entry => entry.Key).Select(entry => $"{entry.Key}={entry.Value}"));
         if (_pluginSurface is null || !string.Equals(signature, _pluginSignature, StringComparison.Ordinal))
         {
@@ -170,6 +179,7 @@ public sealed partial class BoardObjectView
     private Border BuildPluginSurface()
     {
         _buildingPlugin = true;
+        var generation = ++_pluginGeneration;
         _pluginEditButton = null;
         try
         {
@@ -198,16 +208,16 @@ public sealed partial class BoardObjectView
                 () => WidgetActionRequested?.Invoke(this, "plugin:before-change"),
                 (state, rebuild) =>
                 {
-                    if (_buildingPlugin) return;
+                    if (_buildingPlugin || generation != _pluginGeneration) return;
                     Object.Content = state.ToDictionary();
                     MarkPluginChanged();
                     if (rebuild) { _pluginSignature = null; RefreshPluginSurface(); }
-                }, HandlePluginHostAction, context => _fileDropContext = context, _viewportZoom);
+                }, HandlePluginHostAction, context => _fileDropContext = context, _viewportZoom, _sharedAssets);
             externalBody ??= !pluginAvailable || pluginId is null ? null : ExternalPlugins.CreateBody(pluginId,
                 new PluginViewContext(Object.Content, IsDarkMode, _pluginEditing, Object.Width, Object.Height, scale,
                     rebuild =>
                     {
-                        if (_buildingPlugin) return;
+                        if (_buildingPlugin || generation != _pluginGeneration) return;
                         MarkPluginChanged();
                         if (rebuild) { _pluginSignature = null; RefreshPluginSurface(); }
                     }, action => WidgetActionRequested?.Invoke(this, action)));
@@ -462,13 +472,27 @@ public sealed partial class BoardObjectView
         name.HorizontalAlignment = HorizontalAlignment.Center;
         name.TextAlignment = TextAlignment.Center;
         name.TextWrapping = TextWrapping.Wrap;
-        var explanation = ResponsiveText("Este plugin não está instalado neste dispositivo. Instale-o para visualizar e editar o estado compartilhado da mesa.",
+        var failure = Object.PluginId is null ? null : ExternalPlugins.LastFailure(Object.PluginId);
+        var message = failure?.Code switch
+        {
+            "host_incompatible" or "contract_incompatible" => "Este plugin precisa de uma versão mais nova do ClipDesk. Atualize o aplicativo para visualizar o estado compartilhado.",
+            "assembly_missing" or "manifest_invalid" or "manifest_missing" => "O pacote deste plugin está incompleto. Repare a instalação para visualizar o estado compartilhado.",
+            "package_disabled" => "Este plugin está desativado neste dispositivo. Ative-o para visualizar o estado compartilhado.",
+            "package_unreadable" => "Não foi possível ler o pacote neste dispositivo. Verifique o acesso aos arquivos e tente novamente.",
+            _ => "Este plugin não está instalado neste dispositivo. Instale-o para visualizar e editar o estado compartilhado da mesa."
+        };
+        var explanation = ResponsiveText(message,
             12.5, IsDarkMode ? "#A9B3C7" : "#626C82");
         explanation.Margin = new Thickness(0, 7, 0, 14);
         explanation.HorizontalAlignment = HorizontalAlignment.Center;
         explanation.TextAlignment = TextAlignment.Center;
         explanation.TextWrapping = TextWrapping.Wrap;
-        var install = FlatButton("Instalar", true);
+        var install = FlatButton(failure?.Code switch
+        {
+            "assembly_missing" or "manifest_invalid" or "manifest_missing" => "Reparar plugin",
+            "package_disabled" => "Ativar plugin",
+            _ => "Instalar"
+        }, true);
         install.Tag = "plugin-interactive";
         install.MinWidth = 112;
         install.MinHeight = 34;
@@ -481,16 +505,51 @@ public sealed partial class BoardObjectView
         };
         content.Children.Add(name);
         content.Children.Add(explanation);
-        content.Children.Add(install);
+        if (failure is not null)
+        {
+            content.Children.Add(new TextBlock { Text = $"Código: {failure.Code} · Incidente: {failure.IncidentId[..8]}",
+                TextWrapping = TextWrapping.Wrap, HorizontalAlignment = HorizontalAlignment.Center,
+                Foreground = ColorBrush(IsDarkMode ? "#A9B3C7" : "#626C82") });
+            var report = FlatButton("Copiar relatório", false);
+            report.Tag = "plugin-interactive";
+            report.Margin = new Thickness(0, 8, 0, 5);
+            report.HorizontalAlignment = HorizontalAlignment.Center;
+            report.Click += (_, args) => { args.Handled = true; Clipboard.SetText(JsonSerializer.Serialize(failure)); };
+            content.Children.Add(report);
+        }
+        if (failure?.Code is not ("host_incompatible" or "contract_incompatible" or "package_unreadable"))
+            content.Children.Add(install);
         return content;
     }
 
-    private FrameworkElement BuildUnavailableBody() => new TextBlock
+    private FrameworkElement BuildUnavailableBody()
     {
-        Text = "Não foi possível carregar este plugin. Use Reparar na loja de plugins e tente novamente.",
-        Margin = new Thickness(16), TextWrapping = TextWrapping.Wrap,
-        Foreground = ColorBrush(IsDarkMode ? "#A9B3C7" : "#626C82")
-    };
+        var pluginId = Object.PluginId ?? BoardPluginIdentity.FromKind(Object.Kind);
+        var failure = pluginId is null ? null : ExternalPlugins.LastFailure(pluginId);
+        var body = new StackPanel { Margin = new Thickness(16), VerticalAlignment = VerticalAlignment.Center };
+        var explanation = failure?.Code switch
+        {
+            "host_incompatible" or "contract_incompatible" => "Este plugin requer uma versão mais nova do ClipDesk.",
+            "unsupported_runtime" => "Este plugin requer uma versão mais nova do ClipDesk.",
+            "manifest_invalid" => "O pacote do plugin está incompleto ou incompatível.",
+            "assembly_missing" => "Falta um arquivo necessário do plugin. Repare a instalação.",
+            "state_too_new" => "O estado compartilhado deste plugin foi criado por uma versão mais nova. Atualize o plugin para editá-lo.",
+            _ => "Não foi possível carregar este plugin. Repare a instalação ou tente novamente."
+        };
+        body.Children.Add(new TextBlock { Text = explanation, TextWrapping = TextWrapping.Wrap,
+            Foreground = ColorBrush(IsDarkMode ? "#A9B3C7" : "#626C82") });
+        if (failure is null) return body;
+        body.Children.Add(new TextBlock { Text = $"Código: {failure.Code} · Incidente: {failure.IncidentId[..8]}",
+            Margin = new Thickness(0, 9, 0, 0), TextWrapping = TextWrapping.Wrap,
+            Foreground = ColorBrush(IsDarkMode ? "#A9B3C7" : "#626C82") });
+        var copy = FlatButton("Copiar relatório", false);
+        copy.Tag = "plugin-interactive";
+        copy.Margin = new Thickness(0, 12, 0, 0);
+        copy.HorizontalAlignment = HorizontalAlignment.Left;
+        copy.Click += (_, args) => { args.Handled = true; Clipboard.SetText(JsonSerializer.Serialize(failure)); };
+        body.Children.Add(copy);
+        return body;
+    }
 
     private Grid ChoiceRow(string leftText, string rightText, out Button left, out Button right, out Button swap)
     {

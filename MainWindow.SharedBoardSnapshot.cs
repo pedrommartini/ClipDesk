@@ -7,17 +7,92 @@ namespace ClipDesk;
 
 public partial class MainWindow
 {
+    private sealed record SharedUndoFrame(Guid BoardId, BoardOperationUndo.Snapshot Before, BoardOperationUndo.Snapshot After);
+    private readonly Stack<SharedUndoFrame> _sharedUndoStack = [];
+    private readonly Stack<SharedUndoFrame> _sharedRedoStack = [];
+    private BoardOperationUndo.Snapshot? _pendingSharedUndoBefore;
+    private BoardOperationUndo.Snapshot? _pendingSharedUndoAfter;
+
+    private void BeginSharedUndo()
+    {
+        CompletePendingSharedUndo();
+        _pendingSharedUndoBefore = BoardOperationUndo.Capture(_activeWorkspace);
+        _pendingSharedUndoAfter = null;
+        _sharedRedoStack.Clear();
+        UpdateUndoRedoButtons();
+    }
+
+    private void ObserveSharedUndoSave()
+    {
+        if (_pendingSharedUndoBefore is null || _isRestoringSnapshot) return;
+        _pendingSharedUndoAfter = BoardOperationUndo.Capture(_activeWorkspace);
+        UpdateUndoRedoButtons();
+    }
+
+    private void CompletePendingSharedUndo()
+    {
+        if (_pendingSharedUndoBefore is not null && _pendingSharedUndoAfter is not null
+            && BoardOperationUndo.Differs(_pendingSharedUndoBefore, _pendingSharedUndoAfter))
+            _sharedUndoStack.Push(new SharedUndoFrame(_activeWorkspace.Id, _pendingSharedUndoBefore, _pendingSharedUndoAfter));
+        _pendingSharedUndoBefore = null;
+        _pendingSharedUndoAfter = null;
+    }
+
+    private void ClearSharedUndo()
+    {
+        _pendingSharedUndoBefore = null;
+        _pendingSharedUndoAfter = null;
+        _sharedUndoStack.Clear();
+        _sharedRedoStack.Clear();
+    }
+
+    private void ApplySharedUndo(bool undo)
+    {
+        CompletePendingSharedUndo();
+        var source = undo ? _sharedUndoStack : _sharedRedoStack;
+        var destination = undo ? _sharedRedoStack : _sharedUndoStack;
+        if (source.Count == 0) { UpdateUndoRedoButtons(); return; }
+        var frame = source.Pop();
+        if (frame.BoardId != _activeWorkspace.Id) { UpdateUndoRedoButtons(); return; }
+        SaveCardPositionsToItems();
+        var result = BoardOperationUndo.Apply(frame.Before, frame.After,
+            BoardOperationUndo.Capture(_activeWorkspace), undo);
+        if (result.Applied > 0)
+        {
+            _isRestoringSnapshot = true;
+            try
+            {
+                var merged = System.Text.Json.JsonSerializer.Deserialize<WorkspaceBoard>(CloudRules.Serialize(_activeWorkspace), CloudRules.Json)!;
+                merged.Items = result.Snapshot.Items;
+                merged.Objects = result.Snapshot.Objects;
+                ApplySharedBoardSnapshot(merged);
+                Save();
+            }
+            finally { _isRestoringSnapshot = false; }
+            destination.Push(frame);
+        }
+        UpdateUndoRedoButtons();
+        ShowToast(result.Conflicted > 0
+            ? $"{result.Conflicted} alteração(ões) de outra pessoa preservada(s)"
+            : result.Applied > 0 ? undo ? "Alteração desfeita" : "Alteração refeita"
+                : "A alteração mudou em outro cliente; não foi sobrescrita");
+    }
+
     private static bool BoardObjectVisualChanged(BoardObject local,BoardObject incoming) =>
         local.Kind!=incoming.Kind || local.Width!=incoming.Width || local.Height!=incoming.Height
         || local.Rotation!=incoming.Rotation || local.Locked!=incoming.Locked
         || local.PluginId!=incoming.PluginId || local.PluginName!=incoming.PluginName || local.PluginVersion!=incoming.PluginVersion
         || CloudRules.Serialize(local.Style)!=CloudRules.Serialize(incoming.Style)
-        || CloudRules.Serialize(local.Content)!=CloudRules.Serialize(incoming.Content);
+        || CloudRules.Serialize(local.Content)!=CloudRules.Serialize(incoming.Content)
+        || CloudRules.Serialize(local.Attachments)!=CloudRules.Serialize(incoming.Attachments);
 
     // Keep model/view identities for the open board. A remote move should never
     // discard cursors, focus, animation clocks or all the other cards' previews.
     private void ApplySharedBoardSnapshot(WorkspaceBoard incoming)
     {
+        // Local-only history is unsafe after a remote change. Shared undo uses
+        // per-entity deltas and checks the current entity before applying them.
+        _undoStack.Clear(); _redoStack.Clear(); UpdateUndoRedoButtons();
         var cards=WorkspaceCanvas.Children.OfType<ItemCard>().ToDictionary(v=>v.Item.Id);
         var objects=WorkspaceCanvas.Children.OfType<BoardObjectView>().ToDictionary(v=>v.Object.Id);
         var itemIds=incoming.Items.Select(i=>i.Id).ToHashSet();
@@ -69,6 +144,7 @@ public partial class MainWindow
             local.X=obj.X;local.Y=obj.Y;local.Width=obj.Width;local.Height=obj.Height;local.Rotation=obj.Rotation;
             local.ZIndex=obj.ZIndex;local.Locked=obj.Locked;local.CreatedBy=obj.CreatedBy;
             local.CreatedAt=obj.CreatedAt;local.UpdatedAt=obj.UpdatedAt;local.Style=obj.Style;local.Content=obj.Content;
+            local.Attachments=obj.Attachments;
             if(visualChanged)view.RefreshFromObject();
             PositionBoardObjectView(view);Panel.SetZIndex(view,obj.Kind==BoardObjectKind.Connector?-2:obj.ZIndex);
             mergedObjects.Add(local);

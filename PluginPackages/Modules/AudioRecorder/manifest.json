@@ -1,0 +1,64 @@
+{
+  "manifestVersion": 2,
+  "id": "clipdesk.audiorecorder",
+  "name": "Gravador de Áudio",
+  "description": "Grave áudio do microfone e do sistema com controle de volume independente e adicione diretamente à mesa.",
+  "version": "1.1.0",
+  "publisher": "ClipDesk",
+  "iconGlyph": "",
+  "accentColor": "#EF4444",
+  "runtime": "portable-v2",
+  "pluginApiVersion": 2,
+  "stateVersion": 2,
+  "module": {
+    "assembly": "ClipDesk.Plugin.AudioRecorder.Core.dll",
+    "type": "ClipDesk.Plugin.AudioRecorder.AudioRecorderModule"
+  },
+  "renderers": [
+    {
+      "platform": "windows",
+      "runtime": "wpf-v2",
+      "assembly": "ClipDesk.Plugin.AudioRecorder.dll",
+      "type": "ClipDesk.Plugin.AudioRecorder.AudioRecorderPlugin"
+    }
+  ],
+  "minimumHostVersion": "0.4.4",
+  "installByDefault": false,
+  "sortOrder": 120,
+  "defaultSize": {
+    "width": 540,
+    "height": 180
+  },
+  "minimumSize": {
+    "width": 160,
+    "height": 160
+  },
+  "defaultContent": {
+    "$schema": "2",
+    "micChannelMode": "mono",
+    "sysChannelMode": "stereo",
+    "micEnabled": "true",
+    "micVolume": "100",
+    "systemEnabled": "true",
+    "systemVolume": "100",
+    "status": "idle",
+    "duration": "0",
+    "audioAssetId": "",
+    "audioFileName": "",
+    "captureSession": "",
+    "captureUpdatedUtc": ""
+  },
+  "platforms": [
+    "windows"
+  ],
+  "permissions": [
+    "file.read",
+    "file.write",
+    "workspace.assets"
+  ],
+  "capabilities": [
+    "board-widget",
+    "board-files"
+  ],
+  "networkHosts": []
+}

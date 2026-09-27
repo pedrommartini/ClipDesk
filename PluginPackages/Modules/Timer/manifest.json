@@ -1,0 +1,53 @@
+{
+  "manifestVersion": 2,
+  "id": "clipdesk.timer",
+  "name": "Temporizador",
+  "description": "Temporizador regressivo com contagem baseada em UTC, presets rápidos, mostrador digital e anel dinâmico de progresso.",
+  "version": "1.0.0",
+  "publisher": "ClipDesk",
+  "iconGlyph": "\ue916",
+  "accentColor": "#F59E0B",
+  "runtime": "portable-v2",
+  "pluginApiVersion": 2,
+  "stateVersion": 1,
+  "module": {
+    "assembly": "ClipDesk.Plugin.Timer.Core.dll",
+    "type": "ClipDesk.Plugin.Timer.TimerModule"
+  },
+  "renderers": [
+    {
+      "platform": "windows",
+      "runtime": "wpf-v2",
+      "assembly": "ClipDesk.Plugin.Timer.dll",
+      "type": "ClipDesk.Plugin.Timer.TimerPlugin"
+    }
+  ],
+  "minimumHostVersion": "0.3.3",
+  "installByDefault": false,
+  "sortOrder": 130,
+  "defaultSize": {
+    "width": 320,
+    "height": 280
+  },
+  "minimumSize": {
+    "width": 240,
+    "height": 240
+  },
+  "defaultContent": {
+    "$schema": "1",
+    "status": "idle",
+    "durationSeconds": "1500",
+    "remainingSeconds": "1500",
+    "targetUtc": "",
+    "selectedPreset": "25m",
+    "label": "Pomodoro"
+  },
+  "platforms": [
+    "windows"
+  ],
+  "permissions": [],
+  "capabilities": [
+    "board-widget"
+  ],
+  "networkHosts": []
+}

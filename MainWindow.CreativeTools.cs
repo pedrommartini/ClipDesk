@@ -25,6 +25,8 @@ public partial class MainWindow
     private Point _creativeScrollOrigin;
     private Polyline? _draftStroke;
     private Rectangle? _draftShape;
+    private string? _draftPresenceId;
+    private Point _draftPresenceEnd;
     private BoardObject? _formatObject;
     private BoardObjectView? _contextBoardObjectView;
     private readonly BoardUtilityService _boardUtilityService = new();
@@ -194,6 +196,9 @@ public partial class MainWindow
 
         RegisterUndoSnapshot();
         _creativePointerDown = true;
+        _draftPresenceId = Guid.NewGuid().ToString("N");
+        _draftPresenceEnd = _creativeStart;
+        _presenceInputDirty = true;
         Root.CaptureMouse();
         if (_activeCreativeTool == CreativeTool.Pen)
         {
@@ -227,14 +232,16 @@ public partial class MainWindow
         }
         if (!_creativePointerDown || e.LeftButton != MouseButtonState.Pressed) return false;
         var point = ClampCreativePoint(e.GetPosition(WorkspaceCanvas));
+        _draftPresenceEnd = point;
         if (_draftStroke is not null)
         {
-            if ((_draftStroke.Points[^1] - point).Length >= 2.2) _draftStroke.Points.Add(point);
+            if ((_draftStroke.Points[^1] - point).Length >= 2.2) { _draftStroke.Points.Add(point); _presenceInputDirty = true; }
         }
         else if (_draftShape is not null)
         {
             var rect = RectFromPoints(_creativeStart, point);
             Canvas.SetLeft(_draftShape, rect.X); Canvas.SetTop(_draftShape, rect.Y); _draftShape.Width = rect.Width; _draftShape.Height = rect.Height;
+            _presenceInputDirty = true;
         }
         return true;
     }
@@ -331,7 +338,23 @@ public partial class MainWindow
     private BoardObjectView AddBoardObjectView(BoardObject obj)
     {
         if (obj.Kind == BoardObjectKind.Connector) UpdateConnectorGeometry(obj);
-        var view = new BoardObjectView(obj) { IsDarkMode = _isDarkMode, IsInteractive = obj.Kind != BoardObjectKind.Connector && _activeCreativeTool == CreativeTool.Select };
+        var board = _activeWorkspace;
+        var assets = new PluginSharedAssetsService(obj, _storageService, Dispatcher,
+            () => _cloud?.User?.Id, () => _workspaces.Contains(board) && board.Objects.Contains(obj),
+            () =>
+            {
+                if (board == _activeWorkspace) Save();
+                else
+                {
+                    _storageService.SaveWorkspaces(_workspaces);
+                    _cloud?.Stage(_workspaces, _history.ToList()); QueueCloudSync();
+                }
+            }, async (attachment, cancellation) =>
+            {
+                if (_cloud?.Connected != true) throw new System.IO.IOException("Conecte-se para baixar o anexo compartilhado do plugin.");
+                await _cloud.DownloadAsync(attachment, cancellation);
+            });
+        var view = new BoardObjectView(obj, assets) { IsDarkMode = _isDarkMode, IsInteractive = obj.Kind != BoardObjectKind.Connector && _activeCreativeTool == CreativeTool.Select };
         view.SetViewportZoom(_workspaceZoom);
         view.SetSelectionColor(LocalPresenceColor());
         if (_availableCurrencyChoices.Count > 0) view.SetCurrencyChoices(_availableCurrencyChoices);
@@ -991,6 +1014,8 @@ public partial class MainWindow
         if (_draftStroke is not null) WorkspaceCanvas.Children.Remove(_draftStroke);
         if (_draftShape is not null) WorkspaceCanvas.Children.Remove(_draftShape);
         _draftStroke = null; _draftShape = null; _creativePointerDown = false;
+        _draftPresenceId = null;
+        _presenceInputDirty = true;
         if (Mouse.Captured == Root) Root.ReleaseMouseCapture();
     }
 

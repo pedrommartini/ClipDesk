@@ -2849,6 +2849,7 @@ public partial class MainWindow : Window
             ApplyWorkspaceViewport(board);
             _undoStack.Clear();
             _redoStack.Clear();
+            ClearSharedUndo();
             UpdateWorkspacePresentation();
             RenderAllItems(animate: true);
             EnsureWorkspaceExtent();
@@ -2870,16 +2871,35 @@ public partial class MainWindow : Window
     private void ApplyWorkspaceViewport(WorkspaceBoard board)
     {
         var state = _appearanceSettings.BoardViewports.GetValueOrDefault(board.Id.ToString("N"));
-        _workspaceZoom = state is null
-            ? Math.Clamp(_appearanceSettings.WorkspaceZoom, BoardViewport.MinimumZoom, BoardViewport.MaximumZoom)
-            : Math.Clamp(state.Zoom, BoardViewport.MinimumZoom, BoardViewport.MaximumZoom);
+        var content = board.Items.Select(item => new BoardContentRect(item.X, item.Y,
+                item.Width > 0 ? item.Width : 320, item.Height > 0 ? item.Height : 180))
+                .Concat(board.Objects.Select(obj => new BoardContentRect(obj.X, obj.Y, obj.Width, obj.Height))).ToArray();
+        var viewportWidth = WorkspaceScroll.ViewportWidth > 0 ? WorkspaceScroll.ViewportWidth : WorkspaceScroll.ActualWidth;
+        var viewportHeight = WorkspaceScroll.ViewportHeight > 0 ? WorkspaceScroll.ViewportHeight : WorkspaceScroll.ActualHeight;
+        var reframe = state is null || state.CameraVersion == 0 && content.Length > 0
+            && !BoardOpeningView.ShowsAny(content, state.Zoom, state.PanX, state.PanY, viewportWidth, viewportHeight);
+        var opening = reframe ? BoardOpeningView.ForContent(content, viewportWidth, viewportHeight,
+            _appearanceSettings.WorkspaceZoom) : default;
+        _workspaceZoom = reframe ? opening.Zoom
+            : Math.Clamp(state!.Zoom, BoardViewport.MinimumZoom, BoardViewport.MaximumZoom);
         UpdatePluginViewportZoom();
         ZoomSlider.Value = _workspaceZoom * 100;
+        // Switching boards is an immediate camera restore. A slider animation
+        // would otherwise replay the previous board's anchor over this view.
+        _zoomAnchorTimer.Stop();
+        _zoomAnchoredToPointer = false;
+        WorkspaceBoardScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+        WorkspaceBoardScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+        WorkspaceBoardScale.ScaleX = _workspaceZoom;
+        WorkspaceBoardScale.ScaleY = _workspaceZoom;
+        WorkspaceExtentHost.Width = board.WorldWidth * _workspaceZoom;
+        WorkspaceExtentHost.Height = board.WorldHeight * _workspaceZoom;
         Dispatcher.BeginInvoke(() =>
         {
-            if (state is null) return;
-            WorkspaceScroll.ScrollToHorizontalOffset(Math.Clamp(state.PanX, 0, WorkspaceScroll.ScrollableWidth));
-            WorkspaceScroll.ScrollToVerticalOffset(Math.Clamp(state.PanY, 0, WorkspaceScroll.ScrollableHeight));
+            if (_activeWorkspace.Id != board.Id) return;
+            WorkspaceScroll.ScrollToHorizontalOffset(Math.Clamp(reframe ? opening.ScrollX : state!.PanX, 0, WorkspaceScroll.ScrollableWidth));
+            WorkspaceScroll.ScrollToVerticalOffset(Math.Clamp(reframe ? opening.ScrollY : state!.PanY, 0, WorkspaceScroll.ScrollableHeight));
+            if (reframe && state is not null) SaveAppearanceSettings();
         }, System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
@@ -3089,7 +3109,8 @@ public partial class MainWindow : Window
             {
                 Zoom = _workspaceZoom,
                 PanX = WorkspaceScroll.HorizontalOffset,
-                PanY = WorkspaceScroll.VerticalOffset
+                PanY = WorkspaceScroll.VerticalOffset,
+                CameraVersion = 1
             };
             _storageService.SaveSettings(_appearanceSettings);
         }
@@ -3116,6 +3137,11 @@ public partial class MainWindow : Window
         }
 
         SaveCardPositionsToItems();
+        if (_activeWorkspace.SyncMode == WorkspaceSyncMode.Shared)
+        {
+            BeginSharedUndo();
+            return;
+        }
         var snapshot = CaptureBoardSnapshot();
         var snapshotJson = JsonSerializer.Serialize(snapshot, SnapshotJsonOptions);
         var latestJson = _undoStack.Count > 0
@@ -3134,6 +3160,7 @@ public partial class MainWindow : Window
 
     private void UndoLastChange()
     {
+        if (_activeWorkspace.SyncMode == WorkspaceSyncMode.Shared) { ApplySharedUndo(undo: true); return; }
         if (_undoStack.Count == 0)
         {
             return;
@@ -3146,6 +3173,7 @@ public partial class MainWindow : Window
 
     private void RedoLastChange()
     {
+        if (_activeWorkspace.SyncMode == WorkspaceSyncMode.Shared) { ApplySharedUndo(undo: false); return; }
         if (_redoStack.Count == 0)
         {
             return;
@@ -3172,8 +3200,17 @@ public partial class MainWindow : Window
 
     private void UpdateUndoRedoButtons()
     {
-        UndoButton.IsEnabled = _undoStack.Count > 0;
-        RedoButton.IsEnabled = _redoStack.Count > 0;
+        if (_activeWorkspace.SyncMode == WorkspaceSyncMode.Shared)
+        {
+            UndoButton.IsEnabled = _sharedUndoStack.Count > 0 || _pendingSharedUndoBefore is not null
+                && _pendingSharedUndoAfter is not null && BoardOperationUndo.Differs(_pendingSharedUndoBefore, _pendingSharedUndoAfter);
+            RedoButton.IsEnabled = _sharedRedoStack.Count > 0;
+        }
+        else
+        {
+            UndoButton.IsEnabled = _undoStack.Count > 0;
+            RedoButton.IsEnabled = _redoStack.Count > 0;
+        }
     }
 
     private static List<ClipboardItem> CloneItems(IEnumerable<ClipboardItem> items)
@@ -3375,6 +3412,7 @@ public partial class MainWindow : Window
         SaveCardPositionsToItems();
         _activeWorkspace.Items = _items;
         _activeWorkspace.UpdatedAt = DateTime.Now;
+        if (_activeWorkspace.SyncMode == WorkspaceSyncMode.Shared) ObserveSharedUndoSave();
         _storageService.SaveWorkspaces(_workspaces);
         _storageService.SaveItems(_items);
         if(!_applyingCloud && queueCloud) { _cloud?.Stage(_workspaces,_history.ToList()); QueueCloudSync(); }

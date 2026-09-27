@@ -69,6 +69,8 @@ public sealed class WindowsPluginViewContext
     public double Scale { get; private set; }
     public double ViewportZoom { get; private set; } = 1;
     public string AccentColor { get; }
+    /// <summary>Available when the package declares workspace.assets. Store returned IDs in PluginState.</summary>
+    public IPluginSharedAssets? SharedAssets { get; set; }
     public event Action? ViewportZoomChanged;
     /// <summary>Subscribe in CreateBody to receive files explicitly dropped on this plugin.
     /// The host validates the file.read permission and supplies existing local files only.

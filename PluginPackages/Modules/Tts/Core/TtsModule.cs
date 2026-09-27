@@ -11,7 +11,7 @@ namespace ClipDesk.Plugin.Tts;
 public sealed class TtsModule : IClipDeskPluginModule, IClipDeskPluginModuleV3
 {
     public const string ModuleId = "clipdesk.tts";
-    public const int SchemaStateVersion = 1;
+    public const int SchemaStateVersion = 2;
 
     public string Id => ModuleId;
     public int StateVersion => SchemaStateVersion;
@@ -173,6 +173,10 @@ public sealed class TtsModule : IClipDeskPluginModule, IClipDeskPluginModuleV3
         {
             next = next.WithAudioFileName(audioFileName);
         }
+        var asset = command.Argument(TtsPluginState.KeyAudioAssetId);
+        if (!string.IsNullOrWhiteSpace(asset) && !Guid.TryParse(asset, out _))
+            return PluginCommandResult.Invalid(state, "Referência de áudio compartilhado inválida.");
+        next = next.With(TtsPluginState.KeyAudioAssetId, asset ?? "");
 
         return new PluginCommandResult(next);
     }
@@ -182,6 +186,7 @@ public sealed class TtsModule : IClipDeskPluginModule, IClipDeskPluginModuleV3
         var next = state
             .WithText("")
             .WithAudioFileName("")
+            .With(TtsPluginState.KeyAudioAssetId, "")
             .WithLastGeneratedText("");
 
         return new PluginCommandResult(next);

@@ -1,0 +1,52 @@
+{
+  "manifestVersion": 2,
+  "id": "clipdesk.stopwatch",
+  "name": "Cronômetro",
+  "description": "Cronômetro progressivo com precisão de centésimos, registro de voltas, detecção de melhor e pior tempo e exportação.",
+  "version": "1.0.0",
+  "publisher": "ClipDesk",
+  "iconGlyph": "\ue916",
+  "accentColor": "#3B82F6",
+  "runtime": "portable-v2",
+  "pluginApiVersion": 2,
+  "stateVersion": 1,
+  "module": {
+    "assembly": "ClipDesk.Plugin.Stopwatch.Core.dll",
+    "type": "ClipDesk.Plugin.Stopwatch.StopwatchModule"
+  },
+  "renderers": [
+    {
+      "platform": "windows",
+      "runtime": "wpf-v2",
+      "assembly": "ClipDesk.Plugin.Stopwatch.dll",
+      "type": "ClipDesk.Plugin.Stopwatch.StopwatchPlugin"
+    }
+  ],
+  "minimumHostVersion": "0.3.3",
+  "installByDefault": false,
+  "sortOrder": 110,
+  "defaultSize": {
+    "width": 320,
+    "height": 280
+  },
+  "minimumSize": {
+    "width": 240,
+    "height": 240
+  },
+  "defaultContent": {
+    "$schema": "1",
+    "status": "idle",
+    "accumulatedMs": "0",
+    "startUtc": "",
+    "lastLapTotalMs": "0",
+    "laps": "[]"
+  },
+  "platforms": [
+    "windows"
+  ],
+  "permissions": [],
+  "capabilities": [
+    "board-widget"
+  ],
+  "networkHosts": []
+}
