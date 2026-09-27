@@ -1,8 +1,10 @@
-# Guia de desenvolvimento de plugins v2
+# Guia de desenvolvimento de plugins v2 para Windows
+
+Este guia documenta o caminho executável no host Windows atual. O [Dev Kit oficial](PLUGIN-DEVKIT.md) define o contrato comum e o estado real de suporte por plataforma.
 
 Este guia mostra como criar, testar e distribuir um plugin no padrão compartilhável do ClipDesk. Consulte [Arquitetura de plugins](PLUGIN-ARCHITECTURE.md) para decisões de segurança, compatibilidade e Android.
 
-Para delegar a criação de um plugin a outro modelo de IA sem fornecer a codebase inteira, envie apenas [ClipDesk Plugin AI DevKit](PLUGIN-AI-DEVKIT.md) e `ClipDesk-Plugin-AI-DevKit.zip`. O kit contém uma especificação compacta, um template compilável e cópias dos SDKs usadas somente como dependências.
+Para delegar a criação de um plugin a outro modelo de IA sem fornecer a codebase inteira, envie [Dev Kit oficial](PLUGIN-DEVKIT.md) e `ClipDesk-Plugin-AI-DevKit.zip`. O kit contém template, SDK, validação e exemplos.
 
 ## Estrutura recomendada
 

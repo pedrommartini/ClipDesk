@@ -83,6 +83,16 @@ Check(Math.Abs(beforeZoom.X - afterZoom.X) < .001 && Math.Abs(beforeZoom.Y - aft
 viewport.Fit();
 Check(Math.Abs(viewport.Zoom - .1) < .001 && viewport.WorldToScreen(new BoardPoint(0, 0)).X >= 0,
     "Enquadramento usa a mesa inteira sem escala individual dos cards");
+var openingView = BoardOpeningView.ForContent([new BoardContentRect(4000, 1500, 600, 320)], 1000, 700, .4);
+Check(openingView.Zoom == 1 && openingView.ScrollX > 3800 && openingView.ScrollY > 1300
+    && 4000 * openingView.Zoom - openingView.ScrollX >= 79,
+    "Primeira entrada em mesa compartilhada enquadra o conteúdo distante sem herdar a câmera anterior");
+var emptyOpeningView = BoardOpeningView.ForContent([], 1000, 700, .4);
+Check(Math.Abs(emptyOpeningView.Zoom - .4) < .001 && emptyOpeningView.ScrollX == 0 && emptyOpeningView.ScrollY == 0,
+    "Mesa vazia começa na origem e preserva o zoom preferido");
+Check(!BoardOpeningView.ShowsAny([new BoardContentRect(300, 200, 500, 300)], .41, 2800, 485, 1000, 700)
+    && BoardOpeningView.ShowsAny([new BoardContentRect(300, 200, 500, 300)], 1, 208, 64, 1000, 700),
+    "Câmera antiga sem conteúdo visível pode ser recuperada sem alterar uma câmera válida");
 var legacyBoard = new WorkspaceBoard { WorldWidth = 0, WorldHeight = double.NaN, SchemaVersion = 0, Items = [new ClipboardItem { X = 20000, Y = -4, Width = 340, Height = 220 }] };
 Check(BoardMigration.Normalize(legacyBoard) && legacyBoard.WorldWidth == BoardSpace.DefaultWidth && legacyBoard.Items[0].X <= legacyBoard.WorldWidth - 340 && legacyBoard.Items[0].Y == 0,
     "Mesa antiga migra para coordenadas limitadas compartilhadas");
@@ -175,4 +185,30 @@ foreach (var mode in new[] { WorkspaceSyncMode.Local, WorkspaceSyncMode.Personal
             $"Plugin preserva identidade, versão e estado na mesa {mode} após sincronização");
     }
 }
+var collaborative = new WorkspaceBoard { SyncMode = WorkspaceSyncMode.Shared };
+collaborative.Items.Add(new ClipboardItem { Id = "card-a", Text = "remoto inicial" });
+collaborative.Objects.Add(new BoardObject { Id = "text-a", Kind = BoardObjectKind.Text,
+    Content = new() { ["text"] = "original" } });
+var beforeAction = BoardOperationUndo.Capture(collaborative);
+collaborative.Objects[0].Content["text"] = "alteração local";
+collaborative.Objects.Add(new BoardObject { Id = "stroke-a", Kind = BoardObjectKind.Stroke,
+    Content = new() { ["points"] = "1,2;3,4" } });
+var afterAction = BoardOperationUndo.Capture(collaborative);
+collaborative.Items[0].Text = "edição de outro participante";
+var withRemote = BoardOperationUndo.Capture(collaborative);
+var undoneAction = BoardOperationUndo.Apply(beforeAction, afterAction, withRemote, undo: true);
+Check(undoneAction.Applied == 2 && undoneAction.Conflicted == 0
+    && undoneAction.Snapshot.Items.Single().Text == "edição de outro participante"
+    && undoneAction.Snapshot.Objects.Single().Content["text"] == "original",
+    "Desfazer colaborativo remove só a própria ação e preserva edição remota independente");
+var redoneAction = BoardOperationUndo.Apply(beforeAction, afterAction, undoneAction.Snapshot, undo: false);
+Check(redoneAction.Applied == 2 && redoneAction.Snapshot.Objects.Count == 2
+    && redoneAction.Snapshot.Items.Single().Text == "edição de outro participante",
+    "Refazer colaborativo reaplica só a própria ação");
+var conflictingAction = BoardOperationUndo.Clone(withRemote);
+conflictingAction.Objects.Single(o => o.Id == "text-a").Content["text"] = "nova edição remota";
+var conflictSafe = BoardOperationUndo.Apply(beforeAction, afterAction, conflictingAction, undo: true);
+Check(conflictSafe.Applied == 1 && conflictSafe.Conflicted == 1
+    && conflictSafe.Snapshot.Objects.Single().Content["text"] == "nova edição remota",
+    "Desfazer não sobrescreve uma edição concorrente no mesmo objeto");
 Console.WriteLine($"{passed} verificações concluídas.");

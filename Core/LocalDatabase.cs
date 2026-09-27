@@ -20,6 +20,10 @@ public sealed class LocalDatabase
               version INTEGER NOT NULL DEFAULT 0, remote_json TEXT NOT NULL, local_json TEXT NOT NULL,
               deleted INTEGER NOT NULL DEFAULT 0, remote_deleted INTEGER NOT NULL DEFAULT 0, operation TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS conflicts (id TEXT PRIMARY KEY, entity_id TEXT NOT NULL, json TEXT NOT NULL, created TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS sync_failures (operation_id TEXT PRIMARY KEY, entity_id TEXT NOT NULL,
+              workspace_id TEXT, kind TEXT NOT NULL, base_version INTEGER NOT NULL, deleted INTEGER NOT NULL,
+              stage TEXT NOT NULL, status_code INTEGER NOT NULL,
+              attempts INTEGER NOT NULL DEFAULT 1, last_seen TEXT NOT NULL);
             """;
         cmd.ExecuteNonQuery();
     }
@@ -81,7 +85,7 @@ public sealed class LocalDatabase
         if (pending is not null)
         {
             var basis = sent?.Data ?? pending.BaseData;
-            try { local = CloudRules.Merge(remote.Data, basis, pending.Data); deleted = pending.Deleted; }
+            try { local = CloudRules.MergeEntity(pending.Kind, remote.Data, basis, pending.Data); deleted = pending.Deleted; }
             catch (SyncConflictException)
             {
                 PreserveConflict(pending.EntityId, pending.Data);
@@ -127,8 +131,43 @@ public sealed class LocalDatabase
     {
         using var db=Open();using var cmd=db.CreateCommand();cmd.CommandText="DELETE FROM conflicts WHERE id=$id";cmd.Parameters.AddWithValue("$id",id);cmd.ExecuteNonQuery();
     }
+    /// <summary>Store failure metadata only; document data and credentials never enter diagnostics.</summary>
+    public void RecordSyncFailure(SyncOperation operation, string stage, int statusCode)
+    {
+        using var db = Open(); using var cmd = db.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO sync_failures(operation_id,entity_id,workspace_id,kind,base_version,deleted,stage,status_code,last_seen)
+            VALUES($operation,$entity,$workspace,$kind,$baseVersion,$deleted,$stage,$status,$seen)
+            ON CONFLICT(operation_id) DO UPDATE SET attempts=attempts+1,status_code=$status,last_seen=$seen
+            """;
+        cmd.Parameters.AddWithValue("$operation", operation.OperationId);
+        cmd.Parameters.AddWithValue("$entity", operation.EntityId);
+        cmd.Parameters.AddWithValue("$workspace", (object?)operation.WorkspaceId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$kind", operation.Kind);
+        cmd.Parameters.AddWithValue("$baseVersion", operation.BaseVersion);
+        cmd.Parameters.AddWithValue("$deleted", operation.Deleted ? 1 : 0);
+        cmd.Parameters.AddWithValue("$stage", stage);
+        cmd.Parameters.AddWithValue("$status", statusCode);
+        cmd.Parameters.AddWithValue("$seen", DateTimeOffset.UtcNow.ToString("O"));
+        cmd.ExecuteNonQuery();
+    }
+    public List<(string OperationId, string EntityId, string? WorkspaceId, string Kind, long BaseVersion, bool Deleted, string Stage, int StatusCode, int Attempts, string LastSeen)> SyncFailures()
+    {
+        using var db = Open(); using var cmd = db.CreateCommand();
+        cmd.CommandText = "SELECT operation_id,entity_id,workspace_id,kind,base_version,deleted,stage,status_code,attempts,last_seen FROM sync_failures ORDER BY last_seen DESC LIMIT 100";
+        using var reader = cmd.ExecuteReader();
+        var result = new List<(string, string, string?, string, long, bool, string, int, int, string)>();
+        while (reader.Read()) result.Add((reader.GetString(0), reader.GetString(1), reader.IsDBNull(2) ? null : reader.GetString(2),
+            reader.GetString(3), reader.GetInt64(4), reader.GetInt64(5) != 0, reader.GetString(6), reader.GetInt32(7),
+            reader.GetInt32(8), reader.GetString(9)));
+        return result;
+    }
     public void ForgetWorkspace(string workspaceId)
     {
+        // Revocation/deletion may arrive while this device still has offline edits.
+        // Keep a recoverable local conflict before hiding the former workspace.
+        foreach (var operation in Pending().Where(op => op.EntityId == workspaceId || op.WorkspaceId == workspaceId))
+            PreserveConflict(operation.EntityId, operation.Data);
         using var db = Open(); using var cmd = db.CreateCommand();
         cmd.CommandText = "DELETE FROM sync_entities WHERE workspace=$id OR id=$id";
         cmd.Parameters.AddWithValue("$id", workspaceId); cmd.ExecuteNonQuery();

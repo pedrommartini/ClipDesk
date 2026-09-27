@@ -29,6 +29,7 @@ internal interface ICloudSyncBackend : IAsyncDisposable
     event Action<CloudEntity>? RealtimeEntityReceived;
     void LoadPaths();
     void ObservePresentation(List<WorkspaceBoard> boards, IEnumerable<ClipboardHistoryEntry> history);
+    void ObserveRealtimeEntity(CloudEntity entity);
     Task SignInAsync(CancellationToken cancellation);
     Task SetUsernameAsync(string username);
     Task ConnectLiveAsync();
@@ -76,6 +77,7 @@ public sealed class CloudSyncService : IAsyncDisposable
     public event Action<CloudEntity>? RealtimeEntityReceived { add => _backend.RealtimeEntityReceived += value; remove => _backend.RealtimeEntityReceived -= value; }
     public void LoadPaths() => _backend.LoadPaths();
     public void ObservePresentation(List<WorkspaceBoard> boards, IEnumerable<ClipboardHistoryEntry> history) => _backend.ObservePresentation(boards, history);
+    public void ObserveRealtimeEntity(CloudEntity entity) => _backend.ObserveRealtimeEntity(entity);
     public Task SignInAsync(CancellationToken cancellation) => _backend.SignInAsync(cancellation);
     public Task SetUsernameAsync(string username) => _backend.SetUsernameAsync(username);
     public Task ConnectLiveAsync() => _backend.ConnectLiveAsync();
@@ -111,6 +113,7 @@ internal sealed class SupabaseCloudSyncService : ICloudSyncBackend
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly CancellationTokenSource _lifetime = new();
     private readonly HashSet<string> _inaccessible = [];
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _permissionRetryAt = new(StringComparer.Ordinal);
     private Dictionary<string, CloudEntity> _presented = [];
     private SupabaseCloudSession? _session;
     private SavedDriveAccount? _driveAccount;
@@ -251,13 +254,24 @@ internal sealed class SupabaseCloudSyncService : ICloudSyncBackend
     public void LoadPaths() => LoadPresentation();
     private void LoadPresentation()
     {
-        var saved = _storage.Database.Read("supabase-sync-presentation");
-        _presented = saved is null ? [] : CloudRules.Deserialize<List<CloudEntity>>(saved).ToDictionary(x => x.Id);
+        // The durable journal may be newer than the workspace document after an
+        // older host received realtime changes. Opening that older document is
+        // not an edit. Anchor subsequent UI deltas to what was actually loaded;
+        // existing journal entities (including pending offline edits) survive.
+        _presented = CloudProjection.Project(_storage.LoadWorkspaces(), [], User?.Id ?? "", false)
+            .ToDictionary(x => x.Id);
     }
     public void ObservePresentation(List<WorkspaceBoard> boards, IEnumerable<ClipboardHistoryEntry> history)
     {
         if (User is null) return;
         _presented = CloudProjection.Project(boards, [], User.Id, false).ToDictionary(x => x.Id);
+        _storage.Database.Write("supabase-sync-presentation", CloudRules.Serialize(_presented.Values.ToList()));
+    }
+    public void ObserveRealtimeEntity(CloudEntity entity)
+    {
+        if (User is null || entity.Kind != "boardObject") return;
+        if (entity.Deleted) _presented.Remove(entity.Id);
+        else _presented[entity.Id] = entity;
         _storage.Database.Write("supabase-sync-presentation", CloudRules.Serialize(_presented.Values.ToList()));
     }
 
@@ -422,7 +436,8 @@ internal sealed class SupabaseCloudSyncService : ICloudSyncBackend
         await EnsureReadyAsync(_lifetime.Token);
         var livePresence = new CloudPresence(_session!.UserId, User?.Username ?? "usuário", User?.Picture,
             presence.WorkspaceId, presence.X, presence.Y, presence.ItemId,
-            presence.ViewCenterX, presence.ViewCenterY, presence.Zoom, presence.Drags);
+            presence.ViewCenterX, presence.ViewCenterY, presence.Zoom, presence.Drags, presence.Selections, presence.Draft,
+            presence.OriginTicks);
         var broadcastSent = false;
         try
         {
@@ -516,20 +531,11 @@ internal sealed class SupabaseCloudSyncService : ICloudSyncBackend
         {
             await EnsureReadyAsync(_lifetime.Token); SetStatus("Sincronizando…");
             await ConnectLiveAsync();
+            // Stage unsent local changes first, then reconcile the complete remote
+            // snapshot. A rejected write must never keep a collaborator's changes
+            // from reaching this client.
             await _gate.WaitAsync(_lifetime.Token);
-            try
-            {
-                // A brand-new cloud workspace needs its owner membership before
-                // Storage RLS can authorize the first attachment. Existing
-                // workspaces skip this preliminary push, keeping new images to
-                // one entity write and one realtime notification.
-                var needsWorkspace = boards.Where(board => board.SyncMode != WorkspaceSyncMode.Local)
-                    .Any(board => !_storage.Database.Entities(board.Id.ToString("N"))
-                        .Any(entity => entity.Kind == "workspace" && entity.Version > 0 && !entity.Deleted));
-                if (needsWorkspace) { Stage(boards, []); await PushAsync(_lifetime.Token); }
-                await PrepareAttachmentsAsync(boards, _lifetime.Token);
-                Stage(boards, []); await PushAsync(_lifetime.Token);
-            }
+            try { Stage(boards, []); }
             finally { _gate.Release(); }
             // Realtime fetches changed entities directly. Poll frequently only
             // when the live channel is unavailable.
@@ -548,8 +554,21 @@ internal sealed class SupabaseCloudSyncService : ICloudSyncBackend
                 }
                 catch { _remoteDirty = true; throw; }
             }
+            await _gate.WaitAsync(_lifetime.Token);
+            try
+            {
+                // Create the owner's workspace before uploading attachments;
+                // Storage RLS requires its membership to exist first.
+                var needsWorkspace = boards.Where(board => board.SyncMode != WorkspaceSyncMode.Local)
+                    .Any(board => !_storage.Database.Entities(board.Id.ToString("N"))
+                        .Any(entity => entity.Kind == "workspace" && entity.Version > 0 && !entity.Deleted));
+                if (needsWorkspace) await PushAsync(_lifetime.Token, workspaceOnly: true);
+                await PrepareAttachmentsAsync(boards, _lifetime.Token);
+                Stage(boards, []); await PushAsync(_lifetime.Token);
+            }
+            finally { _gate.Release(); }
             await RestoreSupabaseAttachmentsAsync(_lifetime.Token);
-            SetStatus(_storage.Database.ConflictCount > 0 ? "Conflito preservado para revisão" : _storage.Database.Pending().Count > 0 ? "Sincronização pendente" : "Sincronizado");
+            SetStatus(SyncResultStatus());
         }
         catch (HttpRequestException e) when (e.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
         { SetStatus("Salvo localmente · aguardando limite da nuvem"); throw; }
@@ -579,7 +598,7 @@ internal sealed class SupabaseCloudSyncService : ICloudSyncBackend
             var basis = before.GetValueOrDefault(entity.Id)?.Data ?? entity.Data;
             try
             {
-                var merged = CloudRules.Merge(latest.Data, basis, entity.Data);
+                var merged = CloudRules.MergeEntity(entity.Kind, latest.Data, basis, entity.Data);
                 if (!CloudRules.Same(latest.Data, merged) || latest.Deleted != entity.Deleted) _storage.Database.Stage(entity with { Data = merged });
             }
             catch (SyncConflictException) { _storage.Database.PreserveConflict(entity.Id, entity.Data); }
@@ -594,7 +613,7 @@ internal sealed class SupabaseCloudSyncService : ICloudSyncBackend
         else if (!latest.Deleted)
         {
             var basis = _presented.GetValueOrDefault(projected.Id)?.Data ?? latest.Data;
-            try { var merged = CloudRules.Merge(latest.Data, basis, projected.Data); if (!CloudRules.Same(latest.Data, merged)) _storage.Database.Stage(projected with { Data = merged }); }
+            try { var merged = CloudRules.MergeEntity(projected.Kind, latest.Data, basis, projected.Data); if (!CloudRules.Same(latest.Data, merged)) _storage.Database.Stage(projected with { Data = merged }); }
             catch (SyncConflictException) { _storage.Database.PreserveConflict(projected.Id, projected.Data); }
         }
         _presented[projected.Id] = projected;
@@ -605,15 +624,40 @@ internal sealed class SupabaseCloudSyncService : ICloudSyncBackend
         foreach (var item in objects.DistinctBy(x => x.Id)) StageBoardObject(board, item);
         if (!Connected) return;
         await _gate.WaitAsync(_lifetime.Token);
-        try { await ConnectLiveAsync(); await PushAsync(_lifetime.Token); SetStatus(_storage.Database.Pending().Count > 0 ? "Sincronização pendente" : "Sincronizado"); }
+        try { await ConnectLiveAsync(); await PushAsync(_lifetime.Token); SetStatus(SyncResultStatus()); }
         finally { _gate.Release(); }
     }
 
-    private async Task PushAsync(CancellationToken cancellation)
+    private string SyncResultStatus()
     {
+        var pending = _storage.Database.Pending();
+        foreach (var id in _permissionRetryAt.Keys.Where(id => pending.All(op => op.EntityId != id)))
+            _permissionRetryAt.TryRemove(id, out _);
+        return _storage.Database.ConflictCount > 0 ? "Conflito preservado para revisão"
+            : _permissionRetryAt.Count > 0 ? "Falha de permissão · alterações pendentes"
+            : pending.Count > 0 ? "Sincronização pendente" : "Sincronizado";
+    }
+
+    private async Task PushAsync(CancellationToken cancellation, bool workspaceOnly = false)
+    {
+        var blockedWorkspaces = new HashSet<string>(StringComparer.Ordinal);
         foreach (var operation in _storage.Database.Pending())
         {
+            if (workspaceOnly && operation.Kind != "workspace") continue;
             if (_inaccessible.Contains(operation.WorkspaceId ?? operation.EntityId)) continue;
+            if (operation.WorkspaceId is { } parent && blockedWorkspaces.Contains(parent)) continue;
+            if (_permissionRetryAt.TryGetValue(operation.EntityId, out var retryAt))
+            {
+                if (retryAt > DateTimeOffset.UtcNow)
+                {
+                    if (operation.Kind == "workspace") blockedWorkspaces.Add(operation.EntityId);
+                    continue;
+                }
+                _permissionRetryAt.TryRemove(operation.EntityId, out _);
+            }
+            if (operation.WorkspaceId is { } workspaceId &&
+                !_storage.Database.Entities(workspaceId).Any(x => x.Kind == "workspace" && x.Version > 0 && !x.Deleted))
+                continue;
             try
             {
                 var remote = operation.Kind switch
@@ -625,11 +669,24 @@ internal sealed class SupabaseCloudSyncService : ICloudSyncBackend
                 if (remote is not null)
                 {
                     _storage.Database.Accept(remote, operation);
+                    _permissionRetryAt.TryRemove(operation.EntityId, out _);
                     if (remote.Kind is "item" or "boardObject") _ = BroadcastEntityAsync(remote.Id);
                 }
             }
             catch (SyncConflictException)
             { _storage.Database.PreserveConflict(operation.EntityId, operation.Data); }
+            catch (SupabaseRequestException e) when (e.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                _permissionRetryAt[operation.EntityId] = DateTimeOffset.UtcNow.AddMinutes(1);
+                if (operation.Kind == "workspace") blockedWorkspaces.Add(operation.EntityId);
+                _storage.Database.RecordSyncFailure(operation, "write", 403);
+            }
+            catch (SupabaseRequestException e) when (e.StatusCode is System.Net.HttpStatusCode.Conflict or System.Net.HttpStatusCode.BadRequest)
+            {
+                _remoteDirty = true;
+                if (operation.Kind == "workspace") blockedWorkspaces.Add(operation.EntityId);
+                _storage.Database.RecordSyncFailure(operation, "write", (int)e.StatusCode);
+            }
         }
     }
     private async Task<CloudEntity> WriteWorkspaceAsync(SyncOperation op, CancellationToken cancellation)
@@ -664,8 +721,8 @@ internal sealed class SupabaseCloudSyncService : ICloudSyncBackend
     }
     private async Task<List<CloudEntity>> FetchRemoteAsync(CancellationToken cancellation)
     {
-        var workspaces = await _rest.GetAsync<WorkspaceRow>("workspaces?select=*&order=updated_at.asc", cancellation);
-        var entities = await _rest.GetAsync<BoardEntityRow>("board_entities?select=*&order=updated_at.asc", cancellation);
+        var workspaces = await _rest.GetAllByIdAsync<WorkspaceRow>("workspaces?select=*", row => row.Id, cancellation);
+        var entities = await _rest.GetAllByIdAsync<BoardEntityRow>("board_entities?select=*", row => row.Id, cancellation);
         return workspaces.Select(Entity).Concat(entities.Select(Entity)).ToList();
     }
     private void ApplyRemote(List<CloudEntity> remote)
@@ -685,6 +742,7 @@ internal sealed class SupabaseCloudSyncService : ICloudSyncBackend
             changed = true;
         }
         var available = remote.Where(x => x.Kind == "workspace" && !x.Deleted).Select(x => x.Id).ToHashSet();
+        _inaccessible.RemoveWhere(available.Contains);
         foreach (var old in _storage.Database.Entities().Where(x => x.Kind == "workspace" && x.Version > 0 && !available.Contains(x.Id)))
         { _inaccessible.Add(old.Id); _storage.Database.ForgetWorkspace(old.Id); changed = true; }
         foreach (var entity in remote)
@@ -716,28 +774,38 @@ internal sealed class SupabaseCloudSyncService : ICloudSyncBackend
 
     private async Task PrepareAttachmentsAsync(IEnumerable<WorkspaceBoard> boards, CancellationToken cancellation)
     {
-        foreach (var board in boards.Where(x => x.SyncMode != WorkspaceSyncMode.Local))
-        foreach (var item in CloudProjection.Flatten(board.Items))
+        foreach (var board in boards.Where(x => x.SyncMode != WorkspaceSyncMode.Local
+            && _storage.Database.Entities(x.Id.ToString("N"))
+                .Any(entity => entity.Kind == "workspace" && entity.Version > 0 && !entity.Deleted)))
         {
-            if (item.Attachments.Count == 0)
+            foreach (var item in CloudProjection.Flatten(board.Items))
             {
-                var sources = new List<(string Path, string? Relative)>();
-                foreach (var path in item.FilePaths.Concat(item.StoredFilePath is null ? [] : new[] { item.StoredFilePath }))
+                if (item.Attachments.Count == 0)
                 {
-                    if (File.Exists(path)) sources.Add((path, null));
-                    else if (Directory.Exists(path))
-                        sources.AddRange(Directory.EnumerateFiles(path, "*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint })
-                            .Select(file => (file, (string?)Path.GetRelativePath(path, file))));
+                    var sources = new List<(string Path, string? Relative)>();
+                    foreach (var path in item.FilePaths.Concat(item.StoredFilePath is null ? [] : new[] { item.StoredFilePath }))
+                    {
+                        if (File.Exists(path)) sources.Add((path, null));
+                        else if (Directory.Exists(path))
+                            sources.AddRange(Directory.EnumerateFiles(path, "*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint })
+                                .Select(file => (file, (string?)Path.GetRelativePath(path, file))));
+                    }
+                    foreach (var source in sources)
+                    {
+                        var attachment = await CreateManagedAttachmentAsync(source.Path, source.Relative, cancellation);
+                        item.Attachments.Add(attachment);
+                        if (!attachment.IsDrive) await UploadSupabaseAttachmentAsync(board, attachment, cancellation);
+                    }
                 }
-                foreach (var source in sources)
-                {
-                    var attachment = await CreateManagedAttachmentAsync(source.Path, source.Relative, cancellation);
-                    item.Attachments.Add(attachment);
-                    if (!attachment.IsDrive) await UploadSupabaseAttachmentAsync(board, attachment, cancellation);
-                }
+                foreach (var attachment in item.Attachments.Where(a => !a.IsDrive && !a.Uploaded && File.Exists(a.LocalPath)))
+                    await UploadSupabaseAttachmentAsync(board, attachment, cancellation);
             }
-            foreach (var attachment in item.Attachments.Where(a => !a.IsDrive && !a.Uploaded && File.Exists(a.LocalPath)))
-                await UploadSupabaseAttachmentAsync(board, attachment, cancellation);
+            foreach (var obj in board.Objects)
+                foreach (var attachment in obj.Attachments.Where(a => !a.IsDrive && !a.Uploaded && File.Exists(a.LocalPath)))
+                {
+                    if (string.IsNullOrWhiteSpace(attachment.OwnerId)) attachment.OwnerId = User!.Id;
+                    await UploadSupabaseAttachmentAsync(board, attachment, cancellation);
+                }
         }
     }
 
@@ -976,7 +1044,10 @@ internal sealed class SupabaseCloudSyncService : ICloudSyncBackend
         ["workspaceId"] = presence.WorkspaceId, ["x"] = presence.X, ["y"] = presence.Y,
         ["itemId"] = presence.ItemId ?? "", ["viewCenterX"] = presence.ViewCenterX,
         ["viewCenterY"] = presence.ViewCenterY, ["zoom"] = presence.Zoom,
-        ["drags"] = presence.Drags ?? []
+        ["drags"] = presence.Drags ?? [], ["selections"] = presence.Selections ?? [], ["draft"] = presence.Draft is null ? new { } : (object)presence.Draft,
+        // The Realtime SDK infers JSON numbers as double; send ticks as text
+        // so a large monotonic counter keeps its exact value.
+        ["originTicks"] = presence.OriginTicks.ToString(System.Globalization.CultureInfo.InvariantCulture)
     };
     private static bool TryPresence(Dictionary<string, object> payload, out CloudPresence presence)
     {
@@ -989,8 +1060,37 @@ internal sealed class SupabaseCloudSyncService : ICloudSyncBackend
             || !PayloadDouble(payload, "zoom", out var zoom)) return false;
         presence = new CloudPresence(userId!, username!, PayloadText(payload, "picture"), CloudRules.CanonicalGuidId(workspaceId!),
             x, y, string.IsNullOrWhiteSpace(PayloadText(payload, "itemId")) ? null : CloudRules.CanonicalGuidId(PayloadText(payload, "itemId")!),
-            viewX, viewY, zoom, ParsePresenceDrags(payload));
+            viewX, viewY, zoom, ParsePresenceDrags(payload), ParsePresenceSelections(payload), ParsePresenceDraft(payload),
+            PayloadLong(payload, "originTicks"));
         return true;
+    }
+    private static PresenceDraft? ParsePresenceDraft(Dictionary<string, object> payload)
+    {
+        if (!payload.TryGetValue("draft", out var raw) || raw is null) return null;
+        try
+        {
+            var json = raw is JsonElement element ? element.GetRawText() : JsonSerializer.Serialize(raw);
+            var draft = JsonSerializer.Deserialize<PresenceDraft>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (draft is null || !Guid.TryParse(draft.Id, out var id) || draft.Kind is not ("pen" or "shape")
+                || draft.Points is not { Length: >= 1 and <= 64 } points
+                || points.Any(p => !double.IsFinite(p.X) || !double.IsFinite(p.Y)
+                    || p.X is < 0 or > 10_000_000 || p.Y is < 0 or > 10_000_000)
+                || draft.Kind == "shape" && points.Length != 2) return null;
+            return draft with { Id = id.ToString("N") };
+        }
+        catch (JsonException) { return null; }
+    }
+    private static string[]? ParsePresenceSelections(Dictionary<string, object> payload)
+    {
+        if (!payload.TryGetValue("selections", out var raw) || raw is null) return null;
+        try
+        {
+            var json = raw is JsonElement element ? element.GetRawText() : JsonSerializer.Serialize(raw);
+            return JsonSerializer.Deserialize<string[]>(json)?
+                .Where(id => Guid.TryParse(id, out _)).Take(64)
+                .Select(CloudRules.CanonicalGuidId).Distinct(StringComparer.Ordinal).ToArray();
+        }
+        catch (JsonException) { return null; }
     }
     private static PresenceDrag[]? ParsePresenceDrags(Dictionary<string, object> payload)
     {
@@ -1008,6 +1108,15 @@ internal sealed class SupabaseCloudSyncService : ICloudSyncBackend
     {
         if (!payload.TryGetValue(key, out var raw) || raw is null) return null;
         return raw is JsonElement json ? json.ValueKind == JsonValueKind.String ? json.GetString() : json.ToString() : raw.ToString();
+    }
+    private static long PayloadLong(Dictionary<string, object> payload, string key)
+    {
+        if (!payload.TryGetValue(key, out var raw) || raw is null) return 0;
+        if (raw is JsonElement json)
+            return json.ValueKind == JsonValueKind.Number && json.TryGetInt64(out var parsed) ? parsed : 0;
+        return raw switch { long value => value, int value => value, string value when long.TryParse(value,
+            System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var parsed) => parsed,
+            _ => 0 };
     }
     private static bool PayloadDouble(Dictionary<string, object> payload, string key, out double value)
     {

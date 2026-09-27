@@ -1,4 +1,10 @@
-# ClipDesk Plugin AI DevKit — especificação autossuficiente
+# ClipDesk Plugin AI DevKit v2.1 — especificação Windows v2
+
+**Versão do pacote:** 2.1.0 · **Data:** 27/09/2026 · **Host compatível:** ClipDesk 0.4.4 ou superior para colaboração e anexos compartilhados.
+
+Esta entrega mantém a API Windows v2 compatível e adiciona as orientações de colaboração, anexos compartilhados e diagnóstico de carregamento introduzidas no host 0.4.4. Plugins v2 existentes continuam carregando; para sincronizar configurações, entradas, resultados e arquivos entre participantes, adapte-os às APIs deste guia.
+
+Este arquivo preserva o caminho compatível com o host Windows atual. Para o contrato comum v3 e o estado de suporte Web/Mobile, consulte [Dev Kit oficial](PLUGIN-DEVKIT.md).
 
 Use este arquivo junto com `ClipDesk-Plugin-AI-DevKit.zip`. Ele é a especificação completa para criar um plugin ClipDesk v2 sem analisar a codebase do aplicativo.
 

@@ -90,6 +90,11 @@ internal static class PluginV2Checks
         seven.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         if (state.GetString("display") != "7" || before != 1 || commits != 1)
             throw new Exception("Bundled v2 renderer did not commit through the host.");
+        var future = state.With(PluginStateKeys.SchemaVersion, "999");
+        if (loader.CreateBody(BuiltInPluginIds.Calculator, future, true, false, 300, 390, 1, "#FBBF24",
+                () => { }, (_, _) => { }, _ => { }) is not null
+            || loader.LastFailure(BuiltInPluginIds.Calculator) is not { Code: "state_too_new" })
+            throw new Exception("A newer shared plugin state was rewritten by an older renderer.");
 
         var boardView = new BoardObjectView(new BoardObject
         {

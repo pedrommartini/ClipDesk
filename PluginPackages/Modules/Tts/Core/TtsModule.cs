@@ -8,10 +8,10 @@ namespace ClipDesk.Plugin.Tts;
 /// Manages state versioning, normalization, and typed command execution.
 /// Platform-agnostic: zero references to WPF, Win32, or OS APIs.
 /// </summary>
-public sealed class TtsModule : IClipDeskPluginModule
+public sealed class TtsModule : IClipDeskPluginModule, IClipDeskPluginModuleV3
 {
     public const string ModuleId = "clipdesk.tts";
-    public const int SchemaStateVersion = 1;
+    public const int SchemaStateVersion = 2;
 
     public string Id => ModuleId;
     public int StateVersion => SchemaStateVersion;
@@ -25,6 +25,19 @@ public sealed class TtsModule : IClipDeskPluginModule
         PluginCommand command,
         IPluginExecutionContext context,
         CancellationToken cancellationToken = default)
+        => ExecuteCore(state, command, cancellationToken);
+
+    public ValueTask<PluginCommandResult> ExecuteAsync(
+        PluginState state,
+        PluginCommand command,
+        IPluginCapabilityProvider capabilities,
+        CancellationToken cancellationToken = default)
+        => ExecuteCore(state, command, cancellationToken);
+
+    private ValueTask<PluginCommandResult> ExecuteCore(
+        PluginState state,
+        PluginCommand command,
+        CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         state = NormalizeState(state);
@@ -160,6 +173,10 @@ public sealed class TtsModule : IClipDeskPluginModule
         {
             next = next.WithAudioFileName(audioFileName);
         }
+        var asset = command.Argument(TtsPluginState.KeyAudioAssetId);
+        if (!string.IsNullOrWhiteSpace(asset) && !Guid.TryParse(asset, out _))
+            return PluginCommandResult.Invalid(state, "Referência de áudio compartilhado inválida.");
+        next = next.With(TtsPluginState.KeyAudioAssetId, asset ?? "");
 
         return new PluginCommandResult(next);
     }
@@ -169,6 +186,7 @@ public sealed class TtsModule : IClipDeskPluginModule
         var next = state
             .WithText("")
             .WithAudioFileName("")
+            .With(TtsPluginState.KeyAudioAssetId, "")
             .WithLastGeneratedText("");
 
         return new PluginCommandResult(next);

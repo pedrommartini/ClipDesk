@@ -1,0 +1,68 @@
+{
+  "manifestVersion": 2,
+  "id": "clipdesk.imageupscaler",
+  "name": "Upscale de Imagem",
+  "description": "Amplie e restaure imagens até 8x com super-resolução inteligente, remoção de ruído, comparativo antes/depois deslizante e envio direto à mesa.",
+  "version": "1.1.0",
+  "publisher": "ClipDesk",
+  "iconGlyph": "",
+  "accentColor": "#8B5CF6",
+  "runtime": "portable-v2",
+  "pluginApiVersion": 2,
+  "stateVersion": 2,
+  "module": {
+    "assembly": "ClipDesk.Plugin.ImageUpscaler.Core.dll",
+    "type": "ClipDesk.Plugin.ImageUpscaler.ImageUpscalerModule"
+  },
+  "renderers": [
+    {
+      "platform": "windows",
+      "runtime": "wpf-v2",
+      "assembly": "ClipDesk.Plugin.ImageUpscaler.dll",
+      "type": "ClipDesk.Plugin.ImageUpscaler.ImageUpscalerPlugin"
+    }
+  ],
+  "minimumHostVersion": "0.4.4",
+  "installByDefault": false,
+  "sortOrder": 145,
+  "defaultSize": {
+    "width": 560,
+    "height": 340
+  },
+  "minimumSize": {
+    "width": 240,
+    "height": 240
+  },
+  "defaultContent": {
+    "$schema": "2",
+    "scaleFactor": "4x",
+    "model": "balanced",
+    "engine": "local",
+    "sharpness": "65",
+    "denoise": "low",
+    "outputFormat": "original",
+    "faceEnhance": "false",
+    "cloudEndpoint": "",
+    "totalImagesUpscaled": "0",
+    "totalPixelsGenerated": "0",
+    "lastMessage": "Pronto para ampliar",
+    "inputAssetId": "",
+    "outputAssetId": "",
+    "outputInfo": ""
+  },
+  "platforms": [
+    "windows"
+  ],
+  "permissions": [
+    "file.read",
+    "file.write",
+    "network",
+    "workspace.assets"
+  ],
+  "capabilities": [
+    "board-widget",
+    "board-files",
+    "file-drop"
+  ],
+  "networkHosts": []
+}

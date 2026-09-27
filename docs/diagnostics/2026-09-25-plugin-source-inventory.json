@@ -1,0 +1,462 @@
+[
+  {
+    "Module": "Clock",
+    "File": "ClipDesk.Plugin.Clock.csproj",
+    "Sha256": "335595E284192F4190E9E79F283C3B4CC54567416EEDDE182C5AB45B0F4512A4"
+  },
+  {
+    "Module": "Clock",
+    "File": "ClockPlugin.cs",
+    "Sha256": "2912FB81BFD05BF2D33CE86C08ADA5363DACA9C929DA43C3A6F71D1A34BD13E8"
+  },
+  {
+    "Module": "Clock",
+    "File": "manifest.json",
+    "Sha256": "95E1CEAAEDC5D300372A648D32C31F0AC7F7E0CECD0992E8413FC96A0245C2DE"
+  },
+  {
+    "Module": "Clock",
+    "File": "UX-REVIEW.md",
+    "Sha256": "FE2D4DDAC813A909C477712CFDAF43138284A06ED28EAC45F2D4F71A4F21C9DE"
+  },
+  {
+    "Module": "Clock",
+    "File": "Core\\ClipDesk.Plugin.Clock.Core.csproj",
+    "Sha256": "0548AE4D2D5100579D8665CA4F821A3CE9D6308BE66B4894DE43B2576DCF3797"
+  },
+  {
+    "Module": "Clock",
+    "File": "Core\\ClockModel.cs",
+    "Sha256": "3CB0D072C1112564B6A2B096DBE36EEEEC54A6A1E5C22CD473132B74A1D1A2FB"
+  },
+  {
+    "Module": "Clock",
+    "File": "Core\\ClockModule.cs",
+    "Sha256": "ACB26766862FF2FC5E78438C0FA256BA330C08CA917EA7A9130921B66C619626"
+  },
+  {
+    "Module": "Stopwatch",
+    "File": "ClipDesk.Plugin.Stopwatch.csproj",
+    "Sha256": "06671FD3D7C40679E105828AE414D76DE3D0A481EDE667F74352CBBA3E5F4B6E"
+  },
+  {
+    "Module": "Stopwatch",
+    "File": "manifest.json",
+    "Sha256": "61560931B56B3454DBB659D9C9503FE450E234A21E338E68953FA68570D0C684"
+  },
+  {
+    "Module": "Stopwatch",
+    "File": "StopwatchPlugin.cs",
+    "Sha256": "C70E5F596B0BF0047C5F5D4598090E115EE5FA04B8BEA9755AD67A003E7C11B2"
+  },
+  {
+    "Module": "Stopwatch",
+    "File": "UX-REVIEW.md",
+    "Sha256": "799E215DCA3E801B94A508CBAC820DD771714CE2E8F63BBD0C6CB7995125BFE4"
+  },
+  {
+    "Module": "Stopwatch",
+    "File": "Core\\ClipDesk.Plugin.Stopwatch.Core.csproj",
+    "Sha256": "942C00C98EDB5E8C9E09E80BCF28ACD2CB4E61412F754726E40DCEF960C625BE"
+  },
+  {
+    "Module": "Stopwatch",
+    "File": "Core\\StopwatchLap.cs",
+    "Sha256": "255CA450BF1E367CBC241EBF1C0DB43DB5421F2E8AFACAA272C9903E71129FDA"
+  },
+  {
+    "Module": "Stopwatch",
+    "File": "Core\\StopwatchModule.cs",
+    "Sha256": "4002112B96D20F651C8458E19A0BF9475307DE8DCADA0031027BCD8307BB2042"
+  },
+  {
+    "Module": "Stopwatch",
+    "File": "Core\\StopwatchStateKeys.cs",
+    "Sha256": "E0630F51E3E0D62C61F3ACAB28CED82F3F513A34920D321FC4AB1C8F61A7ACD5"
+  },
+  {
+    "Module": "Timer",
+    "File": "ClipDesk.Plugin.Timer.csproj",
+    "Sha256": "536E6FECA5634F275EF007F9E4F430FA548F823E01F1FB2F721601DBA1C3A597"
+  },
+  {
+    "Module": "Timer",
+    "File": "manifest.json",
+    "Sha256": "5E0B18E5FFF1329720040E0CC14F9D73428C0DEA7767BB0DA9BDAFB2DE08B44D"
+  },
+  {
+    "Module": "Timer",
+    "File": "TimerPlugin.cs",
+    "Sha256": "4FFEEEB8536626E63CE080F908E20D3A32C2ADC9CB44E0C6923260C665506D41"
+  },
+  {
+    "Module": "Timer",
+    "File": "UX-REVIEW.md",
+    "Sha256": "9822A5D61BDEEBE8F42E04DBE6485A40ABA1FDA23C06E42EA8D458778CFF073E"
+  },
+  {
+    "Module": "Timer",
+    "File": "Core\\ClipDesk.Plugin.Timer.Core.csproj",
+    "Sha256": "85D50FB853B968599CF60957C3C1FCA3DCFEB9A0AEDD321CA9054946E3A5316B"
+  },
+  {
+    "Module": "Timer",
+    "File": "Core\\TimerModule.cs",
+    "Sha256": "4887D56A79364FA2B2E1948C7ACCD5822E2E0B55A3C16CF1858B344887D78110"
+  },
+  {
+    "Module": "Timezone",
+    "File": "ClipDesk.Plugin.Timezone.csproj",
+    "Sha256": "6BD84955F193BD19FFD564A26BBAEB564CA35D5F8871BD6282C63B2A18704972"
+  },
+  {
+    "Module": "Timezone",
+    "File": "manifest.json",
+    "Sha256": "3DE202BA1B259DBD9A59406A373E9E8AEA58D470AA7A87D858B225999FD57604"
+  },
+  {
+    "Module": "Timezone",
+    "File": "TimezonePlugin.cs",
+    "Sha256": "15943564513D4D4D652109D1935075C456CC7EBA7442EF3CCDF93D3C08EC2A62"
+  },
+  {
+    "Module": "Timezone",
+    "File": "UX-REVIEW.md",
+    "Sha256": "C0207F491E31ACDBB05AC059561871ECCF350CD7ED3656778C9D40252F4D49A8"
+  },
+  {
+    "Module": "Timezone",
+    "File": "Core\\ClipDesk.Plugin.Timezone.Core.csproj",
+    "Sha256": "A6F758FC48BB2978EC951FAC0F288926423BC4D805AA31D5837A5C6E3A24416D"
+  },
+  {
+    "Module": "Timezone",
+    "File": "Core\\TimezoneEngine.cs",
+    "Sha256": "BD18CAFF5A2C9265AF6393760ACFECA561CD9E2827156FB3B2C316EDDF06B747"
+  },
+  {
+    "Module": "Timezone",
+    "File": "Core\\TimezoneModels.cs",
+    "Sha256": "9E5B0D908C8B677CADB93F6DAEEED6676959CC3AB5262CB8BB7938E9A760CDC4"
+  },
+  {
+    "Module": "Timezone",
+    "File": "Core\\TimezoneModule.cs",
+    "Sha256": "6AA909CE4C07750E7B6CE1728E15D8716A90150865746B79483796F9EECE3994"
+  },
+  {
+    "Module": "QrCode",
+    "File": "ClipDesk.Plugin.QrCode.csproj",
+    "Sha256": "39775C22A78B33A33BF1C30114D3ABB5F5A2439A65EE44C7533DC5739CB87AEF"
+  },
+  {
+    "Module": "QrCode",
+    "File": "manifest.json",
+    "Sha256": "4B1DA4523A63A80A23DE45E0BC1C1A197B2679E4D40B53AF3AA8D4B779252F6D"
+  },
+  {
+    "Module": "QrCode",
+    "File": "QrCodePlugin.cs",
+    "Sha256": "3E5E4E832C8C282297F7AC2FE5B148DF98E1A985407B2532C75A30E8253B133A"
+  },
+  {
+    "Module": "QrCode",
+    "File": "UX-REVIEW.md",
+    "Sha256": "0893B278102A8756F69B757D7BD0646798530B29EA7D058C372D1A98692298A7"
+  },
+  {
+    "Module": "QrCode",
+    "File": "Core\\ClipDesk.Plugin.QrCode.Core.csproj",
+    "Sha256": "5FBB829AC2469508D6A96699A46B9F1BB9E6C46E967C41F298C9BA99C2ECE512"
+  },
+  {
+    "Module": "QrCode",
+    "File": "Core\\QrCodeEncoder.cs",
+    "Sha256": "EE6AACCE1C40DF1D599175D10F8BE2F28E440E22924A5C56AD9B3C63FEB91081"
+  },
+  {
+    "Module": "QrCode",
+    "File": "Core\\QrCodeModule.cs",
+    "Sha256": "E7D5C80CB03EDA5031E178D65885B02574A2FD709E7D5581B63D8675971C910B"
+  },
+  {
+    "Module": "FileConverter",
+    "File": "ClipDesk.Plugin.FileConverter.csproj",
+    "Sha256": "64F7536DECF917B4410ACC00112480CCA7DA8399B73C971E40CFC04ADCDF490D"
+  },
+  {
+    "Module": "FileConverter",
+    "File": "FileConverterPlugin.cs",
+    "Sha256": "1FA3F71173AB74B60D0D151ED0CC2111780EBD7E28A8379A3039CE106C32B91D"
+  },
+  {
+    "Module": "FileConverter",
+    "File": "manifest.json",
+    "Sha256": "2884845BD2CDD7D6AD286ED202129560084C288F6D4BB68C2359F53268C71DFA"
+  },
+  {
+    "Module": "FileConverter",
+    "File": "UX-REVIEW.md",
+    "Sha256": "35EDD5D6163A00FA21407545AE199A0A26DF45E520A90A8290A6CE7C2498813B"
+  },
+  {
+    "Module": "FileConverter",
+    "File": "Core\\ClipDesk.Plugin.FileConverter.Core.csproj",
+    "Sha256": "8E108591F0F0A9D6F94B59D21139E8FD3F72EB80A68445EF5219A697E420C7B7"
+  },
+  {
+    "Module": "FileConverter",
+    "File": "Core\\FileConverterModule.cs",
+    "Sha256": "C85CDF0B040EA6C795BD860C4FE7C4C105E65B68C7A7075804258CB725C61F08"
+  },
+  {
+    "Module": "FileConverter",
+    "File": "Core\\Models\\FileCategory.cs",
+    "Sha256": "D1313701FA8173E23FE8CA6281DA62633E3FB9C25D44F2EAE6EBEC02ADA3FEA1"
+  },
+  {
+    "Module": "FileConverter",
+    "File": "Core\\Models\\FormatDefinition.cs",
+    "Sha256": "150DFB1A26A888DADC8CA22385EA2DDC01B0E437F8F826A25B622CF1E4358842"
+  },
+  {
+    "Module": "FileConverter",
+    "File": "Core\\Services\\DataDocumentConverter.cs",
+    "Sha256": "7B190A6820527D3083DA3AAFD3CAE50F7333AACD21108DE19D2ADB6D97F189E7"
+  },
+  {
+    "Module": "FileConverter",
+    "File": "Core\\Services\\FormatRegistry.cs",
+    "Sha256": "30C828C5404446911981ACE01A2520435C9337D7CD1CCFF324BF5BA8F003E39B"
+  },
+  {
+    "Module": "FileConverter",
+    "File": "Core\\Services\\LightweightPdfBuilder.cs",
+    "Sha256": "5DF4FF1C780371BB15DB131284CC67DA88EFEAABF1045B00600ABF2471AAC7FD"
+  },
+  {
+    "Module": "FileConverter",
+    "File": "Engines\\ArchiveEngine.cs",
+    "Sha256": "067E807D32CD27770D02D5099AFF68797D062D539A00475E5CA83E0D3442A5CA"
+  },
+  {
+    "Module": "FileConverter",
+    "File": "Engines\\AudioMediaConversionEngine.cs",
+    "Sha256": "4A446C4E4DEAEFAD0147DA20147DC401C9E3D5631A9E1EF7B78DCA1CFCB9D21B"
+  },
+  {
+    "Module": "FileConverter",
+    "File": "Engines\\ImageConversionEngine.cs",
+    "Sha256": "B35D3F6E982489B1C4D2CBE19061E3A6435F0DF19191589E72B54C1F379E53DC"
+  },
+  {
+    "Module": "FileConverter",
+    "File": "Engines\\UniversalConversionCoordinator.cs",
+    "Sha256": "FAE402216ABACC219DC67AC2053F9B56E75EA270E1485D9107D37334E8A71CF1"
+  },
+  {
+    "Module": "ImageCompressor",
+    "File": "ClipDesk.Plugin.ImageCompressor.csproj",
+    "Sha256": "46F5FB7609D75A152052A2C1C6758C4A4AE4F708025743D1A02C88FB4218D480"
+  },
+  {
+    "Module": "ImageCompressor",
+    "File": "ImageCompressorPlugin.cs",
+    "Sha256": "811AB69119E101EC2F45D6E89DDC3644EF9946C1BB909DB8B2D40A2EA82B0CFA"
+  },
+  {
+    "Module": "ImageCompressor",
+    "File": "manifest.json",
+    "Sha256": "7CADC651ADA9EE5B8D3FB3E5158ADB5093E7EB7DCBDA561993320FE58ECE75DE"
+  },
+  {
+    "Module": "ImageCompressor",
+    "File": "UX-REVIEW.md",
+    "Sha256": "F08E9742390BAD93519CB0BA4DCE9B883F6827ECF96C0A0F7FE91C0554A49439"
+  },
+  {
+    "Module": "ImageCompressor",
+    "File": "Core\\ClipDesk.Plugin.ImageCompressor.Core.csproj",
+    "Sha256": "D3176393EB583EB0E9187C0B0ED6DCBDDD9606D658FA3D1FC5506144A344E5A0"
+  },
+  {
+    "Module": "ImageCompressor",
+    "File": "Core\\ImageCompressorCommands.cs",
+    "Sha256": "6472F56785086703095A0C98D86F2F36600525BA150B19CFF90ACFE5545DDB3A"
+  },
+  {
+    "Module": "ImageCompressor",
+    "File": "Core\\ImageCompressorModule.cs",
+    "Sha256": "8FB320379ED7A73B5B9315CC1FA74DCA5629803AA430BEBD4EC25C7AE10E8174"
+  },
+  {
+    "Module": "ImageCompressor",
+    "File": "Core\\ImageCompressorState.cs",
+    "Sha256": "53624F386A74D46EE4B7E0346F21E301DA00A2D6581AA32CDC690D36D2A4E928"
+  },
+  {
+    "Module": "ImageCompressor",
+    "File": "Core\\Models\\CoreEnums.cs",
+    "Sha256": "91658C4ADF8E2AFAB4412EF467C9D1857A4A11236B5DF684E40D56881F02EE51"
+  },
+  {
+    "Module": "ImageCompressor",
+    "File": "Engines\\ImageCompressionOptions.cs",
+    "Sha256": "427F9F06D63FF903720A61B9934602198D9087F81A0360339D236DDA09DB5496"
+  },
+  {
+    "Module": "ImageCompressor",
+    "File": "Engines\\WicCompressionEngine.cs",
+    "Sha256": "9CFC85D445CF4BDE6662CED5D6C641DD27E1252D9214E540BBB74BD93CC4851D"
+  },
+  {
+    "Module": "ImageCompressor",
+    "File": "Models\\BatchQueueItem.cs",
+    "Sha256": "94A8CD70D2EDFDA976EACF60B3ACF43B47345F8F9CB0176A942C95FB85B68491"
+  },
+  {
+    "Module": "ImageCompressor",
+    "File": "Models\\CompressionResult.cs",
+    "Sha256": "8CBFEA6E1A7BCC5781EDC01CF88540E8F57E147B798323AA5DA2FE59CA202BEF"
+  },
+  {
+    "Module": "ImageCompressor",
+    "File": "UI\\BatchQueueItemView.cs",
+    "Sha256": "27EAEF26FEAE5C6CEF04C43C6B440F007EF00B5BBDCE3AAE4A22B4D2582EEC95"
+  },
+  {
+    "Module": "ImageCompressor",
+    "File": "UI\\BeforeAfterSplitOverlay.cs",
+    "Sha256": "55D6F09446A6B25F63C95F58368F2C06A5A06B7CB402CF48ABF5F1D84DA9CE3D"
+  },
+  {
+    "Module": "ImageCompressor",
+    "File": "UI\\ImageCompressorControl.cs",
+    "Sha256": "AC78D259623769B1E54B98C3E813C61332B94E32F0A848DC03CCEA2B0A95F954"
+  },
+  {
+    "Module": "ImageCompressor",
+    "File": "UI\\UiStyles.cs",
+    "Sha256": "4FF2562E8759A94EFBB2E00BD4222CC189626C9F722C525BF40350B210C823F0"
+  },
+  {
+    "Module": "ImageUpscaler",
+    "File": "ClipDesk.Plugin.ImageUpscaler.csproj",
+    "Sha256": "3E832680A8100F2147D1C50D755BEFB5CCE56D840513E51ED601BBF659739AF9"
+  },
+  {
+    "Module": "ImageUpscaler",
+    "File": "ImageUpscalerPlugin.cs",
+    "Sha256": "3F3D8EFBD4CB78BAC2A4710A08AD0C0C9043F36BFACFAED0B7E31892AB47518E"
+  },
+  {
+    "Module": "ImageUpscaler",
+    "File": "manifest.json",
+    "Sha256": "1F1C928AFEE838D5EFE28FC2C5CDF04D3193A39C255BE6B0983CCEDE608B9302"
+  },
+  {
+    "Module": "ImageUpscaler",
+    "File": "UX-REVIEW.md",
+    "Sha256": "7BACD9D67813721501CED13D1CFAB7FA46CD449AF3B58F4059098DE562DD84F9"
+  },
+  {
+    "Module": "ImageUpscaler",
+    "File": "Core\\ClipDesk.Plugin.ImageUpscaler.Core.csproj",
+    "Sha256": "FF58AD6CC0D259E72EB5B0D0650CF5CC8D9B7688E062CE7B1B8F5D8A3E609FEC"
+  },
+  {
+    "Module": "ImageUpscaler",
+    "File": "Core\\ImageUpscalerCommands.cs",
+    "Sha256": "E2E4D1A1C57686D0173D1A69B513FAB9A1B2A6EC1C14EC0C6903AAEA2353A275"
+  },
+  {
+    "Module": "ImageUpscaler",
+    "File": "Core\\ImageUpscalerModule.cs",
+    "Sha256": "3DA3B3074291176C418861E41673A74B7BE8E61A61FD74A3CDC1B85B53439BA0"
+  },
+  {
+    "Module": "ImageUpscaler",
+    "File": "Core\\ImageUpscalerState.cs",
+    "Sha256": "45E42AF325746FFF6232EF34F668DEBCFF009CF41F6490C41CD4278CBD21A5B4"
+  },
+  {
+    "Module": "ImageUpscaler",
+    "File": "Core\\Models\\CoreEnums.cs",
+    "Sha256": "FA12564B985E91435FA4112EAF7C61CF826C0F1F47D43CDA51225C6FD8407E39"
+  },
+  {
+    "Module": "ImageUpscaler",
+    "File": "Engines\\CloudAiUpscaleEngine.cs",
+    "Sha256": "FD1FEBB0213AB39D8D3A7CCC8D8C40C42DBA62B44C09AA27D906EEC133A473A0"
+  },
+  {
+    "Module": "ImageUpscaler",
+    "File": "Engines\\ImageUpscaleOptions.cs",
+    "Sha256": "50BA0333983C16052172895F0777D81E7FFD284BAEB681E1D003CF337AB7A021"
+  },
+  {
+    "Module": "ImageUpscaler",
+    "File": "Engines\\WicUpscaleEngine.cs",
+    "Sha256": "FE398EBF6E0DF0FE723BA0B1D0F65218A050A2A00843838DEC8CF91D2DA5B513"
+  },
+  {
+    "Module": "ImageUpscaler",
+    "File": "Models\\UpscaleItem.cs",
+    "Sha256": "81AE7E8E999F703EAC128B3FB9C6F14F60286A53DBF0E16854070EC6596CFA58"
+  },
+  {
+    "Module": "ImageUpscaler",
+    "File": "Models\\UpscaleResult.cs",
+    "Sha256": "F073B85E183CECB3D85CB5ADD9AF574EFB1A45CE6BE0815126CAAEF4C5877C00"
+  },
+  {
+    "Module": "ImageUpscaler",
+    "File": "UI\\BeforeAfterSplitOverlay.cs",
+    "Sha256": "788FF13AB7650DD5E3DEBEA062E81CD08D378B39AE6B2A3101D98B6FCFEBF9F0"
+  },
+  {
+    "Module": "ImageUpscaler",
+    "File": "UI\\ImageUpscalerControl.cs",
+    "Sha256": "B4AF5D31DBA67629ED2144165EDB6C84CF2735C18EABB79B20C1BC2E81C0DC62"
+  },
+  {
+    "Module": "ImageUpscaler",
+    "File": "UI\\UiStyles.cs",
+    "Sha256": "A73D55FEEC86A07A74B0C9DEAB1CDD2C6F6B06673FCB975BAA7CC9A5FFE5B6E5"
+  },
+  {
+    "Module": "AudioRecorder",
+    "File": "AudioCaptureService.cs",
+    "Sha256": "350BBC3C8444FD5EBB662417BDC3E434DD6BA09CE9160A5C1166A5A8C4D940FE"
+  },
+  {
+    "Module": "AudioRecorder",
+    "File": "AudioRecorderPlugin.cs",
+    "Sha256": "014797DAC89C9166F4DAA875E8ABE3B5E34E10992400E0940D360A43525C64F6"
+  },
+  {
+    "Module": "AudioRecorder",
+    "File": "ClipDesk.Plugin.AudioRecorder.csproj",
+    "Sha256": "129D34F95ED342B3E45BD379C1126E1AE6A83619E1F59DE45E05B1D4125DD29A"
+  },
+  {
+    "Module": "AudioRecorder",
+    "File": "manifest.json",
+    "Sha256": "B81FA4A6C9DD6A955F650A7851EBA0F18BD3337703AEF8FC3A0C2B4BD4A6D920"
+  },
+  {
+    "Module": "AudioRecorder",
+    "File": "UX-REVIEW.md",
+    "Sha256": "BB95C7E931D81DE22873F4CAC97AC709FB28FFAEE9100E9723AC4A3767C257BB"
+  },
+  {
+    "Module": "AudioRecorder",
+    "File": "Core\\AudioRecorderModule.cs",
+    "Sha256": "EE06349015A8347BDE9ED5A80BBAA940FF3477B195C0CEB3E01216F767FD7237"
+  },
+  {
+    "Module": "AudioRecorder",
+    "File": "Core\\ClipDesk.Plugin.AudioRecorder.Core.csproj",
+    "Sha256": "5F45D5F656EFF3551F5AE28161FABEC73D940327495504F1E1017127F3ECD706"
+  }
+]

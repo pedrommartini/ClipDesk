@@ -6,6 +6,10 @@ param(
 $ErrorActionPreference = 'Stop'
 $moduleDirectory = (Resolve-Path -LiteralPath $PluginDirectory).Path
 $manifestPath = Join-Path $moduleDirectory 'manifest.json'
+$kitRoot = Split-Path $PSScriptRoot -Parent
+$validatorProject = Join-Path $kitRoot 'PluginDevKit.Tool\ClipDesk.PluginDevKit.Tool.csproj'
+dotnet run --project $validatorProject -- $manifestPath $moduleDirectory
+if ($LASTEXITCODE -ne 0) { throw 'Validação do Dev Kit falhou. Corrija os erros CDK acima antes de empacotar.' }
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 $projects = @(Get-ChildItem -LiteralPath $moduleDirectory -Filter '*.csproj' -File)
 if ($projects.Count -ne 1) { throw 'O diretório do plugin deve conter exatamente um projeto .csproj.' }
@@ -28,7 +32,9 @@ $published = Join-Path $staging 'published'
 $package = Join-Path $staging 'package'
 New-Item -ItemType Directory -Path $published, $package | Out-Null
 try {
-    dotnet publish $projects[0].FullName -c Release --self-contained false -o $published
+    # A Windows RID selects runtime implementations from NuGet packages. Without
+    # it, System.Speech can publish its compile-time facade instead of SAPI.
+    dotnet publish $projects[0].FullName -c Release -r win-x64 --self-contained false -o $published
     if ($LASTEXITCODE -ne 0) { throw 'Não foi possível compilar o plugin.' }
     $requiredAssemblies = if ($isV2) { @($manifest.module.assembly, $windowsRenderer.assembly) } else { @($manifest.entryAssembly) }
     foreach ($assembly in $requiredAssemblies) {
@@ -82,5 +88,12 @@ try {
     } | ConvertTo-Json -Depth 5
 }
 finally {
-    if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
+    if (Test-Path -LiteralPath $staging) {
+        $resolvedStaging = [IO.Path]::GetFullPath($staging)
+        $outputPrefix = $output.TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+        if (-not $resolvedStaging.StartsWith($outputPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Diretório temporário fora do destino esperado: $resolvedStaging"
+        }
+        Remove-Item -LiteralPath $resolvedStaging -Recurse -Force
+    }
 }

@@ -10,13 +10,14 @@
     <AssemblyName Condition="'$(ClipDeskEnvironment)' == 'Development'">ClipDesk-DEV-Setup</AssemblyName>
     <AssemblyName Condition="'$(ClipDeskEnvironment)' != 'Development'">ClipDesk-Setup</AssemblyName>
     <RootNamespace>ClipDesk.Installer</RootNamespace>
-    <Version>0.4.3</Version>
-    <FileVersion>0.4.3.0</FileVersion>
+    <Version>0.4.4</Version>
+    <FileVersion>0.4.4.0</FileVersion>
     <ApplicationIcon>..\Resources\Brand\clipdesk.ico</ApplicationIcon>
+    <ClipDeskPayloadPath Condition="'$(ClipDeskPayloadPath)' == ''">Payload\ClipDeskPayload.zip</ClipDeskPayloadPath>
   </PropertyGroup>
   <ItemGroup>
     <Resource Include="..\Resources\Brand\clipdesk-icon.png" Link="Resources\Brand\clipdesk-icon.png" />
     <Resource Include="..\Resources\Brand\clipdesk-logo.png" Link="Resources\Brand\clipdesk-logo.png" />
-    <EmbeddedResource Include="Payload\ClipDeskPayload.zip" LogicalName="ClipDeskPayload.zip" />
+    <EmbeddedResource Include="$(ClipDeskPayloadPath)" LogicalName="ClipDeskPayload.zip" />
   </ItemGroup>
 </Project>

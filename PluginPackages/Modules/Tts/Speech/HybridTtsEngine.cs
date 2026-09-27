@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.IO;
 using ClipDesk.PluginSdk;
+using ClipDesk.PluginSdk.Windows;
 
 namespace ClipDesk.Plugin.Tts.Speech;
 
@@ -122,7 +123,7 @@ public sealed class HybridTtsEngine : IDisposable
         }
 
         // Save generated audio to official plugin directory
-        var storageDirectory = PluginStoragePaths.GetDefaultDirectory("clipdesk.tts");
+        var storageDirectory = WindowsPluginFiles.DefaultDocumentDirectory("clipdesk.tts");
         Directory.CreateDirectory(storageDirectory);
 
         var timeStamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
@@ -155,7 +156,7 @@ public sealed class HybridTtsEngine : IDisposable
     /// </summary>
     public static PluginBoardFile CreateBoardFile(TtsAudioResult result)
     {
-        return PluginBoardFile.FromPath(result.FilePath, result.FileName);
+        return WindowsPluginFiles.FromPath(result.FilePath, result.FileName);
     }
 
     public void Dispose()

@@ -24,9 +24,14 @@ public sealed class SyncHub(CloudStore store,LiveConnections connections) : Hub
         if(Context.Items.TryGetValue("presenceAt",out var last) && DateTimeOffset.UtcNow-(DateTimeOffset)last!<TimeSpan.FromMilliseconds(40)) return;
         Context.Items["presenceAt"]=DateTimeOffset.UtcNow;
         if(!store.CanAccess(userId,presence.WorkspaceId)) throw new HubException("Mesa indisponível.");
+        var draft = presence.Draft;
+        if(draft is not null && (!Guid.TryParse(draft.Id,out _) || draft.Kind is not ("pen" or "shape")
+            || draft.Points is not {Length: >= 1 and <= 64} points
+            || points.Any(p=>!double.IsFinite(p.X)||!double.IsFinite(p.Y)||p.X<0||p.Y<0||p.X>10_000_000||p.Y>10_000_000)
+            || draft.Kind=="shape"&&points.Length!=2)) return;
         var members=store.Members(userId,presence.WorkspaceId); var self=members.Single(m=>m.UserId==userId);
         await Clients.Clients(connections.ActiveFor(members.Where(m=>m.UserId!=userId).Select(m=>m.UserId),store)).SendAsync("Presence",
             new CloudPresence(userId,self.Username,self.Picture,presence.WorkspaceId,presence.X,presence.Y,presence.ItemId,
-                presence.ViewCenterX,presence.ViewCenterY,presence.Zoom));
+                presence.ViewCenterX,presence.ViewCenterY,presence.Zoom,presence.Drags,presence.Selections,presence.Draft,presence.OriginTicks));
     }
 }

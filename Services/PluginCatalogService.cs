@@ -9,6 +9,7 @@ namespace ClipDesk.Services;
 public sealed record PluginCatalogEntry(PluginManifest Manifest, bool IsInstalled, string? InstalledVersion,
     string PackageDirectory, PluginFeedPackage? RemotePackage = null);
 public sealed record InstalledPluginPackage(PluginManifest Manifest, string Directory);
+public sealed record PluginPackageDiagnostic(string Code, string? Version);
 
 /// <summary>Reads built-ins beside the app, optional installs from Documents, and built-in updates from a private cache.</summary>
 public sealed class PluginCatalogService
@@ -75,6 +76,50 @@ public sealed class PluginCatalogService
         var privateUpdate = ReadStoredPackage(_bundledUpdateRoot, pluginId);
         if (bundled is null || !bundled.Manifest.InstallByDefault) return optional ?? privateUpdate;
         return SelectNewest(pluginId, bundled, (_bundledUpdateRoot, privateUpdate), (_optionalRoot, optional));
+    }
+
+    /// <summary>Explains why a package could not be activated without exposing local package paths.</summary>
+    public PluginPackageDiagnostic DiagnoseUnavailable(string pluginId)
+    {
+        if (!SafeId.IsMatch(pluginId)) return new("plugin_id_invalid", null);
+        if (IsDisabled(pluginId)) return new("package_disabled", null);
+        var found = false;
+        PluginPackageDiagnostic? firstProblem = null;
+        foreach (var root in new[] { _bundledRoot, _optionalRoot, _bundledUpdateRoot })
+        {
+            var pluginRoot = SafeChild(root, pluginId);
+            if (!Directory.Exists(pluginRoot)) continue;
+            found = true;
+            var directories = new List<string> { pluginRoot };
+            try { directories.AddRange(Directory.EnumerateDirectories(pluginRoot)); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                firstProblem ??= new("package_unreadable", null);
+                continue;
+            }
+            foreach (var directory in directories)
+            {
+                var path = Path.Combine(directory, "manifest.json");
+                if (!File.Exists(path)) continue;
+                var manifest = TryReadManifest(path);
+                if (manifest is null || !manifest.Id.Equals(pluginId, StringComparison.OrdinalIgnoreCase))
+                {
+                    firstProblem ??= new("manifest_invalid", null);
+                    continue;
+                }
+                var version = Version.TryParse(manifest.Version, out _) ? manifest.Version : null;
+                if (!Version.TryParse(manifest.MinimumHostVersion, out var minimum)
+                    || _hostVersion < minimum
+                    || manifest.MaximumHostVersion is { Length: > 0 } maximumText
+                    && (!Version.TryParse(maximumText, out var maximum) || _hostVersion > maximum))
+                    firstProblem ??= new("host_incompatible", version);
+                else if (!PluginCompatibility.Supports(manifest, _hostVersion, PluginCompatibility.WindowsApiVersion, PluginPlatforms.Windows))
+                    firstProblem ??= new("contract_incompatible", version);
+                else if (!EntryExists(manifest, directory))
+                    firstProblem ??= new("assembly_missing", version);
+            }
+        }
+        return firstProblem ?? new(found ? "manifest_missing" : "package_missing", null);
     }
 
     private InstalledPluginPackage? ResolveAvailablePackage(string pluginId)
@@ -284,6 +329,9 @@ public sealed class PluginCatalogService
 
     private static void Validate(PluginManifest manifest)
     {
+        var contractIssues = PluginManifestValidator.Validate(manifest);
+        if (contractIssues.Count > 0)
+            throw new InvalidDataException($"Manifesto inválido ({contractIssues[0].Code}): {contractIssues[0].Message}");
         if (string.IsNullOrWhiteSpace(manifest.Id) || !SafeId.IsMatch(manifest.Id))
             throw new InvalidDataException("Identificador de plugin inválido.");
         if (string.IsNullOrWhiteSpace(manifest.Name)) throw new InvalidDataException($"O plugin {manifest.Id} não possui nome.");

@@ -25,10 +25,11 @@ public static class CloudProjection
         ["objectKind"]=(int)obj.Kind,["pluginId"]=obj.PluginId,["pluginName"]=obj.PluginName,["pluginVersion"]=obj.PluginVersion,["x"]=obj.X,["y"]=obj.Y,["width"]=obj.Width,["height"]=obj.Height,
         ["rotation"]=obj.Rotation,["zIndex"]=obj.ZIndex,["locked"]=obj.Locked,["createdBy"]=obj.CreatedBy,
         ["createdAt"]=obj.CreatedAt.ToUniversalTime().ToString("O"),["updatedAt"]=obj.UpdatedAt.ToUniversalTime().ToString("O"),
-        ["style"]=JsonSerializer.SerializeToNode(obj.Style),["content"]=JsonSerializer.SerializeToNode(obj.Content)
+        ["style"]=JsonSerializer.SerializeToNode(obj.Style),["content"]=JsonSerializer.SerializeToNode(obj.Content),
+        ["attachments"]=Attachments(obj.Attachments)
     });
 
-    public static BoardObject MaterializeBoardObject(CloudEntity entity)
+    public static BoardObject MaterializeBoardObject(CloudEntity entity,IReadOnlyDictionary<string,string>? localPaths=null)
     {
         var d=entity.Data;
         var result = new BoardObject
@@ -39,7 +40,8 @@ public static class CloudProjection
             Rotation=Number(d,"rotation"),ZIndex=d["zIndex"]?.GetValue<int>() ?? 0,Locked=d["locked"]?.GetValue<bool>() ?? false,
             CreatedBy=Text(d,"createdBy"),CreatedAt=OffsetDate(d,"createdAt"),UpdatedAt=OffsetDate(d,"updatedAt"),
             Style=JsonSerializer.Deserialize<Dictionary<string,string>>(d["style"]?.ToJsonString() ?? "{}") ?? [],
-            Content=JsonSerializer.Deserialize<Dictionary<string,string>>(d["content"]?.ToJsonString() ?? "{}") ?? []
+            Content=JsonSerializer.Deserialize<Dictionary<string,string>>(d["content"]?.ToJsonString() ?? "{}") ?? [],
+            Attachments=ReadAttachments(d,localPaths ?? new Dictionary<string,string>())
         };
         BoardPluginIdentity.Normalize(result);
         return result;
@@ -95,7 +97,8 @@ public static class CloudProjection
                 }).ToList();
             }
             board.Items=Build(null,0); boards.Add(board);
-            board.Objects=entities.Where(e=>e.Kind=="boardObject" && e.WorkspaceId==entity.Id).Select(MaterializeBoardObject).ToList();
+            board.Objects=entities.Where(e=>e.Kind=="boardObject" && e.WorkspaceId==entity.Id)
+                .Select(e=>MaterializeBoardObject(e,localPaths)).ToList();
         }
         return boards;
     }
