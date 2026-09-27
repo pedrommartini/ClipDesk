@@ -24,6 +24,11 @@ Ao final, os bancos locais de DEV Cliente 1 e Production Cliente 2 continham oit
 
 O controle visual foi desligado depois dos ensaios. Os dois processos de teste restantes podem continuar abertos para inspeção; nenhum deles substitui a instalação diária.
 
+## Ferramentas nativas entre canais
+
+No par DEV Cliente 1 (89%) ↔ Production Cliente 2 (78%), uma forma e um traço feitos no DEV apareceram no Production com escala visual correspondente; uma segunda forma feita no Production apareceu no DEV. O marcador de presença remoto acompanhou o ponto final observado, mas não houve medição quantitativa do erro do cursor. Esses são ensaios de criação e persistência; prévias durante um arraste lento, cancelamento, DPI diferente, texto/notas e desfazer intercalado ainda precisam de cobertura.
+
+Após os três objetos de teste, os dois bancos continham 11 entidades da mesa, sem diferenças local/remoto ou falhas de sincronização. O SHA-256 do conjunto ordenado de ID, versão e JSON remoto coincidiu: `397C9401628512B292B1A372193A9AF61D9A42C6E1303D6DF063B1BA95CA6A59`. As novas formas e o traço permanecem somente na mesa descartável.
 ## Pendências antes do deploy
 
 Ainda faltam ensaio visual dos 14 plugins em ambos os canais; configurações/anexos e resultados em cada plugin; anexos acima de 30 MB com autenticação Drive e integridade de download; edição concorrente, texto/desenho/nota/conectores/seleção/desfazer em uso real; gravação de áudio enquanto chegam eventos; medição de latência de edição e cursor entre computadores, diferentes DPI e zoom; upgrade/rollback; e identificação da operação 403 original de Pedro/Renan. As medições de presença anteriores cobrem somente dois clientes DEV no mesmo computador (medianas 32,9–36,3 ms e p95 54,5–56,0 ms).
