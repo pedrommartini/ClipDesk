@@ -18,6 +18,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $repositoryRoot 'docs\PLUGIN-DEVKIT-PLAN.md') -Destination $kitDocs
     Copy-Item -LiteralPath (Join-Path $repositoryRoot 'docs\PLUGIN-MIGRATION.md') -Destination $kitDocs
     Copy-Item -LiteralPath (Join-Path $repositoryRoot 'docs\PLUGIN-AI-DEVKIT.md') -Destination $kitDocs
+    Copy-Item -LiteralPath (Join-Path $repositoryRoot 'docs\DEVKIT-VERSION.md') -Destination $kitDocs
 
     $modules = Join-Path $kitRoot 'PluginPackages\Modules'
     New-Item -ItemType Directory -Path $modules -Force | Out-Null

@@ -1,4 +1,8 @@
-# Dev Kit oficial de plugins ClipDesk
+# Dev Kit oficial de plugins ClipDesk v2.1
+
+**Versão do pacote:** 2.1.0 · **Data:** 27/09/2026 · **Host compatível:** ClipDesk 0.4.4 ou superior para colaboração e anexos compartilhados.
+
+O DevKit v2.1 formaliza o estado compartilhável de plugins em mesas colaborativas, anexos por ID gerenciado pela mesa e diagnósticos locais para falhas de carregamento. APIs Windows v1/v2 existentes permanecem compatíveis; um plugin precisa adotar as APIs de estado e anexos descritas neste guia para que suas configurações, entradas e resultados apareçam nos outros participantes.
 
 Este é o ponto de entrada para criar plugins. As regras executáveis em `PluginSdk/PluginManifestValidator.cs` e `PluginDevKit.Tool` são a fonte de verdade do manifesto e da separação do Core. Execute a ferramenta após cada alteração. O [plano](PLUGIN-DEVKIT-PLAN.md) registra o diagnóstico que motivou este contrato; o [guia de migração](PLUGIN-MIGRATION.md) cobre pacotes existentes.
 
