@@ -16,9 +16,10 @@ public static class TtsPluginState
     public const string KeyVolume = "volume";
     public const string KeyRate = "rate";
     public const string KeyAudioFileName = "audio_file_name";
+    public const string KeyAudioAssetId = "audio_asset_id";
     public const string KeyLastGeneratedText = "last_generated_text";
 
-    public const string CurrentSchemaVersion = "1";
+    public const string CurrentSchemaVersion = "2";
     public const string DefaultLanguage = "pt";
     public const string DefaultVoiceId = "pt-BR-FranciscaNeural";
     public const int DefaultVolume = 100;
@@ -41,6 +42,7 @@ public static class TtsPluginState
         [KeyVolume] = DefaultVolume.ToString(CultureInfo.InvariantCulture),
         [KeyRate] = DefaultRate.ToString(CultureInfo.InvariantCulture),
         [KeyAudioFileName] = "",
+        [KeyAudioAssetId] = "",
         [KeyLastGeneratedText] = ""
     });
 
@@ -90,6 +92,8 @@ public static class TtsPluginState
 
         // 7. Audio file name
         values[KeyAudioFileName] = state.GetString(KeyAudioFileName)?.Trim() ?? "";
+        values[KeyAudioAssetId] = Guid.TryParse(state.GetString(KeyAudioAssetId), out var assetId)
+            ? assetId.ToString("N") : "";
 
         // 8. Last generated text
         values[KeyLastGeneratedText] = state.GetString(KeyLastGeneratedText)?.Trim() ?? "";

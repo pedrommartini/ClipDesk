@@ -202,10 +202,31 @@ internal static class PluginDeliveryChecks
             if (catalog.LoadCatalog().Count != 2 || loader.CreateBody(newPluginManifest.Id,
                     new PluginViewContext(newPluginManifest.DefaultContent, true, false, 300, 390, 1, _ => { }, _ => { })) is null)
                 throw new Exception("A new plugin could not be installed and loaded without changing the app.");
+            var installedAssembly = Path.Combine(catalog.GetInstalledPackage(newPluginManifest.Id)!.Directory,
+                newPluginManifest.EntryAssembly!);
+            var originalAssembly = File.ReadAllBytes(installedAssembly);
+            File.Delete(installedAssembly);
+            loader.Invalidate(newPluginManifest.Id);
+            if (loader.CreateBody(newPluginManifest.Id,
+                    new PluginViewContext(newPluginManifest.DefaultContent, true, false, 300, 390, 1, _ => { }, _ => { })) is not null
+                || loader.LastFailure(newPluginManifest.Id) is not { Code: "assembly_missing" } failure)
+                throw new Exception("A missing plugin assembly did not create a classified load report.");
+            var reportFile = Path.Combine(AppEnvironment.DataRoot, "plugin-load-failures.jsonl");
+            if (!File.ReadAllText(reportFile).Contains(failure.IncidentId, StringComparison.Ordinal)
+                || failure.HostVersion != UpdateService.CurrentVersion || string.IsNullOrWhiteSpace(failure.SdkVersion)
+                || File.ReadAllText(reportFile).Contains("expression", StringComparison.Ordinal))
+                throw new Exception("The plugin load report is missing or exposes shared plugin state.");
+            File.WriteAllBytes(installedAssembly, originalAssembly);
+            loader.Invalidate(newPluginManifest.Id);
+            if (loader.CreateBody(newPluginManifest.Id,
+                    new PluginViewContext(newPluginManifest.DefaultContent, true, false, 300, 390, 1, _ => { }, _ => { })) is null
+                || loader.LastFailure(newPluginManifest.Id) is not null)
+                throw new Exception("A repaired plugin did not recover and clear its load error.");
             if (!catalog.GetInstalledPackage(newPluginManifest.Id)!.Directory.StartsWith(installed + Path.DirectorySeparatorChar,
                     StringComparison.OrdinalIgnoreCase))
                 throw new Exception("A user-selected plugin was not installed under Documents.");
             VerifyLegacyOptionalMigration(root, newPluginSource, newPluginManifest);
+            VerifyUnavailableDiagnostics(root);
             VerifyPluginLifecycle(root);
             var boardView = new BoardObjectView(new BoardObject
             {
@@ -236,6 +257,31 @@ internal static class PluginDeliveryChecks
         finally { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
     }
 
+    private static void VerifyUnavailableDiagnostics(string root)
+    {
+        var bundledRoot = Path.Combine(root, "diagnostic-bundled");
+        var optionalRoot = Path.Combine(root, "diagnostic-optional");
+        var updateRoot = Path.Combine(root, "diagnostic-updates");
+        var id = "clipdesk.diagnostic";
+        var package = Path.Combine(optionalRoot, id, "1.0.0");
+        Directory.CreateDirectory(package);
+        var manifest = new PluginManifest
+        {
+            Id = id, Name = "Diagnóstico", Version = "1.0.0", Runtime = "wpf-v1", PluginApiVersion = 1,
+            EntryAssembly = "ClipDesk.Plugin.Calculator.dll", EntryType = "ClipDesk.Plugin.Calculator.CalculatorPlugin",
+            MinimumHostVersion = "99.0.0"
+        };
+        File.WriteAllText(Path.Combine(package, "manifest.json"), JsonSerializer.Serialize(manifest, Json));
+        var catalog = new PluginCatalogService(bundledRoot, optionalRoot, new Version(0, 4, 4), updateRoot);
+        var loader = new WindowsPluginLoader(catalog);
+        if (loader.Manifest(id) is not null || loader.LastFailure(id) is not { Code: "host_incompatible", PluginVersion: "1.0.0" })
+            throw new Exception("A newer-host package was not diagnosed without loading it.");
+        File.WriteAllText(Path.Combine(package, "manifest.json"), "{invalid");
+        loader.Invalidate(id);
+        if (loader.Manifest(id) is not null || loader.LastFailure(id) is not { Code: "manifest_invalid" })
+            throw new Exception("An invalid manifest was not diagnosed.");
+    }
+
     private static void VerifyMissingBuiltInDoesNotUseFallback()
     {
         var catalog = new PluginCatalogService();
@@ -251,7 +297,7 @@ internal static class PluginDeliveryChecks
                 Content = new() { ["expression"] = "6*7", ["display"] = "42" }
             });
             if (Descendants<UniformGrid>(view).Any()
-                || !Descendants<Button>(view).Any(button => (button.Content as TextBlock)?.Text == "Instalar"))
+                || !Descendants<Button>(view).Any(button => (button.Content as TextBlock)?.Text == "Ativar plugin"))
                 throw new Exception("A missing standard plugin executed the legacy fallback instead of the safe placeholder.");
         }
         finally

@@ -32,7 +32,9 @@ $published = Join-Path $staging 'published'
 $package = Join-Path $staging 'package'
 New-Item -ItemType Directory -Path $published, $package | Out-Null
 try {
-    dotnet publish $projects[0].FullName -c Release --self-contained false -o $published
+    # A Windows RID selects runtime implementations from NuGet packages. Without
+    # it, System.Speech can publish its compile-time facade instead of SAPI.
+    dotnet publish $projects[0].FullName -c Release -r win-x64 --self-contained false -o $published
     if ($LASTEXITCODE -ne 0) { throw 'Não foi possível compilar o plugin.' }
     $requiredAssemblies = if ($isV2) { @($manifest.module.assembly, $windowsRenderer.assembly) } else { @($manifest.entryAssembly) }
     foreach ($assembly in $requiredAssemblies) {

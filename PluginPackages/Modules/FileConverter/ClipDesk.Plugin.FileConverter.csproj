@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>ClipDesk.Plugin.FileConverter</AssemblyName>
+    <Version>1.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NAudio" Version="2.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Core\**\*.cs" />
+    <ProjectReference Include="..\..\..\PluginSdk.Windows\ClipDesk.PluginSdk.Windows.csproj" />
+    <ProjectReference Include="Core\ClipDesk.Plugin.FileConverter.Core.csproj" />
+  </ItemGroup>
+</Project>

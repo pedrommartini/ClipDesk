@@ -1,0 +1,52 @@
+{
+  "manifestVersion": 2,
+  "id": "clipdesk.clock",
+  "name": "Relógio Mundial",
+  "description": "Relógio analógico minimalista em vetor, mostrador digital de alta legibilidade e relógios mundiais com indicador dia/noite.",
+  "version": "1.0.0",
+  "publisher": "ClipDesk",
+  "iconGlyph": "\ue823",
+  "accentColor": "#10B981",
+  "runtime": "portable-v2",
+  "pluginApiVersion": 2,
+  "stateVersion": 1,
+  "module": {
+    "assembly": "ClipDesk.Plugin.Clock.Core.dll",
+    "type": "ClipDesk.Plugin.Clock.ClockModule"
+  },
+  "renderers": [
+    {
+      "platform": "windows",
+      "runtime": "wpf-v2",
+      "assembly": "ClipDesk.Plugin.Clock.dll",
+      "type": "ClipDesk.Plugin.Clock.ClockPlugin"
+    }
+  ],
+  "minimumHostVersion": "0.3.3",
+  "installByDefault": false,
+  "sortOrder": 100,
+  "defaultSize": {
+    "width": 340,
+    "height": 300
+  },
+  "minimumSize": {
+    "width": 240,
+    "height": 240
+  },
+  "defaultContent": {
+    "$schema": "1",
+    "displayMode": "analog",
+    "is24Hour": "true",
+    "showSeconds": "true",
+    "primaryZone": "",
+    "worldClocks": "[{\"id\":\"sp\",\"city\":\"São Paulo\",\"zone\":\"America/Sao_Paulo\"},{\"id\":\"nyc\",\"city\":\"Nova York\",\"zone\":\"America/New_York\"},{\"id\":\"lon\",\"city\":\"Londres\",\"zone\":\"Europe/London\"},{\"id\":\"tyo\",\"city\":\"Tóquio\",\"zone\":\"Asia/Tokyo\"}]"
+  },
+  "platforms": [
+    "windows"
+  ],
+  "permissions": [],
+  "capabilities": [
+    "board-widget"
+  ],
+  "networkHosts": []
+}

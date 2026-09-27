@@ -13,6 +13,7 @@ public sealed class BoardViewportState
     public double Zoom { get; set; } = 1;
     public double PanX { get; set; }
     public double PanY { get; set; }
+    public int CameraVersion { get; set; }
 }
 
 public readonly record struct BoardPoint(double X, double Y);

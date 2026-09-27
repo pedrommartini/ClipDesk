@@ -50,9 +50,10 @@ public partial class MainWindow
                 && ((center-_lastPublishedCenter).Length>.1 || Math.Abs(zoom-_lastPublishedZoom)>.0001))
             && Stopwatch.GetElapsedTime(_lastPresenceSample).TotalMilliseconds>=12)
         {
+            var hadInput=_presenceInputDirty;
             _presenceInputDirty=false;_lastPresenceSample=Stopwatch.GetTimestamp();
             _lastPublishedCenter=center;_lastPublishedZoom=zoom;
-            QueuePresence(CurrentPresenceItemId(),Mouse.GetPosition(WorkspaceCanvas));
+            QueuePresence(CurrentPresenceItemId(),Mouse.GetPosition(WorkspaceCanvas),hadInput);
         }
     }
 

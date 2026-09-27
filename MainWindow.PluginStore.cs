@@ -330,7 +330,13 @@ public partial class MainWindow
         if (!entry.IsInstalled)
         {
             if (entry.RemotePackage is { } remote)
-                await new PluginDeliveryService(_pluginCatalogService).InstallRemoteAsync(remote);
+            {
+                var diagnosis = _pluginCatalogService.DiagnoseUnavailable(entry.Manifest.Id);
+                var delivery = new PluginDeliveryService(_pluginCatalogService);
+                if (diagnosis.Code is "assembly_missing" or "manifest_invalid" or "manifest_missing")
+                    await delivery.RepairRemoteAsync(remote);
+                else await delivery.InstallRemoteAsync(remote);
+            }
             else _pluginCatalogService.Enable(entry.Manifest.Id);
         }
         Views.BoardObjectView.InvalidateExternalPlugin(entry.Manifest.Id);

@@ -6,6 +6,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using ClipDesk.Core;
+using ClipDesk.PluginSdk;
 using ClipDesk.PluginSdk.Windows;
 
 namespace ClipDesk.Views;
@@ -34,8 +35,10 @@ public sealed partial class BoardObjectView : Canvas
     };
     private enum TransformAction { None, Move, Left, Right, Top, Bottom, TopLeft, TopRight, BottomLeft, BottomRight, Rotate }
 
-    public BoardObjectView(BoardObject boardObject)
+    public BoardObjectView(BoardObject boardObject) : this(boardObject, null) { }
+    public BoardObjectView(BoardObject boardObject, IPluginSharedAssets? sharedAssets)
     {
+        _sharedAssets = sharedAssets;
         Object = boardObject; Cursor = Cursors.Arrow; Focusable = true;
         RenderTransformOrigin = new Point(.5, .5);
         var motion = new TransformGroup(); motion.Children.Add(_motionScale); motion.Children.Add(_motionTranslate); RenderTransform = motion;

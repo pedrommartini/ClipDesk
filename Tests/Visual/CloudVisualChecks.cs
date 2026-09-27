@@ -5,6 +5,8 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Media.Effects;
+using System.Windows.Shapes;
+using Path = System.IO.Path;
 using System.Windows.Threading;
 using ClipDesk;
 using ClipDesk.Core;
@@ -29,6 +31,13 @@ internal static class CloudVisualChecks
         var content=(FrameworkElement)window.Content;
         typeof(MainWindow).GetMethod("RenderAllItems",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,[false,false]);
         var canvas=(Canvas)window.FindName("WorkspaceCanvas");
+        var activeBoard=(WorkspaceBoard)typeof(MainWindow).GetField("_activeWorkspace",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(window)!;
+        var remoteText=new BoardObject {Kind=BoardObjectKind.Text,X=260,Y=420,Width=300,Height=90,
+            Content=new() {{"text","Persisted remote update"}}};
+        var remoteEntity=CloudProjection.ProjectBoardObject(remoteText,activeBoard.Id.ToString("N"));
+        typeof(MainWindow).GetMethod("ApplyRealtimeEntity",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,[remoteEntity]);
+        if(!storage.LoadWorkspaces().Single(board=>board.Id==activeBoard.Id).Objects.Any(obj=>obj.Id==remoteText.Id))
+            throw new Exception("A realtime object must survive reopening the local workspace while offline.");
         var fileCard=canvas.Children.OfType<ItemCard>().Single(c=>c.Item.Id==pending.Id);
         var localRing=(System.Windows.Shapes.Rectangle)fileCard.FindName("SelectionRing");
         var remoteRing=(System.Windows.Shapes.Rectangle)fileCard.FindName("CollaboratorSelection");
@@ -156,10 +165,41 @@ internal static class CloudVisualChecks
         var decoded=(PresenceDrag[]?)parseDrags.Invoke(null,[new Dictionary<string,object>{{"drags",dragPayload}}]);
         if(decoded is not {Length:1} || decoded[0].X!=123 || decoded[0].Id!=dragId)throw new Exception("SDK broadcast drag payload cannot be decoded");
         Console.WriteLine("PASS: Supabase SDK drag payload decodes with compatible optional fields.");
+        var draftId=Guid.NewGuid().ToString("N");
+        renderPresence.Invoke(window,[ThroughSdk(presence with {Draft=new PresenceDraft(draftId,"pen",
+            [new PresencePoint(120.25,220.75),new PresencePoint(180.5,240.125)])})]);
+        var drafts=(Dictionary<string,(string Id,FrameworkElement Visual)>)typeof(MainWindow).GetField("_remoteDrafts",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(window)!;
+        if(drafts[presence.UserId].Visual is not Polyline remoteStroke || remoteStroke.Points.Count!=2
+            || Math.Abs(remoteStroke.Points[1].Y-240.125)>.001 || !canvas.Children.Contains(remoteStroke))
+            throw new Exception("Collaborator's in-progress stroke did not render in board coordinates.");
+        renderPresence.Invoke(window,[ThroughSdk(presence with {Draft=new PresenceDraft(draftId,"shape",
+            [new PresencePoint(125,225),new PresencePoint(210,300)])})]);
+        if(drafts[presence.UserId].Visual is not Rectangle remoteShape || remoteShape.Width!=85 || remoteShape.Height!=75)
+            throw new Exception("Collaborator's shape preview did not render.");
+        renderPresence.Invoke(window,[ThroughSdk(presence with {Draft=null})]);
+        if(drafts.ContainsKey(presence.UserId) || canvas.Children.Contains(remoteShape))
+            throw new Exception("A completed/cancelled drawing left a ghost preview.");
+        Console.WriteLine("PASS: remote drawing and shape previews render transiently and clear on completion.");
         var marker=FindTaggedCanvas(originalCursor,"presence-marker") ?? throw new Exception("Remote cursor marker is missing.");
         var currentZoom=((Slider)window.FindName("ZoomSlider")).Value/100;
         if(marker.RenderTransform is not ScaleTransform markerScale || Math.Abs(markerScale.ScaleX-1/Math.Max(.1,currentZoom))>.01)
             throw new Exception("Remote cursor does not compensate for workspace zoom.");
+        var zoomField=typeof(MainWindow).GetField("_workspaceZoom",BindingFlags.Instance|BindingFlags.NonPublic)!;
+        var updateCursorScales=typeof(MainWindow).GetMethod("UpdateRemoteCursorScales",BindingFlags.Instance|BindingFlags.NonPublic)!;
+        var savedZoom=(double)zoomField.GetValue(window)!;
+        foreach(var testZoom in new[]{.25,.71,1d,2d})
+        {
+            zoomField.SetValue(window,testZoom);
+            updateCursorScales.Invoke(window,null);
+            var cursorPosition=(TranslateTransform)originalCursor.RenderTransform;
+            var testMarker=FindTaggedCanvas(originalCursor,"presence-marker")!;
+            var inverse=((ScaleTransform)testMarker.RenderTransform).ScaleX;
+            if(Math.Abs(cursorPosition.X+7*inverse-presence.X)>.01
+                || Math.Abs(cursorPosition.Y+7*inverse-presence.Y)>.01)
+                throw new Exception($"Cursor target drifts away from the shared board coordinate at {testZoom:P0} zoom.");
+        }
+        zoomField.SetValue(window,savedZoom);
+        updateCursorScales.Invoke(window,null);
         var beforeTravel=(double)typeof(MainWindow).GetField("_workspaceZoom",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(window)!;
         typeof(MainWindow).GetMethod("TravelToCollaborator",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,[new CloudMember(presence.UserId,presence.Username,null,"editor")]);
         if(Math.Abs((double)typeof(MainWindow).GetField("_workspaceZoom",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(window)!-beforeTravel)>.001)
@@ -213,6 +253,12 @@ internal static class CloudVisualChecks
         Console.WriteLine("PASS: remote pointer reuses its visual and inactive cursors expire independently of cloud polling.");
         var note=new BoardObject {Kind=BoardObjectKind.StickyNote,X=260,Y=320,Width=220,Height=110,Style=new(){{"fill","#DCCBFF"},{"fontSize","24"},{"align","center"}},Content=new(){{"text","Nota curta"}}};activeWorkspace.Objects.Add(note);
         var noteView=(BoardObjectView)typeof(MainWindow).GetMethod("AddBoardObjectView",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,[note])!;noteView.SetSelected(true);
+        renderPresence.Invoke(window,[ThroughSdk(presence with { ItemId=fileCard.Item.Id,
+            Selections=[fileCard.Item.Id,note.Id], Drags=[] })]);
+        var selectedSet=(Dictionary<string,string[]>)typeof(MainWindow).GetField("_remoteSelections",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(window)!;
+        if(selectedSet[presence.UserId].Length!=2 || !selectedSet[presence.UserId].Contains(note.Id))
+            throw new Exception("The live presence protocol lost a collaborator's multiple selection.");
+        renderPresence.Invoke(window,[ThroughSdk(presence with { ItemId=null,Selections=[],Drags=[] })]);
         var previewX=note.X;var previewY=note.Y;
         var originalNoteTransform=noteView.RenderTransform;
         renderPresence.Invoke(window,[ThroughSdk(presence with {X=333.375,Y=444.625,Zoom=.73,
@@ -253,28 +299,26 @@ internal static class CloudVisualChecks
         if(!ReferenceEquals(fileCard.RenderTransform,originalFileTransform) || fileCard.Item.X!=savedFileX+180)
             throw new Exception("Card preview does not reconcile with the committed snapshot");
         Console.WriteLine("PASS: incremental snapshots preserve live views; intermediate positions do not rewind previews; Save cannot persist them.");
-        // A retained selection must not keep any remote outline after release.
+        // A retained selection stays visible after a drag; clearing it removes the outline.
         foreach(var releasedId in new[]{fileCard.Item.Id,note.Id})
         {
             renderPresence.Invoke(window,[ThroughSdk(presence with {ItemId=releasedId,
                 Drags=[new PresenceDrag(releasedId,600.125,500.875)]})]);
             var draggingCursor=cursors[presence.UserId].Visual;
-            var remoteSelections=(Dictionary<string,string?>)typeof(MainWindow).GetField("_remoteSelections",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(window)!;
-            if(remoteSelections[presence.UserId]!=releasedId)throw new Exception("Active drag has no collaborator outline");
+            var remoteSelections=(Dictionary<string,string[]>)typeof(MainWindow).GetField("_remoteSelections",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(window)!;
+            if(!remoteSelections[presence.UserId].Contains(releasedId))throw new Exception("Active drag has no collaborator outline");
             renderPresence.Invoke(window,[ThroughSdk(presence with {ItemId=releasedId,Drags=[],X=740.25,Y=430.75})]);
             PumpFrames(70);
             if(!ReferenceEquals(draggingCursor,cursors[presence.UserId].Visual)
                 || ((Canvas)cursors[presence.UserId].Visual).Children.OfType<Border>().Any())
                 throw new Exception("Releasing a selected item leaves a card outline attached to the remote pointer");
-            if(remoteSelections[presence.UserId] is not null)throw new Exception("Released item retains a collaborator outline");
-            if(releasedId==fileCard.Item.Id && ((System.Windows.Shapes.Rectangle)fileCard.FindName("CollaboratorSelection")).Visibility!=Visibility.Collapsed)
-                throw new Exception("Released card still displays a collaborator outline");
-            if(releasedId==note.Id && typeof(BoardObjectView).GetField("_collaboratorSelection",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(noteView) is not null)
-                throw new Exception("Released note still draws a collaborator outline");
+            if(!remoteSelections[presence.UserId].Contains(releasedId))throw new Exception("Retained selection lost its collaborator outline");
             renderPresence.Invoke(window,[ThroughSdk(presence with {ItemId=null,Drags=[]})]);
-            if(remoteSelections[presence.UserId] is not null)throw new Exception("Reused cursor retains an outdated selection");
+            if(remoteSelections[presence.UserId].Length!=0)throw new Exception("Cleared selection retains a collaborator outline");
+            if(releasedId==fileCard.Item.Id && ((System.Windows.Shapes.Rectangle)fileCard.FindName("CollaboratorSelection")).Visibility!=Visibility.Collapsed)
+                throw new Exception("Cleared card selection still displays an outline");
         }
-        Console.WriteLine("PASS: collaborator outlines exist during drag and clear on release even when the item stays selected.");
+        Console.WriteLine("PASS: collaborator selection survives drag release and clears when deselected.");
         var setDraggingVisual=typeof(BoardObjectView).GetMethod("SetDraggingVisual",BindingFlags.Instance|BindingFlags.NonPublic)!;
         foreach(var kind in new[]{BoardObjectKind.Text,BoardObjectKind.Shape,BoardObjectKind.StickyNote,BoardObjectKind.Checklist,BoardObjectKind.Calculator,BoardObjectKind.Translator,BoardObjectKind.CurrencyConverter})
         {
@@ -435,6 +479,24 @@ internal static class CloudVisualChecks
         }
         if(((Border)window.FindName("InvitePopup")).ActualWidth<360) throw new Exception("Invitation card does not fit the updated layout.");
         Console.WriteLine("PASS: invitation card renders in light and dark themes.");
+        activeWorkspace.SyncMode=WorkspaceSyncMode.Shared;
+        var undoProbe=new BoardObject {Kind=BoardObjectKind.Text,X=320,Y=380,Width=220,Height=80,
+            Content=new(){{"text","Antes"}}};
+        activeWorkspace.Objects.Add(undoProbe);
+        typeof(MainWindow).GetMethod("AddBoardObjectView",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,[undoProbe]);
+        typeof(MainWindow).GetMethod("RegisterUndoSnapshot",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,null);
+        undoProbe.Content["text"]="Minha edição";
+        typeof(MainWindow).GetMethod("Save",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,[true]);
+        var remoteUpdate=Snapshot();
+        remoteUpdate.Objects.Single(obj=>obj.Id==note.Id).Content["text"]="Edição do colega";
+        applySnapshot.Invoke(window,[remoteUpdate]);
+        typeof(MainWindow).GetMethod("UndoLastChange",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,null);
+        if(undoProbe.Content["text"]!="Antes" || note.Content["text"]!="Edição do colega")
+            throw new Exception("Shared-board undo removed a collaborator's independent edit.");
+        typeof(MainWindow).GetMethod("RedoLastChange",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,null);
+        if(undoProbe.Content["text"]!="Minha edição" || note.Content["text"]!="Edição do colega")
+            throw new Exception("Shared-board redo did not restore only the local action.");
+        Console.WriteLine("PASS: shared-board undo/redo preserves a remote edit after a real snapshot merge.");
         Console.WriteLine("PASS: pending cards dim; collaborator download changes to a folder action; approved trash and creative rail are visible.");
         Console.WriteLine("PASS: header at 900/1280/1920px; status icons open a storage-only page with back and close-reset behavior.");
     }

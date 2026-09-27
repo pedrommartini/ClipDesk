@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>ClipDesk.Plugin.ImageUpscaler</AssemblyName>
+    <Version>1.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Exclude Core source files to prevent duplicate compilation since Core is a subfolder -->
+    <Compile Remove="Core\**\*.cs" />
+    <ProjectReference Include="Core\ClipDesk.Plugin.ImageUpscaler.Core.csproj" />
+    <ProjectReference Include="..\..\..\PluginSdk.Windows\ClipDesk.PluginSdk.Windows.csproj" />
+  </ItemGroup>
+</Project>

@@ -36,6 +36,7 @@ public sealed class TtsView : Grid, IDisposable
     private CancellationTokenSource? _activeCts;
     private TtsAudioResult? _lastAudioResult;
     private bool _disposed;
+    private readonly CancellationTokenSource _restoreCts = new();
 
     public TtsView(WindowsPluginViewContext context)
     {
@@ -339,6 +340,7 @@ public sealed class TtsView : Grid, IDisposable
         Children.Add(_statusLabel);
 
         UpdateActionStates();
+        Loaded += async (_, _) => await RestoreSharedAudioAsync();
 
         Unloaded += (_, _) => Dispose();
     }
@@ -454,6 +456,8 @@ public sealed class TtsView : Grid, IDisposable
 
         try
         {
+            if (_context.SharedAssets is null)
+                throw new InvalidOperationException("Atualize o ClipDesk para compartilhar o áudio deste plugin.");
             _context.NotifyBeforeChange();
 
             var lang = _context.State.GetLanguage();
@@ -468,13 +472,16 @@ public sealed class TtsView : Grid, IDisposable
             bool hasNetwork = _context.Execution.HasPermission("network");
 
             var result = await _engine.SynthesizeAsync(text, voiceId, lang, rate, volume, hasNetwork, token);
+            var shared = await _context.SharedAssets.ImportAsync(WindowsPluginFile.FromPath(result.FilePath), token);
+            token.ThrowIfCancellationRequested();
             _lastAudioResult = result;
 
             // Commit to state via generate-speech
             await _context.ExecuteAsync(new PluginCommand("generate-speech", new Dictionary<string, string>
             {
                 ["text"] = text,
-                ["audio_file_name"] = result.FileName
+                ["audio_file_name"] = result.FileName,
+                [TtsPluginState.KeyAudioAssetId] = shared.Id
             }), rebuild: false);
 
             _audioPlayer.LoadAudio(result.FilePath, autoPlay: true);
@@ -496,6 +503,43 @@ public sealed class TtsView : Grid, IDisposable
         {
             _speakBtn.IsEnabled = true;
             UpdateActionStates();
+        }
+    }
+
+    private async Task RestoreSharedAudioAsync()
+    {
+        var id = _context.State.GetString(TtsPluginState.KeyAudioAssetId);
+        if (_disposed || _lastAudioResult is not null || !Guid.TryParse(id, out var assetId)
+            || _context.SharedAssets is null) return;
+        try
+        {
+            await using var asset = await _context.SharedAssets.OpenAsync(assetId.ToString("N"), _restoreCts.Token);
+            if (asset is null)
+            {
+                await Dispatcher.InvokeAsync(() => { if (!_disposed) _statusLabel.Text = "Aguardando o envio do áudio compartilhado…"; });
+                return;
+            }
+            var directory = WindowsPluginFiles.DefaultDocumentDirectory("clipdesk.tts");
+            Directory.CreateDirectory(directory);
+            var path = Path.Combine(directory, "shared-" + assetId.ToString("N") + Path.GetExtension(asset.DisplayName));
+            await using (var source = await asset.OpenReadAsync(_restoreCts.Token))
+            await using (var target = File.Create(path))
+                await source.CopyToAsync(target, _restoreCts.Token);
+            _restoreCts.Token.ThrowIfCancellationRequested();
+            await Dispatcher.InvokeAsync(() =>
+            {
+                if (_disposed) return;
+                _lastAudioResult = new TtsAudioResult([], asset.DisplayName, path, asset.ContentType ?? "audio/mpeg", false);
+                _audioPlayer.LoadAudio(path, autoPlay: false);
+                _audioPlayer.Visibility = Visibility.Visible;
+                _statusLabel.Text = "Áudio compartilhado disponível";
+                UpdateActionStates();
+            });
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            await Dispatcher.InvokeAsync(() => { if (!_disposed) _statusLabel.Text = "Não foi possível abrir o áudio compartilhado: " + ex.Message; });
         }
     }
 
@@ -611,6 +655,7 @@ public sealed class TtsView : Grid, IDisposable
         if (!_disposed)
         {
             _disposed = true;
+            _restoreCts.Cancel(); _restoreCts.Dispose();
             _activeCts?.Cancel();
             _activeCts?.Dispose();
             _activeCts = null;

@@ -7,6 +7,7 @@ public static class PluginHostCapabilityIds
     public const string FileRead = "host.file-read";
     public const string FileWrite = "host.file-write";
     public const string Storage = "host.storage";
+    public const string SharedAssets = "host.shared-assets";
     public const string AudioInput = "host.audio-input";
     public const string AudioOutput = "host.audio-output";
     public const string ImageProcessing = "host.image-processing";
@@ -21,6 +22,7 @@ public static class PluginHostCapabilityIds
         Http => PluginPermissions.Network,
         FileRead => PluginPermissions.FileRead,
         FileWrite => PluginPermissions.FileWrite,
+        SharedAssets => PluginPermissions.SharedAssets,
         AudioInput => PluginPermissions.Microphone,
         SystemAudio => PluginPermissions.SystemAudio,
         ClipboardRead => PluginPermissions.ClipboardRead,
@@ -35,6 +37,7 @@ public static class PluginHostCapabilityIds
         FileRead => typeof(IPluginFileRead),
         FileWrite => typeof(IPluginFileWrite),
         Storage => typeof(IPluginStorage),
+        SharedAssets => typeof(IPluginSharedAssets),
         AudioInput => typeof(IPluginAudioInput),
         AudioOutput => typeof(IPluginAudioOutput),
         SystemAudio => typeof(IPluginAudioInput),
@@ -77,6 +80,17 @@ public interface IPluginStorage
 {
     ValueTask<string?> ReadAsync(string key, CancellationToken cancellationToken = default);
     ValueTask WriteAsync(string key, string? value, CancellationToken cancellationToken = default);
+}
+
+/// <summary>A durable file reference scoped to one shared plugin instance; never contains a device path.</summary>
+public sealed record PluginSharedAsset(string Id, string Name, long Size, string Sha256);
+
+/// <summary>Imports selected/generated files into the instance and opens an authorized local copy.
+/// Receiving an asset does not rerun the command which produced it.</summary>
+public interface IPluginSharedAssets
+{
+    ValueTask<PluginSharedAsset> ImportAsync(IPluginReadableFile source, CancellationToken cancellationToken = default);
+    ValueTask<IPluginReadableFile?> OpenAsync(string assetId, CancellationToken cancellationToken = default);
 }
 
 public sealed record PluginHttpRequest(Uri Uri, string Method = "GET", string? ContentType = null, byte[]? Body = null);

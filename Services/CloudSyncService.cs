@@ -79,6 +79,13 @@ internal sealed class LegacyCloudSyncService : ICloudSyncBackend
         _presented=CloudProjection.Project(boards,history,User.Id,SyncHistory).ToDictionary(e=>e.Id);
         _storage.Database.Write("sync-presentation",CloudRules.Serialize(_presented.Values.ToList()));
     }
+    public void ObserveRealtimeEntity(CloudEntity entity)
+    {
+        if (User is null || entity.Kind != "boardObject") return;
+        if (entity.Deleted) _presented.Remove(entity.Id);
+        else _presented[entity.Id] = entity;
+        _storage.Database.Write("sync-presentation",CloudRules.Serialize(_presented.Values.ToList()));
+    }
     private void SavePaths()=>_storage.Database.Write("attachment-paths",CloudRules.Serialize(_paths));
     private void SetAccount(SavedCloudAccount account)
     {
@@ -160,6 +167,21 @@ internal sealed class LegacyCloudSyncService : ICloudSyncBackend
             Stage(boards,entries);
             await ConnectLiveAsync();
             await PullAsync(cancellation);
+            if (boards.Any(board => board.SyncMode != WorkspaceSyncMode.Local && board.Objects.Any(obj => obj.Attachments.Count > 0)))
+            {
+                await PushAsync(cancellation, headersOnly: true);
+                foreach (var board in boards.Where(board => board.SyncMode != WorkspaceSyncMode.Local))
+                    foreach (var obj in board.Objects.Where(obj => obj.Attachments.Count > 0))
+                    {
+                        foreach (var attachment in obj.Attachments)
+                        {
+                            if (string.IsNullOrWhiteSpace(attachment.OwnerId)) attachment.OwnerId = User!.Id;
+                            if (File.Exists(attachment.LocalPath)) _paths[attachment.Id] = attachment.LocalPath!;
+                        }
+                        await PrepareAsync(obj.Attachments, [], null, board.Id.ToString("N"), cancellation);
+                    }
+                SavePaths(); Stage(boards, entries);
+            }
             // Positions, text and workspace edits are urgent. Send them before any local
             // hashing, copying or binary upload so a large attachment cannot freeze the board.
             await PushAsync(cancellation);
@@ -223,7 +245,7 @@ internal sealed class LegacyCloudSyncService : ICloudSyncBackend
             var basis=before.GetValueOrDefault(entity.Id)?.Data ?? entity.Data;
             try
             {
-                var merged=CloudRules.Merge(latest.Data,basis,entity.Data);
+                var merged=CloudRules.MergeEntity(entity.Kind,latest.Data,basis,entity.Data);
                 if (!CloudRules.Same(latest.Data,merged) || latest.Deleted != entity.Deleted) _storage.Database.Stage(entity with {Data=merged});
             }
             catch(SyncConflictException) { _storage.Database.PreserveConflict(entity.Id,entity.Data); }
@@ -240,7 +262,7 @@ internal sealed class LegacyCloudSyncService : ICloudSyncBackend
             var basis=_presented.GetValueOrDefault(projected.Id)?.Data ?? latest.Data;
             try
             {
-                var merged=CloudRules.Merge(latest.Data,basis,projected.Data);
+                var merged=CloudRules.MergeEntity(projected.Kind,latest.Data,basis,projected.Data);
                 if(!CloudRules.Same(latest.Data,merged)) _storage.Database.Stage(projected with {Data=merged});
             }
             catch(SyncConflictException) { _storage.Database.PreserveConflict(projected.Id,projected.Data); }
@@ -342,6 +364,7 @@ internal sealed class LegacyCloudSyncService : ICloudSyncBackend
     private async Task RefreshAttachmentsAsync(List<WorkspaceBoard> boards,List<ClipboardHistoryEntry> history,CancellationToken cancellation)
     {
         var attachments=boards.Where(b=>b.SyncMode!=WorkspaceSyncMode.Local && !_inaccessible.Contains(b.Id.ToString("N"))).SelectMany(b=>CloudProjection.Flatten(b.Items)).SelectMany(i=>i.Attachments)
+            .Concat(boards.Where(b=>b.SyncMode!=WorkspaceSyncMode.Local && !_inaccessible.Contains(b.Id.ToString("N"))).SelectMany(b=>b.Objects).SelectMany(obj=>obj.Attachments))
             .Concat(SyncHistory?history.SelectMany(e=>e.Attachments):[]).DistinctBy(a=>a.Id);
         foreach(var a in attachments)
         {

@@ -136,7 +136,7 @@ public sealed class CloudStore
                 }
                 var current=row is null ? new JsonObject() : JsonNode.Parse((string)row["data"]!)!.AsObject();
                 if(row is not null && Convert.ToInt32(row["deleted"])!=0 && !op.Deleted) throw new SyncConflictException("exclusão");
-                var merged=CloudRules.Merge(current,op.BaseData,op.Data);
+                var merged=CloudRules.MergeEntity(op.Kind,current,op.BaseData,op.Data);
                 if(op.Kind=="workspace") { merged["ownerId"]=userId; merged["mode"]=Rows(db,"SELECT user_id FROM members WHERE workspace=@w",("w",op.EntityId)).Count>1 ? "shared" : "personal"; }
                 if(merged["attachments"] is JsonArray attachments)
                     foreach(var a in attachments)
@@ -172,7 +172,7 @@ public sealed class CloudStore
         {
             "workspace"=>new[]{"name","ownerId","mode","worldWidth","worldHeight","schemaVersion","createdAt"},
             "item"=>new[]{"type","name","text","url","x","y","width","height","zIndex","parentId","createdAt","attachments"},
-            "boardObject"=>new[]{"objectKind","pluginId","pluginName","pluginVersion","x","y","width","height","rotation","zIndex","locked","createdBy","createdAt","updatedAt","style","content"},
+            "boardObject"=>new[]{"objectKind","pluginId","pluginName","pluginVersion","x","y","width","height","rotation","zIndex","locked","createdBy","createdAt","updatedAt","style","content","attachments"},
             "history"=>new[]{"type","title","preview","text","url","capturedAt","attachments"},
             _=>[]
         };

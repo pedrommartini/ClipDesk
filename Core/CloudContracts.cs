@@ -32,6 +32,38 @@ public static partial class CloudRules
         }
         return result;
     }
+
+    public static JsonObject MergeEntity(string kind, JsonObject current, JsonObject basis, JsonObject desired)
+    {
+        if (kind != "boardObject") return Merge(current, basis, desired);
+        var result = (JsonObject)current.DeepClone();
+        foreach (var key in basis.Select(p => p.Key).Union(desired.Select(p => p.Key)))
+        {
+            if (Same(basis[key], desired[key])) continue;
+            if (key == "updatedAt")
+            {
+                var remote = current[key] is JsonValue remoteValue && remoteValue.TryGetValue<string>(out var remoteText) ? remoteText : null;
+                var local = desired[key] is JsonValue localValue && localValue.TryGetValue<string>(out var localText) ? localText : null;
+                if (DateTimeOffset.TryParse(remote, out var remoteTime) && DateTimeOffset.TryParse(local, out var localTime))
+                    result[key] = remoteTime >= localTime ? remote : local;
+                else result[key] = desired[key]?.DeepClone();
+                continue;
+            }
+            if (!Same(current[key], basis[key]) && !Same(current[key], desired[key]))
+            {
+                if (key is "content" or "style" && current[key] is JsonObject remoteObject
+                    && basis[key] is JsonObject baseObject && desired[key] is JsonObject localObject)
+                {
+                    result[key] = Merge(remoteObject, baseObject, localObject);
+                    continue;
+                }
+                throw new SyncConflictException(key);
+            }
+            if (desired.ContainsKey(key)) result[key] = desired[key]?.DeepClone();
+            else result.Remove(key);
+        }
+        return result;
+    }
 }
 
 public sealed class SyncConflictException(string field) : Exception($"Alterações concorrentes no campo {field}.");
@@ -50,12 +82,16 @@ public sealed record CloudMember(string UserId, string Username, string? Picture
 public sealed record DriveGrant(string FileId, string Email,string WorkspaceId="",long MembershipVersion=0);
 public sealed record AttachmentRegistration(string Id, string? WorkspaceId, string Name, long Size, string Sha256, bool Drive);
 public sealed record DriveCompletion(string FileId);
-public sealed record PresenceMessage(string WorkspaceId, double X, double Y, string? ItemId,
-    double ViewCenterX = 0, double ViewCenterY = 0, double Zoom = 1, PresenceDrag[]? Drags = null);
-public sealed record CloudPresence(string UserId, string Username, string? Picture, string WorkspaceId, double X, double Y, string? ItemId,
-    double ViewCenterX = 0, double ViewCenterY = 0, double Zoom = 1, PresenceDrag[]? Drags = null);
-// Ephemeral geometry only; the regular entity sync remains authoritative.
-public sealed record PresenceDrag(string Id, double X, double Y);
+  public sealed record PresenceMessage(string WorkspaceId, double X, double Y, string? ItemId,
+      double ViewCenterX = 0, double ViewCenterY = 0, double Zoom = 1, PresenceDrag[]? Drags = null,
+      string[]? Selections = null, PresenceDraft? Draft = null, long OriginTicks = 0);
+  public sealed record CloudPresence(string UserId, string Username, string? Picture, string WorkspaceId, double X, double Y, string? ItemId,
+      double ViewCenterX = 0, double ViewCenterY = 0, double Zoom = 1, PresenceDrag[]? Drags = null,
+      string[]? Selections = null, PresenceDraft? Draft = null, long OriginTicks = 0);
+  // Ephemeral geometry only; the regular entity sync remains authoritative.
+  public sealed record PresenceDrag(string Id, double X, double Y);
+  public sealed record PresencePoint(double X, double Y);
+  public sealed record PresenceDraft(string Id, string Kind, PresencePoint[] Points);
 
 public sealed class CloudAttachment
 {

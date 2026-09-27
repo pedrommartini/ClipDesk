@@ -42,7 +42,8 @@ public partial class MainWindow
     private bool _applyingCloud;
     private readonly HashSet<string> _hiddenCursors=[];
     private readonly Dictionary<string,(FrameworkElement Visual,DateTimeOffset Seen)> _remoteCursors=[];
-    private readonly Dictionary<string,string?> _remoteSelections=[];
+    private readonly Dictionary<string,string[]> _remoteSelections=[];
+    private readonly Dictionary<string,(string Id,FrameworkElement Visual)> _remoteDrafts=[];
     private readonly Dictionary<string,CloudPresence> _latestPresence=[];
     private DateTimeOffset _lastPresence;
     private Point _lastLocalPresencePoint;
@@ -123,7 +124,25 @@ public partial class MainWindow
         UpdateCloudPresentation();
     }
     private string? CurrentPresenceItemId() => _selectedBoardObjectView?.Object.Id ?? _selectedCards.FirstOrDefault()?.Item.Id;
-    private void QueuePresence(string? itemId,Point point)
+    private string[] CurrentPresenceSelections() => _selectedCards.Select(card => card.Item.Id)
+        .Concat(_selectedBoardObjectViews.Select(view => view.Object.Id))
+        .Distinct(StringComparer.Ordinal).Take(64).ToArray();
+    private PresenceDraft? CurrentPresenceDraft()
+    {
+        if(_draftPresenceId is null) return null;
+        if(_draftStroke is {Points.Count: > 0} stroke)
+        {
+            var points=stroke.Points;
+            var indices=points.Count<=64 ? Enumerable.Range(0,points.Count)
+                : Enumerable.Range(0,64).Select(index=>(int)Math.Round(index*(points.Count-1)/63d));
+            var sampled=indices.Select(index=>new PresencePoint(points[index].X,points[index].Y)).ToArray();
+            return new PresenceDraft(_draftPresenceId,"pen",sampled);
+        }
+        if(_draftShape is not null)
+            return new PresenceDraft(_draftPresenceId,"shape",[new(_creativeStart.X,_creativeStart.Y),new(_draftPresenceEnd.X,_draftPresenceEnd.Y)]);
+        return null;
+    }
+    private void QueuePresence(string? itemId,Point point,bool diagnosticInput=false)
     {
         if(_cloudClosing || _cloud?.Connected!=true || _activeWorkspace.SyncMode!=WorkspaceSyncMode.Shared) return;
         _lastLocalPresencePoint=point;
@@ -131,7 +150,9 @@ public partial class MainWindow
         var zoom=Math.Max(WorkspaceBoardScale.ScaleX,BoardViewport.MinimumZoom);
         var centerX=(WorkspaceScroll.HorizontalOffset+WorkspaceScroll.ViewportWidth/2)/zoom;
         var centerY=(WorkspaceScroll.VerticalOffset+WorkspaceScroll.ViewportHeight/2)/zoom;
-        Interlocked.Exchange(ref _pendingPresence,new PresenceMessage(_activeWorkspace.Id.ToString("N"),point.X,point.Y,itemId,centerX,centerY,zoom,CapturePresenceDrags()));
+        Interlocked.Exchange(ref _pendingPresence,new PresenceMessage(_activeWorkspace.Id.ToString("N"),point.X,point.Y,itemId,centerX,centerY,zoom,
+            CapturePresenceDrags(),CurrentPresenceSelections(),CurrentPresenceDraft(),
+            AppEnvironment.IsTestClient && diagnosticInput ? Stopwatch.GetTimestamp() : 0));
         MotionDiagnostics.Record(MotionDiagnostics.Stage.Queued);
         StartPresencePump();
     }
@@ -191,30 +212,41 @@ public partial class MainWindow
         if(existingView?.IsEditingPluginInput==true) return;
         if(entity.Deleted)
         {
+            if(existing is not null) { _undoStack.Clear();_redoStack.Clear();UpdateUndoRedoButtons(); }
             if(existing is not null) _activeWorkspace.Objects.Remove(existing);
             if(existingView is not null) WorkspaceCanvas.Children.Remove(existingView);
             if(_selectedBoardObjectView==existingView) ClearBoardObjectSelection();
             EnsureWorkspaceExtent();
+            _storageService.SaveWorkspaces(_workspaces);
+            _cloud?.ObserveRealtimeEntity(entity);
             return;
         }
         var incoming=CloudProjection.MaterializeBoardObject(entity);
         if(existing is null)
         {
+            _undoStack.Clear();_redoStack.Clear();UpdateUndoRedoButtons();
             _activeWorkspace.Objects.Add(incoming);
             AddBoardObjectView(incoming).PlayPopIn();
             EnsureWorkspaceExtent();
+            _storageService.SaveWorkspaces(_workspaces);
+            _cloud?.ObserveRealtimeEntity(entity);
             return;
         }
+        if(CloudRules.Serialize(existing)!=CloudRules.Serialize(incoming))
+        { _undoStack.Clear();_redoStack.Clear();UpdateUndoRedoButtons(); }
         var visualChanged=BoardObjectVisualChanged(existing,incoming);
         existing.Kind=incoming.Kind;existing.X=incoming.X;existing.Y=incoming.Y;existing.Width=incoming.Width;existing.Height=incoming.Height;
         existing.PluginId=incoming.PluginId;existing.PluginName=incoming.PluginName;existing.PluginVersion=incoming.PluginVersion;
         existing.Rotation=incoming.Rotation;existing.ZIndex=incoming.ZIndex;existing.Locked=incoming.Locked;existing.CreatedBy=incoming.CreatedBy;
         existing.CreatedAt=incoming.CreatedAt;existing.UpdatedAt=incoming.UpdatedAt;existing.Style=incoming.Style;existing.Content=incoming.Content;
+        existing.Attachments=incoming.Attachments;
         if(existingView is null) AddBoardObjectView(existing);
         else { if(visualChanged)existingView.RefreshFromObject();PositionBoardObjectView(existingView);Panel.SetZIndex(existingView,existing.Kind==BoardObjectKind.Connector?-2:existing.ZIndex); }
         ReconcileDragPreviews();
         RefreshConnectorsForNodes(ConnectedComponent(ObjectNodeId(existing.Id)));
         EnsureWorkspaceExtent();
+        _storageService.SaveWorkspaces(_workspaces);
+        _cloud?.ObserveRealtimeEntity(entity);
     }
     private async Task CheckInvitationsAsync()
     {
@@ -342,6 +374,7 @@ public partial class MainWindow
                 if(!sameBoard)
                 {
                     ClearSelection(); _undoStack.Clear(); _redoStack.Clear(); UpdateUndoRedoButtons();
+                    ApplyWorkspaceViewport(_activeWorkspace);
                     RenderAllItems(false);
                 }
                 EnsureWorkspaceExtent(); UpdateWorkspacePresentation(); _=PrepareActivePresenceAsync();
@@ -374,10 +407,12 @@ public partial class MainWindow
         if(_cloud is null || _activeWorkspace is null) return;
         var local=_activeWorkspace.SyncMode==WorkspaceSyncMode.Local;
         var synchronized=local || _cloud.Status is "Sincronizado" || _cloud.Status.StartsWith("Mesa salva",StringComparison.Ordinal);
-        var syncing=_cloud.Connected && !synchronized;
-        CloudStatusText.Text=syncing?"Salvando":"Salvo";
+        var needsAction=_cloud.Status.StartsWith("Falha de permissão",StringComparison.Ordinal)
+            || _cloud.Status.StartsWith("Conflito",StringComparison.Ordinal);
+        CloudStatusText.Text=local?"Salvo":!_cloud.Connected?"Salvo localmente":needsAction?"Verificar sincronização"
+            :synchronized?"Sincronizado":_cloud.Status.Contains("pendente",StringComparison.OrdinalIgnoreCase)?"Pendente":"Sincronizando";
         CloudStatusButton.ToolTip=$"{(_activeWorkspace.SyncMode==WorkspaceSyncMode.Shared?"Mesa compartilhada":local?"Mesa local":"Nuvem pessoal")} · {(_cloud.Connected||local?_cloud.Status:"entre para sincronizar")} · clique para alterar";
-        CloudStatusIcon.Text=syncing?"↑":"✓";
+        CloudStatusIcon.Text=needsAction?"!":synchronized?"✓":"↑";
         CloudAccountText.Text=_cloud.User is { } user ? "@"+(user.Username ?? "escolher nome") : "Entrar com Google";
         AccountInitial.Text=_cloud.User?.Name.FirstOrDefault().ToString() ?? "G";
         if(_avatarUrl!=_cloud.User?.Picture)
@@ -891,26 +926,30 @@ public partial class MainWindow
         _latestPresence[presence.UserId]=presence;
         if(_followedMemberId==presence.UserId) UpdatePresenceFollowTarget(presence);
         ApplyDragPreviews(presence);
+        ApplyDraftPreview(presence);
         if(_hiddenCursors.Contains(presence.UserId)) return;
-        // Remote outlines exist only while dragging, never for retained selection.
-        var draggingItemId=presence.Drags?.FirstOrDefault(drag=>drag.Id==presence.ItemId)?.Id
-            ?? presence.Drags?.FirstOrDefault()?.Id;
+        var selectedIds=(presence.Selections is { Length: > 0 } ? presence.Selections : presence.ItemId is null ? [] : [presence.ItemId])
+            .Concat(presence.Drags?.Select(drag=>drag.Id) ?? [])
+            .Distinct(StringComparer.Ordinal).Take(64).ToArray();
         var signature=presence.Username;
         if(_remoteCursors.TryGetValue(presence.UserId,out var existing) && Equals(existing.Visual.Tag,signature)
             && existing.Visual.Parent==WorkspaceCanvas
             && existing.Visual.RenderTransform is TranslateTransform position)
         {
-            SmoothRemoteCursor(position,presence.X-7,presence.Y-7);
+            var origin=RemoteCursorOrigin(presence.X,presence.Y);
+            SmoothRemoteCursor(position,origin.X,origin.Y);
             _remoteCursors[presence.UserId]=(existing.Visual,DateTimeOffset.UtcNow);
-            if(_remoteSelections.GetValueOrDefault(presence.UserId)!=draggingItemId)
+            MotionDiagnostics.RecordPresenceLatency(presence.OriginTicks);
+            if(!_remoteSelections.GetValueOrDefault(presence.UserId,[]).SequenceEqual(selectedIds))
             {
-                _remoteSelections[presence.UserId]=draggingItemId;
+                _remoteSelections[presence.UserId]=selectedIds;
                 RefreshRemoteSelections();
             }
             return;
         }
         if(_remoteCursors.Remove(presence.UserId,out var previous)) WorkspaceCanvas.Children.Remove(previous.Visual);
-        var color=VisiblePresenceColor(presence.UserId); var cursor=new Canvas {Width=120,Height=35,IsHitTestVisible=false,Tag=signature,RenderTransform=new TranslateTransform(presence.X-7,presence.Y-7)};
+        var color=VisiblePresenceColor(presence.UserId); var cursorOrigin=RemoteCursorOrigin(presence.X,presence.Y);
+        var cursor=new Canvas {Width=120,Height=35,IsHitTestVisible=false,Tag=signature,RenderTransform=new TranslateTransform(cursorOrigin.X,cursorOrigin.Y)};
         var marker=new Canvas {Width=120,Height=35,Tag="presence-marker",RenderTransformOrigin=new Point(0,0)};
         var ring=new Ellipse {Width=14,Height=14,Stroke=color,StrokeThickness=1.4,Fill=new SolidColorBrush(Color.FromArgb(28,color.Color.R,color.Color.G,color.Color.B)),Effect=new System.Windows.Media.Effects.DropShadowEffect {BlurRadius=4,ShadowDepth=1,Opacity=.25}};
         var dot=new Ellipse {Width=3,Height=3,Fill=color}; Canvas.SetLeft(dot,5.5);Canvas.SetTop(dot,5.5);marker.Children.Add(ring);marker.Children.Add(dot);
@@ -919,7 +958,8 @@ public partial class MainWindow
         Panel.SetZIndex(cursor,100);WorkspaceCanvas.Children.Add(cursor);
         _cursorExpiryTimer.Start();
         _remoteCursors[presence.UserId]=(cursor,DateTimeOffset.UtcNow);
-        _remoteSelections[presence.UserId]=draggingItemId;
+        MotionDiagnostics.RecordPresenceLatency(presence.OriginTicks);
+        _remoteSelections[presence.UserId]=selectedIds;
         RefreshRemoteSelections();
     }
     private void UpdateRemoteCursorScales()
@@ -927,17 +967,76 @@ public partial class MainWindow
         var inverse=1/Math.Max(_workspaceZoom,BoardViewport.MinimumZoom);
         foreach(var marker in _remoteCursors.Values.SelectMany(entry=>entry.Visual.FindVisualChildren<Canvas>()).Where(canvas=>Equals(canvas.Tag,"presence-marker")))
             marker.RenderTransform=new ScaleTransform(inverse,inverse);
+        foreach(var (userId, entry) in _remoteCursors)
+            if(_latestPresence.TryGetValue(userId,out var presence) && entry.Visual.RenderTransform is TranslateTransform position)
+            {
+                var origin=RemoteCursorOrigin(presence.X,presence.Y);
+                position.BeginAnimation(TranslateTransform.XProperty,null);
+                position.BeginAnimation(TranslateTransform.YProperty,null);
+                position.X=origin.X;position.Y=origin.Y;
+            }
+    }
+    private void ApplyDraftPreview(CloudPresence presence)
+    {
+        var draft=presence.Draft;
+        var valid=draft is not null && !_hiddenCursors.Contains(presence.UserId)
+            && Guid.TryParse(draft.Id,out _) && draft.Kind is "pen" or "shape"
+            && draft.Points is {Length: >= 1 and <= 64}
+            && (draft.Kind!="shape" || draft.Points.Length==2)
+            && draft.Points.All(p=>double.IsFinite(p.X)&&double.IsFinite(p.Y)
+                && p.X is >= 0 and <= 10_000_000 && p.Y is >= 0 and <= 10_000_000);
+        if(!valid)
+        {
+            RemoveDraftPreview(presence.UserId);
+            return;
+        }
+        if(_remoteDrafts.TryGetValue(presence.UserId,out var existing)
+            && (existing.Id!=draft!.Id || existing.Visual.Parent!=WorkspaceCanvas
+                || draft.Kind=="pen" && existing.Visual is not Polyline
+                || draft.Kind=="shape" && existing.Visual is not Rectangle)) RemoveDraftPreview(presence.UserId);
+        if(!_remoteDrafts.TryGetValue(presence.UserId,out existing))
+        {
+            var color=VisiblePresenceColor(presence.UserId);
+            FrameworkElement visual=draft!.Kind=="pen"
+                ? new Polyline {Stroke=color,StrokeThickness=3.2,StrokeStartLineCap=PenLineCap.Round,
+                    StrokeEndLineCap=PenLineCap.Round,StrokeLineJoin=PenLineJoin.Round,Opacity=.68,IsHitTestVisible=false}
+                : new Rectangle {Stroke=color,StrokeThickness=2,Fill=new SolidColorBrush(Color.FromArgb(22,color.Color.R,color.Color.G,color.Color.B)),
+                    RadiusX=9,RadiusY=9,Opacity=.68,IsHitTestVisible=false};
+            Panel.SetZIndex(visual,110);
+            WorkspaceCanvas.Children.Add(visual);
+            existing=(draft.Id,visual);
+            _remoteDrafts[presence.UserId]=existing;
+        }
+        if(existing.Visual is Polyline line)
+            line.Points=new PointCollection(draft!.Points.Select(p=>new Point(p.X,p.Y)));
+        else if(existing.Visual is Rectangle rectangle && draft!.Points.Length==2)
+        {
+            var left=Math.Min(draft.Points[0].X,draft.Points[1].X);
+            var top=Math.Min(draft.Points[0].Y,draft.Points[1].Y);
+            Canvas.SetLeft(rectangle,left);Canvas.SetTop(rectangle,top);
+            rectangle.Width=Math.Abs(draft.Points[0].X-draft.Points[1].X);
+            rectangle.Height=Math.Abs(draft.Points[0].Y-draft.Points[1].Y);
+        }
+    }
+    private void RemoveDraftPreview(string userId)
+    {
+        if(_remoteDrafts.Remove(userId,out var entry)) WorkspaceCanvas.Children.Remove(entry.Visual);
+    }
+    private Point RemoteCursorOrigin(double x,double y)
+    {
+        var offset=7/Math.Max(_workspaceZoom,BoardViewport.MinimumZoom);
+        return new Point(x-offset,y-offset);
     }
     private void RefreshRemoteSelections()
     {
         foreach(var card in WorkspaceCanvas.Children.OfType<ItemCard>())
         {
-            var selected=_remoteSelections.FirstOrDefault(p=>p.Value==card.Item.Id && _remoteCursors.ContainsKey(p.Key));
+            var selected=_remoteSelections.FirstOrDefault(p=>p.Value.Contains(card.Item.Id) && _remoteCursors.ContainsKey(p.Key));
             card.SetCollaboratorSelection(selected.Key is null?null:VisiblePresenceColor(selected.Key));
         }
         foreach(var view in WorkspaceCanvas.Children.OfType<BoardObjectView>())
         {
-            var selected=_remoteSelections.FirstOrDefault(p=>p.Value==view.Object.Id && _remoteCursors.ContainsKey(p.Key));
+            var selected=_remoteSelections.FirstOrDefault(p=>p.Value.Contains(view.Object.Id) && _remoteCursors.ContainsKey(p.Key));
             view.SetCollaboratorSelection(selected.Key is null?null:VisiblePresenceColor(selected.Key));
         }
     }
@@ -947,7 +1046,8 @@ public partial class MainWindow
         foreach(var entry in _remoteCursors.Where(e=>_hiddenCursors.Contains(e.Key) || DateTimeOffset.UtcNow-e.Value.Seen>TimeSpan.FromSeconds(8)).ToList())
         {
             if(_followedMemberId==entry.Key && !_hiddenCursors.Contains(entry.Key)) StopFollowingCamera(true);
-            WorkspaceCanvas.Children.Remove(entry.Value.Visual);_remoteCursors.Remove(entry.Key);_remoteSelections.Remove(entry.Key);changed=true;
+            WorkspaceCanvas.Children.Remove(entry.Value.Visual);_remoteCursors.Remove(entry.Key);_remoteSelections.Remove(entry.Key);
+            RemoveDraftPreview(entry.Key);changed=true;
         }
         if(changed) RefreshRemoteSelections();
         if(_remoteCursors.Count==0) _cursorExpiryTimer.Stop();

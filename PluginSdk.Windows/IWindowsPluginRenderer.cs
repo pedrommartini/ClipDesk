@@ -67,7 +67,11 @@ public sealed class WindowsPluginViewContext
     public double Width { get; private set; }
     public double Height { get; private set; }
     public double Scale { get; private set; }
+    public double ViewportZoom { get; private set; } = 1;
     public string AccentColor { get; }
+    /// <summary>Available when the package declares workspace.assets. Store returned IDs in PluginState.</summary>
+    public IPluginSharedAssets? SharedAssets { get; set; }
+    public event Action? ViewportZoomChanged;
     /// <summary>Subscribe in CreateBody to receive files explicitly dropped on this plugin.
     /// The host validates the file.read permission and supplies existing local files only.
     /// Keep file contents out of PluginState; read them only for the user's requested action.</summary>
@@ -83,6 +87,14 @@ public sealed class WindowsPluginViewContext
         Height = height;
         Scale = scale;
         LayoutChanged?.Invoke();
+    }
+
+    public void UpdateViewportZoom(double zoom)
+    {
+        var next = Math.Clamp(zoom, .35, 1);
+        if (Math.Abs(ViewportZoom - next) < .0001) return;
+        ViewportZoom = next;
+        ViewportZoomChanged?.Invoke();
     }
 
     public bool AcceptsFileDrops => FilesDropped is not null;

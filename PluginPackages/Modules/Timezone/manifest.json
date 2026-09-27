@@ -1,0 +1,52 @@
+{
+  "manifestVersion": 2,
+  "id": "clipdesk.timezone",
+  "name": "Conversor de Fuso Horário",
+  "description": "Conversor multidirecional de fusos horários e planejador inteligente de reuniões globais.",
+  "version": "1.0.0",
+  "publisher": "ClipDesk",
+  "iconGlyph": "\ue774",
+  "accentColor": "#8B5CF6",
+  "runtime": "portable-v2",
+  "pluginApiVersion": 2,
+  "stateVersion": 1,
+  "module": {
+    "assembly": "ClipDesk.Plugin.Timezone.Core.dll",
+    "type": "ClipDesk.Plugin.Timezone.TimezoneModule"
+  },
+  "renderers": [
+    {
+      "platform": "windows",
+      "runtime": "wpf-v2",
+      "assembly": "ClipDesk.Plugin.Timezone.dll",
+      "type": "ClipDesk.Plugin.Timezone.TimezonePlugin"
+    }
+  ],
+  "minimumHostVersion": "0.3.3",
+  "installByDefault": false,
+  "sortOrder": 130,
+  "defaultSize": {
+    "width": 360,
+    "height": 320
+  },
+  "minimumSize": {
+    "width": 240,
+    "height": 240
+  },
+  "defaultContent": {
+    "$schema": "1",
+    "referenceZone": "America/Sao_Paulo",
+    "referenceCity": "São Paulo",
+    "selectedMinuteOfDay": "840",
+    "isLive": "false",
+    "zones": "[{\"id\":\"sp\",\"city\":\"São Paulo\",\"zone\":\"America/Sao_Paulo\"},{\"id\":\"nyc\",\"city\":\"Nova York\",\"zone\":\"America/New_York\"},{\"id\":\"lon\",\"city\":\"Londres\",\"zone\":\"Europe/London\"},{\"id\":\"tyo\",\"city\":\"Tóquio\",\"zone\":\"Asia/Tokyo\"}]"
+  },
+  "platforms": [
+    "windows"
+  ],
+  "permissions": [],
+  "capabilities": [
+    "board-widget"
+  ],
+  "networkHosts": []
+}

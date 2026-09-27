@@ -1,0 +1,64 @@
+{
+  "manifestVersion": 2,
+  "id": "clipdesk.imagecompressor",
+  "name": "Compressor de Imagens",
+  "description": "Comprima, otimize e redimensione imagens em lote com presets rápidos, WIC nativo e adição direta à mesa.",
+  "version": "1.1.0",
+  "publisher": "ClipDesk",
+  "iconGlyph": "",
+  "accentColor": "#0EA5E9",
+  "runtime": "portable-v2",
+  "pluginApiVersion": 2,
+  "stateVersion": 2,
+  "module": {
+    "assembly": "ClipDesk.Plugin.ImageCompressor.Core.dll",
+    "type": "ClipDesk.Plugin.ImageCompressor.ImageCompressorModule"
+  },
+  "renderers": [
+    {
+      "platform": "windows",
+      "runtime": "wpf-v2",
+      "assembly": "ClipDesk.Plugin.ImageCompressor.dll",
+      "type": "ClipDesk.Plugin.ImageCompressor.ImageCompressorPlugin"
+    }
+  ],
+  "minimumHostVersion": "0.4.4",
+  "installByDefault": false,
+  "sortOrder": 140,
+  "defaultSize": {
+    "width": 680,
+    "height": 360
+  },
+  "minimumSize": {
+    "width": 240,
+    "height": 240
+  },
+  "defaultContent": {
+    "$schema": "2",
+    "quality": "75",
+    "preset": "balanced",
+    "outputFormat": "original",
+    "maxDimension": "original",
+    "stripMetadata": "true",
+    "totalFilesCompressed": "0",
+    "totalBytesSaved": "0",
+    "lastMessage": "Pronto para comprimir",
+    "singleInput": "[]",
+    "batchInputs": "[]",
+    "batchMode": "false"
+  },
+  "platforms": [
+    "windows"
+  ],
+  "permissions": [
+    "file.read",
+    "file.write",
+    "workspace.assets"
+  ],
+  "capabilities": [
+    "board-widget",
+    "board-files",
+    "file-drop"
+  ],
+  "networkHosts": []
+}
